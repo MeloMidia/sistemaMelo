@@ -43,7 +43,7 @@ function toDateInputValue(date: Date | string | null | undefined): string {
   return `${y}-${m}-${day}`
 }
 
-const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique']
+const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor']
 
 export function TaskManager() {
   const { data: tasks, isLoading: tasksLoading } = useAllTasks()
@@ -178,7 +178,7 @@ export function TaskManager() {
               <Label htmlFor="taskAssignee" className="text-slate-300 text-sm font-medium">
                 Responsável
               </Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => setAssignee('')}
