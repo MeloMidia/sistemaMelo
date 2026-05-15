@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LayoutDashboard, AlertCircle, Lock, Mail } from 'lucide-react'
+import { LayoutDashboard, AlertCircle, Lock, User } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,7 +30,7 @@ export default function LoginPage() {
     setLoading(false)
 
     if (res?.error) {
-      setError('Email ou senha inválidos.')
+      setError('Login ou senha inválidos.')
     } else {
       router.push('/')
       router.refresh()
@@ -82,14 +82,14 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-300 text-sm font-medium">
-                Email
+                Login / Usuário
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="seu@email.com"
+                  type="text"
+                  placeholder="Seu login"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
