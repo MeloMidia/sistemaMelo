@@ -1,12 +1,26 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useAllTasks, useCreateTask, useUpdateTask, useDeleteTask, useColumns, useCompletedTasks } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { Task } from '@/types'
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import {
   Plus,
   Calendar,
@@ -25,6 +39,7 @@ import {
   Pencil,
   X,
   Save,
+  Activity,
 } from 'lucide-react'
 
 // Converte string "YYYY-MM-DD" para Date sem perder um dia por timezone
@@ -45,6 +60,62 @@ function toDateInputValue(date: Date | string | null | undefined): string {
 
 const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor']
 
+function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass }: any) {
+  const { isOver, setNodeRef } = useDroppable({ id })
+  
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`rounded-2xl border flex flex-col overflow-hidden transition-colors
+        ${isOver ? 'ring-2 ring-blue-500/50' : ''}
+        ${borderClass} ${bgClass}`}
+    >
+      <div className={`p-5 border-b flex items-center justify-between ${headerClass}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ring-1 ${colorClass}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h2>
+            <p className="text-xs font-medium opacity-70">{count} tarefas</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+        {tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 opacity-50">
+            <Icon className="w-10 h-10 mb-2" />
+            <p className="text-sm font-medium">{emptyMessage}</p>
+          </div>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DraggableTask({ task, children }: { task: Task, children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task }
+  })
+  
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 999 : 'auto',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="touch-none outline-none">
+      <div className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function TaskManager() {
   const { data: tasks, isLoading: tasksLoading } = useAllTasks()
   const { data: completedTasks, isLoading: historyLoading } = useCompletedTasks()
@@ -60,8 +131,18 @@ export function TaskManager() {
   const [assignee, setAssignee] = useState('')
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+  
+  const [completeModal, setCompleteModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
+  const [completedBy, setCompletedBy] = useState('')
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null })
 
   const defaultColumnId = columns?.[0]?.id || ''
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,7 +151,6 @@ export function TaskManager() {
     createTask.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
-      // Envia como ISO mas ajustado para horário local (meio-dia) evitando shift
       dueDate: dueDate ? parseDateLocal(dueDate).toISOString() : undefined,
       isPriorityToday: isPriority,
       columnId: defaultColumnId,
@@ -100,13 +180,69 @@ export function TaskManager() {
     return sorted
   }, [tasks, sortBy])
 
-  const queueTasks = useMemo(() => allTasks.filter(t => !t.isPriorityToday), [allTasks])
+  const queueTasks = useMemo(() => allTasks.filter(t => !t.isPriorityToday && !t.isDoing), [allTasks])
+  const doingTasks = useMemo(() => allTasks.filter(t => t.isDoing && !t.isPriorityToday), [allTasks])
   const priorityTasks = useMemo(() => allTasks.filter(t => t.isPriorityToday), [allTasks])
 
-  const handleComplete = (task: Task) => {
-    updateTask.mutate({ id: task.id, completedAt: new Date().toISOString() })
-    setHistoryOpen(true)
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal({ isOpen: true, id })
   }
+
+  const confirmDelete = () => {
+    if (deleteModal.id) {
+      deleteTask.mutate(deleteModal.id)
+      setDeleteModal({ isOpen: false, id: null })
+    }
+  }
+
+  const handleCompleteClick = (task: Task) => {
+    setCompleteModal({ isOpen: true, task })
+    setCompletedBy(task.assignee || '')
+  }
+
+  const confirmComplete = () => {
+    if (completeModal.task) {
+      updateTask.mutate({ 
+        id: completeModal.task.id, 
+        completedAt: new Date().toISOString(),
+        completedBy: completedBy.trim() || undefined
+      })
+      setCompleteModal({ isOpen: false, task: null })
+      setHistoryOpen(true)
+    }
+  }
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event
+    if (active.data.current?.task) {
+      setActiveTask(active.data.current.task as Task)
+    }
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveTask(null)
+
+    if (!over) return
+
+    const activeTask = active.data.current?.task as Task
+    if (!activeTask) return
+
+    const overId = over.id.toString()
+    
+    let updates: Partial<Task> = {}
+    if (overId === 'col-queue') {
+      updates = { isDoing: false, isPriorityToday: false }
+    } else if (overId === 'col-doing') {
+      updates = { isDoing: true, isPriorityToday: false }
+    } else if (overId === 'col-priority') {
+      updates = { isDoing: false, isPriorityToday: true }
+    }
+
+    if (activeTask.isDoing !== updates.isDoing || activeTask.isPriorityToday !== updates.isPriorityToday) {
+      updateTask.mutate({ id: activeTask.id, ...updates })
+    }
+  }, [updateTask])
 
   if (tasksLoading) {
     return (
@@ -121,198 +257,223 @@ export function TaskManager() {
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
-      {/* 3-column grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-        {/* Column 1: Form */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center ring-1 ring-blue-500/20">
-              <Plus className="w-5 h-5 text-blue-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>Nova Tarefa</h2>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="taskTitle" className="text-slate-300 text-sm font-medium">
-                Nome da tarefa *
-              </Label>
-              <Input
-                id="taskTitle"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Digite o nome..."
-                required
-                className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl h-11"
-              />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* 4-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[500px]">
+          {/* Column 1: Form */}
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center ring-1 ring-blue-500/20">
+                <Plus className="w-5 h-5 text-blue-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>Nova Tarefa</h2>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="taskDesc" className="text-slate-300 text-sm font-medium">
-                Descrição
-              </Label>
-              <textarea
-                id="taskDesc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descrição opcional..."
-                rows={3}
-                className="w-full rounded-xl bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="taskTitle" className="text-slate-300 text-sm font-medium">
+                  Nome da tarefa *
+                </Label>
+                <Input
+                  id="taskTitle"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Digite o nome..."
+                  required
+                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl h-11"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="taskDue" className="text-slate-300 text-sm font-medium">
-                Data máxima de entrega
-              </Label>
-              <Input
-                id="taskDue"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] rounded-xl h-11"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="taskDesc" className="text-slate-300 text-sm font-medium">
+                  Descrição
+                </Label>
+                <textarea
+                  id="taskDesc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Descrição opcional..."
+                  rows={3}
+                  className="w-full rounded-xl bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="taskAssignee" className="text-slate-300 text-sm font-medium">
-                Responsável
-              </Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAssignee('')}
-                  className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
-                    assignee === ''
-                      ? 'bg-slate-600 border-slate-500 text-white'
-                      : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:border-white/[0.2] hover:text-slate-300'
-                  }`}
-                >
-                  Nenhum
-                </button>
-                {ASSIGNEES.map((name) => (
+              <div className="space-y-2">
+                <Label htmlFor="taskDue" className="text-slate-300 text-sm font-medium">
+                  Data máxima de entrega
+                </Label>
+                <Input
+                  id="taskDue"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] rounded-xl h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="taskAssignee" className="text-slate-300 text-sm font-medium">
+                  Responsável
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    key={name}
                     type="button"
-                    onClick={() => setAssignee(name)}
+                    onClick={() => setAssignee('')}
                     className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
-                      assignee === name
-                        ? 'bg-blue-600 border-blue-500 text-white'
-                        : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-blue-500/40 hover:text-white'
+                      assignee === ''
+                        ? 'bg-slate-600 border-slate-500 text-white'
+                        : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:border-white/[0.2] hover:text-slate-300'
                     }`}
                   >
-                    {name}
+                    Nenhum
                   </button>
-                ))}
+                  {ASSIGNEES.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setAssignee(name)}
+                      className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
+                        assignee === name
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-blue-500/40 hover:text-white'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
-              <Checkbox
-                id="taskPriority"
-                checked={isPriority}
-                onCheckedChange={(checked) => setIsPriority(checked === true)}
-                className="border-amber-500/40 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 cursor-pointer"
-              />
-              <Label htmlFor="taskPriority" className="text-amber-300 text-sm font-medium cursor-pointer flex items-center gap-2">
-                <Flame className="w-4 h-4" />
-                Prioridade para hoje
-              </Label>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={createTask.isPending || !title.trim()}
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold border-0 shadow-lg shadow-blue-600/20 cursor-pointer rounded-xl text-[15px]"
-            >
-              {createTask.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              Criar Tarefa
-            </Button>
-          </form>
-        </div>
-
-        {/* Column 2: Task Queue */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] flex flex-col overflow-hidden">
-          <div className="p-5 border-b border-white/[0.07] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-blue-500/10 flex items-center justify-center ring-1 ring-indigo-500/20">
-                <ClipboardList className="w-5 h-5 text-indigo-400" />
+              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
+                <Checkbox
+                  id="taskPriority"
+                  checked={isPriority}
+                  onCheckedChange={(checked) => setIsPriority(checked === true)}
+                  className="border-amber-500/40 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 cursor-pointer"
+                />
+                <Label htmlFor="taskPriority" className="text-amber-300 text-sm font-medium cursor-pointer flex items-center gap-2">
+                  <Flame className="w-4 h-4" />
+                  Prioridade
+                </Label>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>Fila de Tarefas</h2>
-                <p className="text-xs text-slate-500 font-medium">{queueTasks.length} tarefas</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setSortBy(sortBy === 'created' ? 'dueDate' : 'created')}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg hover:bg-white/[0.06] cursor-pointer font-medium"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              {sortBy === 'created' ? 'Por criação' : 'Por data'}
-            </button>
+
+              <Button
+                type="submit"
+                disabled={createTask.isPending || !title.trim()}
+                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold border-0 shadow-lg shadow-blue-600/20 cursor-pointer rounded-xl text-[15px]"
+              >
+                {createTask.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Criar Tarefa
+              </Button>
+            </form>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-            {queueTasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-600">
-                <FileText className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">Nenhuma tarefa criada</p>
-              </div>
-            ) : (
-              queueTasks.map((task) => (
+          {/* Column 2: Task Queue */}
+          <DroppableColumn
+            id="col-queue"
+            title="Fila de Tarefas"
+            icon={ClipboardList}
+            count={queueTasks.length}
+            tasks={queueTasks}
+            emptyMessage="Nenhuma tarefa na fila"
+            colorClass="bg-gradient-to-br from-indigo-500/20 to-blue-500/10 ring-indigo-500/20 text-indigo-400"
+            borderClass="border-white/[0.07]"
+            bgClass="bg-white/[0.02]"
+            headerClass="border-white/[0.07]"
+          >
+            {queueTasks.map((task) => (
+              <DraggableTask key={task.id} task={task}>
                 <TaskQueueItem
-                  key={task.id}
                   task={task}
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
-                  onDelete={() => deleteTask.mutate(task.id)}
-                  onComplete={() => handleComplete(task)}
+                  onDelete={() => handleDeleteClick(task.id)}
+                  onComplete={() => handleCompleteClick(task)}
                   onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
                 />
-              ))
-            )}
-          </div>
-        </div>
+              </DraggableTask>
+            ))}
+          </DroppableColumn>
 
-        {/* Column 3: Priority */}
-        <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.02] flex flex-col overflow-hidden">
-          <div className="p-5 border-b border-amber-500/15 bg-gradient-to-b from-amber-500/[0.08] to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/25 to-amber-500/10 flex items-center justify-center ring-1 ring-amber-500/25">
-                <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-amber-100" style={{ fontFamily: 'var(--font-heading)' }}>Prioridade do Dia</h2>
-                <p className="text-xs text-amber-400/60 font-medium">{priorityTasks.length} tarefas</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-            {priorityTasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-amber-500/30">
-                <Flame className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">Nenhuma prioridade definida</p>
-              </div>
-            ) : (
-              priorityTasks.map((task) => (
+          {/* Column 3: Doing */}
+          <DroppableColumn
+            id="col-doing"
+            title="Fazendo"
+            icon={Activity}
+            count={doingTasks.length}
+            tasks={doingTasks}
+            emptyMessage="Nenhuma tarefa em andamento"
+            colorClass="bg-gradient-to-br from-blue-500/20 to-cyan-500/10 ring-blue-500/20 text-blue-400"
+            borderClass="border-blue-500/15"
+            bgClass="bg-blue-500/[0.02]"
+            headerClass="border-blue-500/15 bg-gradient-to-b from-blue-500/[0.05] to-transparent text-blue-100"
+          >
+            {doingTasks.map((task) => (
+              <DraggableTask key={task.id} task={task}>
                 <TaskQueueItem
-                  key={task.id}
+                  task={task}
+                  isDoingView
+                  onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
+                  onDelete={() => handleDeleteClick(task.id)}
+                  onComplete={() => handleCompleteClick(task)}
+                  onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
+                />
+              </DraggableTask>
+            ))}
+          </DroppableColumn>
+
+          {/* Column 4: Priority */}
+          <DroppableColumn
+            id="col-priority"
+            title="Prioridade do Dia"
+            icon={Star}
+            count={priorityTasks.length}
+            tasks={priorityTasks}
+            emptyMessage="Nenhuma prioridade definida"
+            colorClass="bg-gradient-to-br from-amber-500/25 to-amber-500/10 ring-amber-500/25 text-amber-400"
+            borderClass="border-amber-500/15"
+            bgClass="bg-amber-500/[0.02]"
+            headerClass="border-amber-500/15 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-amber-100"
+          >
+            {priorityTasks.map((task) => (
+              <DraggableTask key={task.id} task={task}>
+                <TaskQueueItem
                   task={task}
                   isPriorityView
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: false })}
-                  onDelete={() => deleteTask.mutate(task.id)}
-                  onComplete={() => handleComplete(task)}
+                  onDelete={() => handleDeleteClick(task.id)}
+                  onComplete={() => handleCompleteClick(task)}
                   onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
                 />
-              ))
-            )}
-          </div>
+              </DraggableTask>
+            ))}
+          </DroppableColumn>
         </div>
-      </div>
+
+        <DragOverlay>
+          {activeTask ? (
+            <div className="w-[300px] opacity-90 rotate-2 scale-105 transition-transform">
+              <TaskQueueItem
+                task={activeTask}
+                isPriorityView={activeTask.isPriorityToday}
+                isDoingView={activeTask.isDoing}
+                onTogglePriority={() => {}}
+                onDelete={() => {}}
+                onComplete={() => {}}
+                onEdit={() => {}}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* History Section */}
       <div className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
@@ -362,6 +523,71 @@ export function TaskManager() {
           </div>
         )}
       </div>
+
+      {/* ── Modal de Confirmação de Exclusão ──────────────── */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteModal({ isOpen: false, id: null })} />
+          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-2">Excluir Tarefa</h3>
+            <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteModal({ isOpen: false, id: null })}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-500 transition-colors cursor-pointer"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Confirmação de Conclusão ──────────────── */}
+      {completeModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setCompleteModal({ isOpen: false, task: null })} />
+          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-2">Concluir Tarefa</h3>
+            <p className="text-sm text-slate-400 mb-4">Tem certeza que deseja marcar esta tarefa como concluída?</p>
+            
+            <div className="mb-6 space-y-2">
+              <label className="text-xs font-medium text-slate-300 block">Quem está confirmando?</label>
+              <Input
+                autoFocus
+                value={completedBy}
+                onChange={(e) => setCompletedBy(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmComplete()
+                }}
+                placeholder="Nome da pessoa"
+                className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl h-11"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCompleteModal({ isOpen: false, task: null })}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmComplete}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors cursor-pointer"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -372,6 +598,7 @@ export function TaskManager() {
 function TaskQueueItem({
   task,
   isPriorityView,
+  isDoingView,
   onTogglePriority,
   onDelete,
   onComplete,
@@ -379,6 +606,7 @@ function TaskQueueItem({
 }: {
   task: Task
   isPriorityView?: boolean
+  isDoingView?: boolean
   onTogglePriority: () => void
   onDelete: () => void
   onComplete: () => void
@@ -414,11 +642,15 @@ function TaskQueueItem({
 
   if (editing) {
     return (
-      <div className={`p-3.5 rounded-xl border space-y-3 ${
+      <div className={`p-3.5 rounded-xl border space-y-3 cursor-default ${
         isPriorityView
           ? 'bg-amber-500/[0.07] border-amber-500/20'
-          : 'bg-blue-500/[0.05] border-blue-500/20'
-      }`}>
+          : isDoingView
+          ? 'bg-blue-500/[0.07] border-blue-500/20'
+          : 'bg-white/[0.05] border-white/[0.2]'
+      }`}
+      onPointerDown={(e) => e.stopPropagation()} // Impede o drag enquanto edita
+      >
         {/* Título */}
         <Input
           value={editTitle}
@@ -476,10 +708,12 @@ function TaskQueueItem({
 
   return (
     <div className={`
-      group p-3.5 rounded-xl border
+      group p-3.5 rounded-xl border bg-black/40 backdrop-blur-sm
       ${isPriorityView
-        ? 'bg-amber-500/[0.04] border-amber-500/10 hover:border-amber-500/25'
-        : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.14]'
+        ? 'border-amber-500/20 hover:border-amber-500/40 shadow-[0_4px_12px_rgba(245,158,11,0.05)]'
+        : isDoingView
+        ? 'border-blue-500/20 hover:border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.05)]'
+        : 'border-white/[0.07] hover:border-white/[0.14] shadow-sm'
       }
     `}>
       <div className="flex items-start gap-3">
@@ -502,6 +736,11 @@ function TaskQueueItem({
                 <Star className="w-3 h-3 fill-current" />
               </span>
             )}
+            {task.isDoing && !isDoingView && (
+              <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">
+                <Activity className="w-3 h-3" />
+              </span>
+            )}
             {task.assignee && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
                 {task.assignee}
@@ -510,36 +749,40 @@ function TaskQueueItem({
           </div>
         </div>
 
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity">
           <button
-            onClick={onComplete}
+            onClick={(e) => { e.stopPropagation(); onComplete() }}
             className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
             title="Marcar como concluída"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <Check className="w-4 h-4" />
           </button>
           <button
-            onClick={openEdit}
+            onClick={(e) => { e.stopPropagation(); openEdit() }}
             className="p-1.5 rounded-lg text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 cursor-pointer"
             title="Editar tarefa"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button
-            onClick={onTogglePriority}
+            onClick={(e) => { e.stopPropagation(); onTogglePriority() }}
             className={`p-1.5 rounded-lg cursor-pointer ${
               task.isPriorityToday
                 ? 'text-amber-400 hover:bg-amber-500/10'
                 : 'text-slate-600 hover:text-amber-400 hover:bg-amber-500/10'
             }`}
             title={task.isPriorityToday ? 'Remover prioridade' : 'Marcar como prioridade'}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <Star className={`w-4 h-4 ${task.isPriorityToday ? 'fill-current' : ''}`} />
           </button>
           <button
-            onClick={onDelete}
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
             className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
             title="Excluir"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -567,6 +810,7 @@ function HistoryItem({ task }: { task: Task }) {
               <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500/70">
                 <Check className="w-3 h-3" />
                 {completedAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {task.completedBy && ` · ${task.completedBy}`}
               </span>
             )}
             {dueDate && (

@@ -4,6 +4,7 @@ export interface Task {
   description: string | null
   dueDate: string | null
   isPriorityToday: boolean
+  isDoing: boolean
   columnId: string
   order: number
   source: string
@@ -12,6 +13,7 @@ export interface Task {
   notes: string | null
   createdAt: string
   completedAt: string | null
+  completedBy: string | null
 }
 
 export interface Column {

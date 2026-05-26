@@ -15,9 +15,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.description !== undefined) data.description = body.description
   if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
   if (body.isPriorityToday !== undefined) data.isPriorityToday = body.isPriorityToday
+  if (body.isDoing !== undefined) data.isDoing = body.isDoing
   if (body.columnId !== undefined) data.columnId = body.columnId
   if (body.order !== undefined) data.order = body.order
   if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null
+  if (body.completedBy !== undefined) data.completedBy = body.completedBy
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl
   if (body.assignee !== undefined) data.assignee = body.assignee
   if (body.notes !== undefined) data.notes = body.notes

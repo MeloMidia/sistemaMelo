@@ -6,13 +6,34 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, FileText, Save, NotebookPen,
+  ImagePlus, FileText, Save, NotebookPen, Plus
 } from 'lucide-react'
 import { useDeleteTask, useUpdateTask } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 
 interface TaskCardProps {
   task: TaskType
+}
+
+interface NoteItem {
+  id: string;
+  date: string;
+  text: string;
+}
+
+function parseNotes(notesStr: string | null | undefined): NoteItem[] {
+  if (!notesStr) return [];
+  try {
+    const parsed = JSON.parse(notesStr);
+    if (Array.isArray(parsed)) return parsed;
+    throw new Error('Not array');
+  } catch (e) {
+    return [{
+      id: 'legacy-note',
+      date: new Date().toISOString(),
+      text: notesStr
+    }];
+  }
 }
 
 // Extrai "YYYY-MM-DD" de um Date/string sem perder dia por timezone
@@ -51,15 +72,14 @@ export function TaskCard({ task }: TaskCardProps) {
 
   // Detail modal state
   const [modalOpen, setModalOpen] = useState(false)
-  const [notes, setNotes] = useState(task.notes || '')
-  const [notesModified, setNotesModified] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteNoteModalOpen, setDeleteNoteModalOpen] = useState<string | null>(null)
+  const [notesList, setNotesList] = useState<NoteItem[]>([])
+  const [newNoteText, setNewNoteText] = useState('')
 
-  // Sincroniza notes quando task.notes muda (após refetch do React Query)
   useEffect(() => {
-    if (!modalOpen) {
-      setNotes(task.notes || '')
-    }
-  }, [task.notes, modalOpen])
+    setNotesList(parseNotes(task.notes))
+  }, [task.notes])
 
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
@@ -113,19 +133,11 @@ export function TaskCard({ task }: TaskCardProps) {
   }
 
   // ── Modal notes handler ────────────────────────────────
-  const handleSaveNotes = () => {
-    updateTask.mutate({ id: task.id, notes } as any, {
-      onSuccess: () => setNotesModified(false),
-    })
-  }
-
   const handleOpenModal = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest('button') || target.closest('input') || target.closest('textarea')) return
     if (isEditing) return
-    // Sempre sincroniza do task mais recente (após refetch do React Query)
-    setNotes(task.notes || '')
-    setNotesModified(false)
+    setNewNoteText('')
     setModalOpen(true)
   }
 
@@ -308,7 +320,10 @@ export function TaskCard({ task }: TaskCardProps) {
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => deleteTask.mutate(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDeleteModalOpen(true)
+                }}
                 className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
                 title="Excluir"
               >
@@ -323,10 +338,7 @@ export function TaskCard({ task }: TaskCardProps) {
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={() => {
-            if (notesModified) handleSaveNotes()
-            setModalOpen(false)
-          }}
+          onClick={() => setModalOpen(false)}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
@@ -368,10 +380,7 @@ export function TaskCard({ task }: TaskCardProps) {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  if (notesModified) handleSaveNotes()
-                  setModalOpen(false)
-                }}
+                onClick={() => setModalOpen(false)}
                 className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors shrink-0"
               >
                 <X className="w-5 h-5" />
@@ -379,42 +388,126 @@ export function TaskCard({ task }: TaskCardProps) {
             </div>
 
             {/* Notes section */}
-            <div className="p-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                  <FileText className="w-4 h-4 text-indigo-400" />
-                  Anotações do cliente
-                </label>
-                <button
-                  onClick={handleSaveNotes}
-                  disabled={!notesModified || updateTask.isPending}
-                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed
-                    bg-blue-600 hover:bg-blue-500 disabled:hover:bg-blue-600 text-white"
-                >
-                  {updateTask.isPending
-                    ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-                    : <Save className="w-3.5 h-3.5" />
-                  }
-                  {updateTask.isPending ? 'Salvando...' : notesModified ? 'Salvar' : 'Salvo ✓'}
-                </button>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                <FileText className="w-4 h-4 text-indigo-400" />
+                Anotações do cliente
               </div>
 
-              <textarea
-                value={notes}
-                onChange={(e) => {
-                  setNotes(e.target.value)
-                  setNotesModified(true)
-                }}
-                placeholder="Digite aqui observações, informações de contato, próximos passos, histórico de conversas..."
-                rows={10}
-                className="w-full rounded-xl bg-white/[0.03] border border-white/[0.07] focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 text-white placeholder:text-slate-600 px-4 py-3 text-sm leading-relaxed resize-none focus:outline-none transition-colors"
-              />
+              {/* Add Note */}
+              <div className="space-y-2">
+                <textarea
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  placeholder="Nova anotação..."
+                  rows={3}
+                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.07] focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 text-white placeholder:text-slate-600 px-4 py-3 text-sm leading-relaxed resize-none focus:outline-none transition-colors"
+                />
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (!newNoteText.trim()) return;
+                      const newNote = {
+                        id: crypto.randomUUID(),
+                        date: new Date().toISOString(),
+                        text: newNoteText.trim()
+                      };
+                      const updated = [newNote, ...notesList];
+                      setNotesList(updated);
+                      setNewNoteText('');
+                      updateTask.mutate({ id: task.id, notes: JSON.stringify(updated) } as any);
+                    }}
+                    disabled={!newNoteText.trim() || updateTask.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Adicionar Anotação
+                  </button>
+                </div>
+              </div>
 
-              <p className="text-[11px] text-slate-600">
-                {notesModified
-                  ? '⚠ Alterações não salvas — clique em Salvar.'
-                  : 'Clique em Salvar após editar as anotações.'}
-              </p>
+              {/* List Notes */}
+              <div className="space-y-3 mt-4 max-h-[40vh] overflow-y-auto pr-2">
+                {notesList.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4">Nenhuma anotação adicionada ainda.</p>
+                ) : (
+                  notesList.map(note => (
+                    <div key={note.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] group">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(note.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          onClick={() => setDeleteNoteModalOpen(note.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all cursor-pointer"
+                          title="Excluir anotação"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{note.text}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Confirmação de Exclusão ──────────────── */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteModalOpen(false)} />
+          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-2">Excluir Tarefa</h3>
+            <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteTask.mutate(task.id)
+                  setDeleteModalOpen(false)
+                }}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-500 transition-colors cursor-pointer"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Confirmação de Exclusão de Anotação ──────────────── */}
+      {deleteNoteModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteNoteModalOpen(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-2">Excluir Anotação</h3>
+            <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteNoteModalOpen(null)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const updated = notesList.filter(n => n.id !== deleteNoteModalOpen);
+                  setNotesList(updated);
+                  updateTask.mutate({ id: task.id, notes: JSON.stringify(updated) } as any);
+                  setDeleteNoteModalOpen(null);
+                }}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-500 transition-colors cursor-pointer"
+              >
+                Excluir
+              </button>
             </div>
           </div>
         </div>

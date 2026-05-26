@@ -30,6 +30,7 @@ model Task {
   description     String?
   dueDate         DateTime?
   isPriorityToday Boolean   @default(false)
+  isDoing         Boolean   @default(false)
   columnId        String
   column          Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
   order           Int
@@ -39,6 +40,7 @@ model Task {
   notes           String?
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
+  completedBy     String?
   tags            TaskTag[]
 }
 
