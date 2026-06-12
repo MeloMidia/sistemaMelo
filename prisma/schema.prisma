@@ -20,6 +20,7 @@ model Column {
   id        String   @id @default(uuid())
   title     String
   order     Int
+  source    String   @default("kanban")
   createdAt DateTime @default(now())
   tasks     Task[]
 }
@@ -31,6 +32,7 @@ model Task {
   dueDate         DateTime?
   isPriorityToday Boolean   @default(false)
   isDoing         Boolean   @default(false)
+  isWaiting       Boolean   @default(false)
   columnId        String
   column          Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
   order           Int
@@ -38,6 +40,7 @@ model Task {
   assignee        String?
   logoUrl         String?
   notes           String?
+  meetingsCount   Int       @default(0)
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
   completedBy     String?

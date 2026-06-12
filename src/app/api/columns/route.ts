@@ -3,14 +3,18 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { searchParams } = new URL(request.url)
+  const source = searchParams.get('source') || 'kanban'
+
   const columns = await prisma.column.findMany({
+    where: { source } as object,
     include: {
       tasks: {
-        where: { source: 'kanban' } as object,
+        where: { source } as object,
         orderBy: { order: 'asc' },
       },
     },
@@ -24,10 +28,12 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title } = await request.json()
+  const { title, source } = await request.json()
+  const columnSource = source || 'kanban'
 
-  // Get max order
+  // Get max order for this source
   const lastColumn = await prisma.column.findFirst({
+    where: { source: columnSource } as object,
     orderBy: { order: 'desc' },
   })
 
@@ -37,7 +43,8 @@ export async function POST(request: Request) {
     data: {
       title,
       order: newOrder,
-    },
+      source: columnSource,
+    } as any,
   })
 
   return NextResponse.json(column)

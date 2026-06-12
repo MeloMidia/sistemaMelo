@@ -4,30 +4,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Column, Task } from '@/types'
 
 // ——— Columns ———
-export function useColumns() {
+export function useColumns(source: string = 'kanban') {
   return useQuery<Column[]>({
-    queryKey: ['columns'],
+    queryKey: ['columns', source],
     queryFn: async () => {
-      const res = await fetch('/api/columns')
+      const res = await fetch(`/api/columns?source=${source}`)
       if (!res.ok) throw new Error('Failed to fetch columns')
       return res.json()
     },
   })
 }
 
-export function useCreateColumn() {
+export function useCreateColumn(source: string = 'kanban') {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (title: string) => {
       const res = await fetch('/api/columns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ title, source }),
       })
       if (!res.ok) throw new Error('Failed to create column')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['columns'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['columns', source] }),
   })
 }
 

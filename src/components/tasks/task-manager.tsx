@@ -40,6 +40,7 @@ import {
   X,
   Save,
   Activity,
+  Clock,
 } from 'lucide-react'
 
 // Converte string "YYYY-MM-DD" para Date sem perder um dia por timezone
@@ -128,6 +129,7 @@ export function TaskManager() {
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [isPriority, setIsPriority] = useState(false)
+  const [isWaiting, setIsWaiting] = useState(false)
   const [assignee, setAssignee] = useState('')
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -153,6 +155,7 @@ export function TaskManager() {
       description: description.trim() || undefined,
       dueDate: dueDate ? parseDateLocal(dueDate).toISOString() : undefined,
       isPriorityToday: isPriority,
+      isWaiting: isWaiting,
       columnId: defaultColumnId,
       source: 'tasks',
       assignee: assignee || null,
@@ -162,6 +165,7 @@ export function TaskManager() {
     setDescription('')
     setDueDate('')
     setIsPriority(false)
+    setIsWaiting(false)
     setAssignee('')
   }
 
@@ -347,6 +351,19 @@ export function TaskManager() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-orange-500/[0.08] border border-orange-500/15">
+                <Checkbox
+                  id="taskWaiting"
+                  checked={isWaiting}
+                  onCheckedChange={(checked) => setIsWaiting(checked === true)}
+                  className="border-orange-500/40 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500 cursor-pointer"
+                />
+                <Label htmlFor="taskWaiting" className="text-orange-300 text-sm font-medium cursor-pointer flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Aguardando
+                </Label>
               </div>
 
               <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
@@ -739,6 +756,12 @@ function TaskQueueItem({
             {task.isDoing && !isDoingView && (
               <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">
                 <Activity className="w-3 h-3" />
+              </span>
+            )}
+            {task.isWaiting && (
+              <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400">
+                <Clock className="w-3 h-3" />
+                Aguardando
               </span>
             )}
             {task.assignee && (

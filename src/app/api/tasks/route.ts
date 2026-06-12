@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title, description, dueDate, isPriorityToday, columnId, logoUrl, source, assignee } = await request.json()
+  const { title, description, dueDate, isPriorityToday, columnId, logoUrl, source, assignee, isWaiting, meetingsCount } = await request.json()
 
   // Get max order inside column
   const lastTask = await prisma.task.findFirst({
@@ -35,11 +35,13 @@ export async function POST(request: Request) {
       description,
       dueDate: dueDate ? new Date(dueDate) : null,
       isPriorityToday: isPriorityToday || false,
+      isWaiting: isWaiting || false,
       columnId,
       order: newOrder,
       logoUrl: logoUrl || null,
       source: source || 'tasks',
       assignee: assignee || null,
+      meetingsCount: meetingsCount || 0,
     } as any,
   })
 

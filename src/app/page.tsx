@@ -5,10 +5,11 @@ import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
-import { LayoutDashboard, ClipboardList, LogOut, User, BarChart } from 'lucide-react'
+import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type ActiveTab = 'kanban' | 'tasks' | 'dashboard'
+type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -48,6 +49,19 @@ export default function HomePage() {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Processos
+              </button>
+              <button
+                onClick={() => setActiveTab('mentoria')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
+                  ${activeTab === 'mentoria'
+                    ? 'bg-gradient-to-r from-purple-600/90 to-fuchsia-600/90 text-white shadow-lg shadow-purple-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <GraduationCap className="w-4 h-4" />
+                Mentoria
               </button>
               <button
                 onClick={() => setActiveTab('tasks')}
@@ -103,6 +117,7 @@ export default function HomePage() {
       {/* Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {activeTab === 'kanban' && <KanbanBoard />}
+        {activeTab === 'mentoria' && <MentoriaBoard />}
         {activeTab === 'tasks' && <TaskManager />}
         {activeTab === 'dashboard' && <DashboardView />}
       </main>

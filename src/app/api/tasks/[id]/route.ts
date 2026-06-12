@@ -16,6 +16,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
   if (body.isPriorityToday !== undefined) data.isPriorityToday = body.isPriorityToday
   if (body.isDoing !== undefined) data.isDoing = body.isDoing
+  if (body.isWaiting !== undefined) data.isWaiting = body.isWaiting
   if (body.columnId !== undefined) data.columnId = body.columnId
   if (body.order !== undefined) data.order = body.order
   if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null
@@ -23,6 +24,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl
   if (body.assignee !== undefined) data.assignee = body.assignee
   if (body.notes !== undefined) data.notes = body.notes
+  if (body.meetingsCount !== undefined) data.meetingsCount = body.meetingsCount
 
   const task = await prisma.task.update({
     where: { id },
