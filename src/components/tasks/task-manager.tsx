@@ -19,8 +19,10 @@ import {
   useDraggable,
   type DragStartEvent,
   type DragEndEvent,
+  type KeyboardCoordinateGetter,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import {
   Plus,
   Calendar,
@@ -141,9 +143,19 @@ export function TaskManager() {
 
   const defaultColumnId = columns?.[0]?.id || ''
 
+  // Custom coordinate getter que ignora eventos de teclado vindos de inputs/textareas/selects
+  // Isso impede o bug do espaço nos campos de edição
+  const customKeyboardCoordinates: KeyboardCoordinateGetter = (event, args) => {
+    const tag = (event.target as HTMLElement)?.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      return undefined
+    }
+    return sortableKeyboardCoordinates(event, args)
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor, { coordinateGetter: customKeyboardCoordinates })
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -672,6 +684,7 @@ function TaskQueueItem({
         <Input
           value={editTitle}
           onChange={(e) => setEditTitle(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Nome da tarefa..."
           className="bg-white/[0.05] border-white/[0.12] text-white placeholder:text-slate-600 rounded-lg h-9 text-sm"
         />
@@ -680,6 +693,7 @@ function TaskQueueItem({
         <textarea
           value={editDesc}
           onChange={(e) => setEditDesc(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Descrição..."
           rows={2}
           className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 resize-none"
