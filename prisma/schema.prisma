@@ -84,6 +84,18 @@ model DashboardGoal {
   reunioesAgendadas   Int      @default(200)
   reunioesRealizadas  Int      @default(150)
   faturamento         Float    @default(50000)
-  
+
   updatedAt           DateTime @updatedAt
+}
+
+model SdrDailyLog {
+  id            String   @id @default(cuid())
+  date          DateTime @unique
+  leadsWhatsapp Int      @default(0)
+  agendadas     Int      @default(0)
+  realizadas    Int      @default(0)
+  faltaLead     Int      @default(0)
+  naoRealizada  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
