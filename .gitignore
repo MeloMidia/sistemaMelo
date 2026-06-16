@@ -48,3 +48,7 @@ next-env.d.ts
 *.db-journal
 
 .vercel
+
+# AI tools and IDE settings
+.claude/
+.superpowers/

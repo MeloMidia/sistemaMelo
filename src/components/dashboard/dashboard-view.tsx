@@ -155,8 +155,8 @@ export function DashboardView() {
     <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto space-y-6 pb-10">
 
-        {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Top bar — ML style */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/5 pb-5">
           <PeriodSelector
             period={period}
             showComparison={showComparison}
@@ -170,12 +170,46 @@ export function DashboardView() {
           </div>
         </div>
 
+        {/* Sales KPIs */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-200">Vendas & Faturamento</h2>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              title="Faturamento"
+              value={formatMoney(currentMetrics.faturamento)}
+              colorVariant="amber"
+              delta={calcDelta(currentMetrics.faturamento, prevMetrics?.faturamento ?? null)}
+            />
+            <KpiCard
+              title="Vendas fechadas"
+              value={formatNum(currentMetrics.vendasQtd)}
+              colorVariant="amber"
+              delta={calcDelta(currentMetrics.vendasQtd, prevMetrics?.vendasQtd ?? null)}
+            />
+            <KpiCard
+              title="Taxa lead→venda"
+              value={`${taxaLeadVenda.toFixed(1)}%`}
+              colorVariant="amber"
+              subtitle="Vendas / Leads WA"
+            />
+            <KpiCard
+              title="CAC médio"
+              value={formatMoney(cac)}
+              colorVariant="amber"
+              delta={calcDelta(cac, prevCac)}
+            />
+          </div>
+        </section>
+
         {/* SDR KPIs */}
         <section>
-          <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-3">
-            Métricas SDR — Reuniões & Leads
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-200">Métricas SDR</h2>
+            <span className="text-[11px] text-indigo-400 font-medium uppercase tracking-wider">Reuniões & Leads</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <KpiCard
               title="Leads WhatsApp"
               value={formatNum(sdr.leadsWhatsapp)}
@@ -209,43 +243,11 @@ export function DashboardView() {
           </div>
         </section>
 
-        {/* Sales KPIs */}
-        <section>
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3">
-            Vendas & Faturamento
-          </p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
-              title="Faturamento"
-              value={formatMoney(currentMetrics.faturamento)}
-              colorVariant="amber"
-              delta={calcDelta(currentMetrics.faturamento, prevMetrics?.faturamento ?? null)}
-            />
-            <KpiCard
-              title="Vendas fechadas"
-              value={formatNum(currentMetrics.vendasQtd)}
-              colorVariant="amber"
-              delta={calcDelta(currentMetrics.vendasQtd, prevMetrics?.vendasQtd ?? null)}
-            />
-            <KpiCard
-              title="Taxa lead→venda"
-              value={`${taxaLeadVenda.toFixed(1)}%`}
-              colorVariant="amber"
-              subtitle="Vendas / Leads WA"
-            />
-            <KpiCard
-              title="CAC médio"
-              value={formatMoney(cac)}
-              colorVariant="amber"
-              delta={calcDelta(cac, prevCac)}
-            />
-          </div>
-        </section>
-
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4">
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-slate-300 mb-4">Funil de conversão</h3>
+            <h3 className="text-sm font-semibold text-slate-200 mb-1">Funil de conversão</h3>
+            <p className="text-xs text-slate-500 mb-4">WA → Agendadas → Realizadas → Vendas</p>
             <FunnelChart
               leadsWhatsapp={sdr.leadsWhatsapp}
               agendadas={sdr.agendadas}
@@ -254,7 +256,8 @@ export function DashboardView() {
             />
           </div>
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-slate-300 mb-4">Evolução diária</h3>
+            <h3 className="text-sm font-semibold text-slate-200 mb-1">Evolução diária</h3>
+            <p className="text-xs text-slate-500 mb-4">Leads, agendamentos e realizações por dia</p>
             <DailyLineChart
               data={sdrLogs.map(l => ({
                 date: l.date,

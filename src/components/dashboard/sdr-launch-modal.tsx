@@ -24,25 +24,29 @@ const FIELDS: { name: keyof typeof EMPTY_FORM; label: string; color: 'blue' | 'r
   { name: 'naoRealizada', label: 'Não realizada', color: 'red', colSpan: true },
 ]
 
+function toDateInputValue(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function parseDateInput(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(false)
   const [form, setForm] = useState<typeof EMPTY_FORM>({ ...EMPTY_FORM })
+  const [selectedDate, setSelectedDate] = useState(toDateInputValue(new Date()))
 
-  const today = new Date()
-  const todayLabel = today.toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
-
-  const open = async () => {
-    setIsOpen(true)
+  const fetchLogForDate = async (dateStr: string) => {
     setIsFetching(true)
     try {
-      const existing = await getSdrLogByDate(today)
+      const existing = await getSdrLogByDate(parseDateInput(dateStr))
       if (existing) {
         setForm({
           leadsWhatsapp: String(existing.leadsWhatsapp),
@@ -59,9 +63,22 @@ export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
     }
   }
 
+  const open = async () => {
+    const today = toDateInputValue(new Date())
+    setSelectedDate(today)
+    setIsOpen(true)
+    await fetchLogForDate(today)
+  }
+
   const close = () => {
     setIsOpen(false)
     setForm({ ...EMPTY_FORM })
+  }
+
+  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setSelectedDate(val)
+    if (val) await fetchLogForDate(val)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,6 +88,7 @@ export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedDate) return
     setIsLoading(true)
     try {
       const data: SdrLogData = {
@@ -80,7 +98,7 @@ export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
         faltaLead: Number(form.faltaLead || 0),
         naoRealizada: Number(form.naoRealizada || 0),
       }
-      await upsertSdrLog(today, data)
+      await upsertSdrLog(parseDateInput(selectedDate), data)
       close()
       onSuccess()
     } catch (error) {
@@ -106,19 +124,28 @@ export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#07080c]/80 backdrop-blur-sm"
-      onClick={e => {
-        if (e.target === e.currentTarget) close()
-      }}
+      onClick={e => { if (e.target === e.currentTarget) close() }}
     >
-      <div className="bg-[#0f111a] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-[#0f111a] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl relative overflow-hidden">
         <div className="flex justify-between items-start p-6 border-b border-white/5">
           <div>
             <h2 className="text-xl font-semibold text-white tracking-tight">Lançamento do dia</h2>
-            <p className="text-xs text-slate-500 mt-1 capitalize">{todayLabel}</p>
+            <p className="text-xs text-slate-500 mt-1">Selecione a data do lançamento</p>
           </div>
           <button onClick={close} className="text-slate-400 hover:text-white transition-colors cursor-pointer mt-1">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        <div className="px-6 pt-5">
+          <label className="text-xs font-medium text-slate-400 mb-1.5 block">Data</label>
+          <input
+            type="date"
+            value={selectedDate}
+            max={toDateInputValue(new Date())}
+            onChange={handleDateChange}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          />
         </div>
 
         {isFetching ? (

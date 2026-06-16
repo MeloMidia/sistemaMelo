@@ -16,14 +16,14 @@ interface KpiCardProps {
   delta?: KpiDelta
 }
 
-const borderClasses: Record<KpiColorVariant, string> = {
-  default: 'border-l-white/10',
-  blue: 'border-l-indigo-500',
-  amber: 'border-l-amber-500',
-  red: 'border-l-red-500',
+const topBorderClasses: Record<KpiColorVariant, string> = {
+  default: 'border-t-white/20',
+  blue: 'border-t-indigo-500',
+  amber: 'border-t-amber-400',
+  red: 'border-t-red-500',
 }
 
-const deltaTextClasses = {
+const deltaColors = {
   up: 'text-emerald-400',
   down: 'text-red-400',
   neutral: 'text-slate-500',
@@ -41,30 +41,23 @@ export function KpiCard({
 }: KpiCardProps) {
   return (
     <div
-      className={`bg-white/[0.02] border border-white/[0.05] border-l-4 ${borderClasses[colorVariant]} rounded-xl p-5 hover:bg-white/[0.04] transition-colors flex flex-col justify-between h-full relative overflow-hidden group min-h-[110px]`}
+      className={`bg-white/[0.03] border border-white/[0.07] border-t-2 ${topBorderClasses[colorVariant]} rounded-xl p-5 hover:bg-white/[0.05] transition-colors flex flex-col gap-2 min-h-[100px]`}
     >
-      <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/[0.02] blur-xl rounded-full group-hover:bg-white/[0.05] transition-colors" />
+      <div className="flex items-center justify-between">
+        <p className="text-slate-400 text-xs font-medium">{title}</p>
+        {icon && <div className="text-slate-500">{icon}</div>}
+      </div>
 
-      <div className="flex items-start justify-between mb-3 relative z-10">
-        <h3 className="text-slate-400 text-xs font-medium pr-4">{title}</h3>
-        {icon && (
-          <div className="text-slate-500 shrink-0 bg-white/[0.03] p-1.5 rounded-lg border border-white/[0.05]">
-            {icon}
-          </div>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-2xl font-bold text-white tracking-tight leading-none">{value}</span>
+        {delta && (
+          <span className={`text-xs font-semibold ${deltaColors[delta.direction]}`}>
+            {deltaArrows[delta.direction]} {delta.value}
+          </span>
         )}
       </div>
 
-      <div className="relative z-10 mt-auto">
-        <div className="text-2xl font-semibold text-white tracking-tight">{value}</div>
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          {subtitle && <div className="text-xs text-slate-500 font-medium">{subtitle}</div>}
-          {delta && (
-            <span className={`text-xs font-semibold ${deltaTextClasses[delta.direction]}`}>
-              {deltaArrows[delta.direction]} {delta.value}
-            </span>
-          )}
-        </div>
-      </div>
+      {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
     </div>
   )
 }
