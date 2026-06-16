@@ -80,8 +80,8 @@ export function DashboardView() {
   const prevSdrTotals: SdrTotals | null = prevData ? aggregateSdrLogs(prevData.logs) : null
 
   const onSuccess = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard', period] })
-  }, [queryClient, period])
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }, [queryClient])
 
   const sdr = aggregateSdrLogs(sdrLogs)
   const cac = currentMetrics.vendasQtd > 0
