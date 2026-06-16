@@ -12,6 +12,7 @@ export function useColumns(source: string = 'kanban') {
       if (!res.ok) throw new Error('Failed to fetch columns')
       return res.json()
     },
+    staleTime: 30_000,
   })
 }
 
@@ -84,6 +85,7 @@ export function useAllTasks() {
       if (!res.ok) throw new Error('Failed to fetch tasks')
       return res.json()
     },
+    staleTime: 30_000,
   })
 }
 
@@ -115,7 +117,7 @@ export function useCreateTask() {
 export function useUpdateTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string;[key: string]: unknown }) => {
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: unknown }) => {
       const res = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -124,10 +126,25 @@ export function useUpdateTask() {
       if (!res.ok) throw new Error('Failed to update task')
       return res.json()
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['columns'] })
+    onMutate: async ({ id, ...data }) => {
+      await qc.cancelQueries({ queryKey: ['tasks'] })
+      const previousTasks = qc.getQueryData<Task[]>(['tasks'])
+      qc.setQueryData<Task[]>(['tasks'], old =>
+        old?.map(t => t.id === id ? { ...t, ...data } as Task : t) ?? []
+      )
+      return { previousTasks }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousTasks !== undefined) {
+        qc.setQueryData(['tasks'], ctx.previousTasks)
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
-      qc.invalidateQueries({ queryKey: ['tasks-history'] })
+      qc.invalidateQueries({ queryKey: ['columns'] })
+      if ('completedAt' in variables) {
+        qc.invalidateQueries({ queryKey: ['tasks-history'] })
+      }
     },
   })
 }
@@ -155,6 +172,7 @@ export function useCompletedTasks() {
       if (!res.ok) throw new Error('Failed to fetch history')
       return res.json()
     },
+    staleTime: 60_000,
   })
 }
 
