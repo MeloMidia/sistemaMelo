@@ -54,7 +54,7 @@ export function KanbanBoard() {
     if (activeData?.type !== 'task') return
 
     // Always read current state from cache — activeData.task is stale after first move
-    const currentColumns = queryClient.getQueryData<Column[]>(['columns'])
+    const currentColumns = queryClient.getQueryData<Column[]>(['columns', 'kanban'])
     if (!currentColumns) return
 
     const activeTaskId = active.id as string
@@ -89,7 +89,7 @@ export function KanbanBoard() {
     }
 
     if (targetColumnId) {
-      queryClient.setQueryData<Column[]>(['columns'], (old) => {
+      queryClient.setQueryData<Column[]>(['columns', 'kanban'], (old) => {
         if (!old) return old
         return old.map((col) => {
           if (col.id === activeColumnId) {
@@ -122,7 +122,7 @@ export function KanbanBoard() {
           const reordered = arrayMove(columns, oldIndex, newIndex)
           const items = reordered.map((col, i) => ({ id: col.id, order: (i + 1) * 1000 }))
 
-          queryClient.setQueryData<Column[]>(['columns'], reordered)
+          queryClient.setQueryData<Column[]>(['columns', 'kanban'], reordered)
           reorderColumns.mutate(items)
         }
       }
@@ -130,7 +130,7 @@ export function KanbanBoard() {
     }
 
     if (activeData?.type === 'task') {
-      const currentColumns = queryClient.getQueryData<Column[]>(['columns'])
+      const currentColumns = queryClient.getQueryData<Column[]>(['columns', 'kanban'])
       if (!currentColumns) return
 
       const items: { id: string; columnId: string; order: number }[] = []
