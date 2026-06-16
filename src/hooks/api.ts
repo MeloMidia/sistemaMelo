@@ -127,10 +127,10 @@ export function useUpdateTask() {
       return res.json()
     },
     onMutate: async ({ id, ...data }) => {
-      await qc.cancelQueries({ queryKey: ['tasks'] })
+      await qc.cancelQueries({ queryKey: ['tasks'], exact: true })
       const previousTasks = qc.getQueryData<Task[]>(['tasks'])
       qc.setQueryData<Task[]>(['tasks'], old =>
-        old?.map(t => t.id === id ? { ...t, ...data } as Task : t) ?? []
+        old?.map(t => t.id === id ? { ...t, ...data } as Task : t)
       )
       return { previousTasks }
     },
