@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -8,16 +9,18 @@ export async function PUT(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { items } = await request.json()
+  if (!items?.length) return NextResponse.json({ success: true })
 
-  // items = [{ id, columnId, order }, ...]
-  const updates = items.map((item: { id: string; columnId: string; order: number }) =>
-    prisma.task.update({
-      where: { id: item.id },
-      data: { columnId: item.columnId, order: item.order },
-    })
+  const rows = (items as { id: string; columnId: string; order: number }[]).map(i =>
+    Prisma.sql`(${i.id}, ${i.columnId}, ${i.order}::int4)`
   )
 
-  await prisma.$transaction(updates)
+  await prisma.$executeRaw`
+    UPDATE "Task" AS t
+    SET "columnId" = v.column_id, "order" = v.ord
+    FROM (VALUES ${Prisma.join(rows)}) AS v(id, column_id, ord)
+    WHERE t.id = v.id
+  `
 
   return NextResponse.json({ success: true })
 }
