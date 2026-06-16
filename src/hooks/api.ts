@@ -2,6 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Column, Task } from '@/types'
+import { getDashboardData } from '@/app/actions/metrics'
+import { getSdrLogs } from '@/app/actions/sdr'
+import { getDateRange, getPreviousPeriodRange, type PeriodKey } from '@/lib/date-range'
 
 // ——— Columns ———
 export function useColumns(source: string = 'kanban') {
@@ -189,5 +192,43 @@ export function useReorderTasks() {
       return res.json()
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['columns'] }),
+  })
+}
+
+// ——— Dashboard ———
+export type DashboardData = {
+  metrics: Awaited<ReturnType<typeof getDashboardData>>['metrics']
+  logs: Awaited<ReturnType<typeof getSdrLogs>>
+}
+
+export function useDashboardData(period: PeriodKey) {
+  return useQuery<DashboardData>({
+    queryKey: ['dashboard', period],
+    queryFn: async () => {
+      const range = getDateRange(period)
+      const [current, logs] = await Promise.all([
+        getDashboardData(range.start, range.end),
+        getSdrLogs(range.start, range.end),
+      ])
+      return { metrics: current.metrics, logs }
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useDashboardPrev(period: PeriodKey, enabled: boolean) {
+  return useQuery<DashboardData>({
+    queryKey: ['dashboard', period, 'prev'],
+    queryFn: async () => {
+      const range = getDateRange(period)
+      const prevRange = getPreviousPeriodRange(range)
+      const [prev, logs] = await Promise.all([
+        getDashboardData(prevRange.start, prevRange.end),
+        getSdrLogs(prevRange.start, prevRange.end),
+      ])
+      return { metrics: prev.metrics, logs }
+    },
+    staleTime: 60_000,
+    enabled,
   })
 }
