@@ -131,7 +131,6 @@ export function TaskManager() {
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [isPriority, setIsPriority] = useState(false)
-  const [isWaiting, setIsWaiting] = useState(false)
   const [assignee, setAssignee] = useState('')
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -167,7 +166,6 @@ export function TaskManager() {
       description: description.trim() || undefined,
       dueDate: dueDate ? parseDateLocal(dueDate).toISOString() : undefined,
       isPriorityToday: isPriority,
-      isWaiting: isWaiting,
       columnId: defaultColumnId,
       source: 'tasks',
       assignee: assignee || null,
@@ -177,7 +175,6 @@ export function TaskManager() {
     setDescription('')
     setDueDate('')
     setIsPriority(false)
-    setIsWaiting(false)
     setAssignee('')
   }
 
@@ -365,19 +362,6 @@ export function TaskManager() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-orange-500/[0.08] border border-orange-500/15">
-                <Checkbox
-                  id="taskWaiting"
-                  checked={isWaiting}
-                  onCheckedChange={(checked) => setIsWaiting(checked === true)}
-                  className="border-orange-500/40 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500 cursor-pointer"
-                />
-                <Label htmlFor="taskWaiting" className="text-orange-300 text-sm font-medium cursor-pointer flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Aguardando
-                </Label>
-              </div>
-
               <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
                 <Checkbox
                   id="taskPriority"
@@ -424,6 +408,7 @@ export function TaskManager() {
                 <TaskQueueItem
                   task={task}
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
+                  onToggleWaiting={() => updateTask.mutate({ id: task.id, isWaiting: !task.isWaiting })}
                   onDelete={() => handleDeleteClick(task.id)}
                   onComplete={() => handleCompleteClick(task)}
                   onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
@@ -451,6 +436,7 @@ export function TaskManager() {
                   task={task}
                   isDoingView
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
+                  onToggleWaiting={() => updateTask.mutate({ id: task.id, isWaiting: !task.isWaiting })}
                   onDelete={() => handleDeleteClick(task.id)}
                   onComplete={() => handleCompleteClick(task)}
                   onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
@@ -478,6 +464,7 @@ export function TaskManager() {
                   task={task}
                   isPriorityView
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: false })}
+                  onToggleWaiting={() => updateTask.mutate({ id: task.id, isWaiting: !task.isWaiting })}
                   onDelete={() => handleDeleteClick(task.id)}
                   onComplete={() => handleCompleteClick(task)}
                   onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
@@ -495,6 +482,7 @@ export function TaskManager() {
                 isPriorityView={activeTask.isPriorityToday}
                 isDoingView={activeTask.isDoing}
                 onTogglePriority={() => {}}
+                onToggleWaiting={() => {}}
                 onDelete={() => {}}
                 onComplete={() => {}}
                 onEdit={() => {}}
@@ -629,6 +617,7 @@ function TaskQueueItem({
   isPriorityView,
   isDoingView,
   onTogglePriority,
+  onToggleWaiting,
   onDelete,
   onComplete,
   onEdit,
@@ -637,6 +626,7 @@ function TaskQueueItem({
   isPriorityView?: boolean
   isDoingView?: boolean
   onTogglePriority: () => void
+  onToggleWaiting: () => void
   onDelete: () => void
   onComplete: () => void
   onEdit: (data: { title: string; description?: string; dueDate?: string; assignee?: string | null }) => void
@@ -772,12 +762,19 @@ function TaskQueueItem({
                 <Activity className="w-3 h-3" />
               </span>
             )}
-            {task.isWaiting && (
-              <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400">
-                <Clock className="w-3 h-3" />
-                Aguardando
-              </span>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleWaiting() }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer ${
+                task.isWaiting
+                  ? 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25'
+                  : 'bg-white/[0.04] text-slate-600 hover:bg-orange-500/10 hover:text-orange-400'
+              }`}
+              title={task.isWaiting ? 'Remover aguardando' : 'Marcar como aguardando'}
+            >
+              <Clock className="w-3 h-3" />
+              {task.isWaiting && 'Aguardando'}
+            </button>
             {task.assignee && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
                 {task.assignee}
