@@ -12,7 +12,7 @@ export async function PUT(request: Request) {
   if (!items?.length) return NextResponse.json({ success: true })
 
   const rows = (items as { id: string; order: number }[]).map(i =>
-    Prisma.sql`(${i.id}, ${i.order}::int4)`
+    Prisma.sql`(${i.id}::text, ${i.order}::int4)`
   )
 
   await prisma.$executeRaw`
