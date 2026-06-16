@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, Target } from 'lucide-react'
-import { getDashboardData } from '@/app/actions/metrics'
-import { getSdrLogs } from '@/app/actions/sdr'
-import { getDateRange, getPreviousPeriodRange, type PeriodKey } from '@/lib/date-range'
+import { type PeriodKey } from '@/lib/date-range'
+import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
 import { SdrLaunchModal } from './sdr-launch-modal'
@@ -14,14 +14,7 @@ import { AddMetricModal } from './add-metric-modal'
 import { EditMetricModal } from './edit-metric-modal'
 import { TriGoalBar } from './tri-goal-bar'
 
-type SdrLog = {
-  date: Date | string
-  leadsWhatsapp: number
-  agendadas: number
-  realizadas: number
-  faltaLead: number
-  naoRealizada: number
-}
+type SdrLog = DashboardData['logs'][number]
 
 type MetricTotals = {
   leadsTrafego: number
@@ -76,44 +69,19 @@ const EMPTY_METRICS: MetricTotals = {
 export function DashboardView() {
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [showComparison, setShowComparison] = useState(true)
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
 
-  const [currentMetrics, setCurrentMetrics] = useState<MetricTotals>(EMPTY_METRICS)
-  const [prevMetrics, setPrevMetrics] = useState<MetricTotals | null>(null)
-  const [sdrLogs, setSdrLogs] = useState<SdrLog[]>([])
-  const [prevSdrTotals, setPrevSdrTotals] = useState<SdrTotals | null>(null)
-  const [goals, setGoals] = useState({ faturamento: 50000, leads: 1000, reunioesAgendadas: 200, reunioesRealizadas: 150 })
+  const { data: currentData, isLoading } = useDashboardData(period)
+  const { data: prevData } = useDashboardPrev(period, showComparison)
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const range = getDateRange(period)
-      const [current, logs] = await Promise.all([
-        getDashboardData(range.start, range.end),
-        getSdrLogs(range.start, range.end),
-      ])
-      setCurrentMetrics(current.metrics)
-      setGoals(current.goals as typeof goals)
-      setSdrLogs(logs as SdrLog[])
+  const currentMetrics: MetricTotals = currentData?.metrics ?? EMPTY_METRICS
+  const sdrLogs: SdrLog[] = currentData?.logs ?? []
+  const prevMetrics: MetricTotals | null = prevData?.metrics ?? null
+  const prevSdrTotals: SdrTotals | null = prevData ? aggregateSdrLogs(prevData.logs) : null
 
-      if (showComparison) {
-        const prevRange = getPreviousPeriodRange(range)
-        const [prev, prevLogs] = await Promise.all([
-          getDashboardData(prevRange.start, prevRange.end),
-          getSdrLogs(prevRange.start, prevRange.end),
-        ])
-        setPrevMetrics(prev.metrics)
-        setPrevSdrTotals(aggregateSdrLogs(prevLogs as SdrLog[]))
-      } else {
-        setPrevMetrics(null)
-        setPrevSdrTotals(null)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [period, showComparison])
-
-  useEffect(() => { loadData() }, [loadData])
+  const onSuccess = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard', period] })
+  }, [queryClient, period])
 
   const sdr = aggregateSdrLogs(sdrLogs)
   const cac = currentMetrics.vendasQtd > 0
@@ -130,7 +98,6 @@ export function DashboardView() {
     `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const formatNum = (v: number) => v.toLocaleString('pt-BR')
 
-  // Goals
   const GOAL_1 = 50000
   const GOAL_2 = 65000
   const GOAL_3 = 80000
@@ -139,9 +106,6 @@ export function DashboardView() {
   else if (currentMetrics.faturamento >= GOAL_1) salesActiveGoal = GOAL_2
   const leftToNextGoal = Math.max(0, salesActiveGoal - currentMetrics.faturamento)
   const salesPercentageText = (currentMetrics.faturamento / GOAL_1) * 100
-
-  // suppress unused warning — goals state is set from server but not read in JSX directly
-  void goals
 
   if (isLoading) {
     return (
@@ -164,9 +128,9 @@ export function DashboardView() {
             onComparisonChange={setShowComparison}
           />
           <div className="flex items-center gap-3 flex-wrap">
-            <SdrLaunchModal onSuccess={loadData} />
-            <EditMetricModal onSuccess={loadData} initialData={currentMetrics} />
-            <AddMetricModal onSuccess={loadData} />
+            <SdrLaunchModal onSuccess={onSuccess} />
+            <EditMetricModal onSuccess={onSuccess} initialData={currentMetrics} />
+            <AddMetricModal onSuccess={onSuccess} />
           </div>
         </div>
 
