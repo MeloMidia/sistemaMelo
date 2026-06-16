@@ -48,42 +48,61 @@ export function KanbanBoard() {
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
-    if (!over || !columns) return
+    if (!over) return
 
     const activeData = active.data.current
-    const overData = over.data.current
-
     if (activeData?.type !== 'task') return
 
-    const activeTask = activeData.task as Task
+    // Always read current state from cache — activeData.task is stale after first move
+    const currentColumns = queryClient.getQueryData<Column[]>(['columns'])
+    if (!currentColumns) return
+
+    const activeTaskId = active.id as string
+
+    // Find where the task currently lives in the cache
+    let activeColumnId: string | null = null
+    let activeTaskData: Task | null = null
+    for (const col of currentColumns) {
+      const found = col.tasks.find(t => t.id === activeTaskId)
+      if (found) { activeColumnId = col.id; activeTaskData = found; break }
+    }
+    if (!activeColumnId || !activeTaskData) return
+
+    const overData = over.data.current
     let targetColumnId: string | null = null
 
     if (overData?.type === 'task') {
-      const overTask = overData.task as Task
-      if (activeTask.columnId !== overTask.columnId) {
-        targetColumnId = overTask.columnId
+      // Find the over-task's current column from cache (also stale in overData)
+      const overTaskId = over.id as string
+      for (const col of currentColumns) {
+        if (col.tasks.some(t => t.id === overTaskId)) {
+          if (col.id !== activeColumnId) targetColumnId = col.id
+          break
+        }
       }
     } else if (overData?.type === 'column') {
-      targetColumnId = overData.column.id
+      const colId = overData.column.id as string
+      if (colId !== activeColumnId) targetColumnId = colId
     } else if (over.id.toString().startsWith('column-droppable-')) {
-      targetColumnId = over.id.toString().replace('column-droppable-', '')
+      const colId = over.id.toString().replace('column-droppable-', '')
+      if (colId !== activeColumnId) targetColumnId = colId
     }
 
-    if (targetColumnId && targetColumnId !== activeTask.columnId) {
+    if (targetColumnId) {
       queryClient.setQueryData<Column[]>(['columns'], (old) => {
         if (!old) return old
         return old.map((col) => {
-          if (col.id === activeTask.columnId) {
-            return { ...col, tasks: col.tasks.filter((t) => t.id !== activeTask.id) }
+          if (col.id === activeColumnId) {
+            return { ...col, tasks: col.tasks.filter(t => t.id !== activeTaskId) }
           }
           if (col.id === targetColumnId) {
-            return { ...col, tasks: [...col.tasks, { ...activeTask, columnId: targetColumnId! }] }
+            return { ...col, tasks: [...col.tasks, { ...activeTaskData!, columnId: targetColumnId! }] }
           }
           return col
         })
       })
     }
-  }, [columns, queryClient])
+  }, [queryClient])
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
