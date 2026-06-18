@@ -48,12 +48,12 @@ export function getPreviousPeriodRange(range: DateRange): DateRange {
 }
 
 export function normalizeDateToMidnight(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
 }
 
 export function formatDateLabel(date: Date | string): string {
   const d = new Date(date)
-  const day = d.getDate()
+  const day = d.getUTCDate()
   const months = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.']
-  return `${day} ${months[d.getMonth()]}`
+  return `${day} ${months[d.getUTCMonth()]}`
 }

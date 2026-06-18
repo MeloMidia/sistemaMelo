@@ -33,7 +33,7 @@ function toDateInputValue(d: Date): string {
 
 function parseDateInput(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
-  return new Date(y, m - 1, d)
+  return new Date(Date.UTC(y, m - 1, d))
 }
 
 export function SdrLaunchModal({ onSuccess }: SdrLaunchModalProps) {
