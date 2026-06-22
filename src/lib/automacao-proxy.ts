@@ -5,10 +5,6 @@ import { NextResponse } from 'next/server'
 const BASE_URL = process.env.AUTOMACAO_ML_URL ?? ''
 const API_KEY  = process.env.AUTOMACAO_ML_API_KEY ?? ''
 
-if (!BASE_URL || !API_KEY) {
-  throw new Error('AUTOMACAO_ML_URL and AUTOMACAO_ML_API_KEY env vars are required')
-}
-
 /** Verifica sessão next-auth. Retorna NextResponse 401 se não autenticado. */
 export async function requireAuth(): Promise<null | NextResponse> {
   const session = await getServerSession(authOptions)
@@ -18,6 +14,9 @@ export async function requireAuth(): Promise<null | NextResponse> {
 
 /** Chama o FastAPI com X-API-Key. Retorna o Response cru. */
 export function fastapiRequest(path: string, init?: RequestInit): Promise<Response> {
+  if (!BASE_URL || !API_KEY) {
+    return Promise.reject(new Error('Env vars AUTOMACAO_ML_URL e AUTOMACAO_ML_API_KEY não configuradas no servidor.'))
+  }
   return fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -30,6 +29,6 @@ export function fastapiRequest(path: string, init?: RequestInit): Promise<Respon
 
 /** Converte Response do FastAPI em NextResponse preservando o status code. */
 export async function proxyJson(res: Response): Promise<NextResponse> {
-  const data = await res.json().catch(() => ({ error: 'Invalid response from server' }))
+  const data = await res.json().catch(() => ({ error: 'Resposta inválida do servidor.' }))
   return NextResponse.json(data, { status: res.status })
 }

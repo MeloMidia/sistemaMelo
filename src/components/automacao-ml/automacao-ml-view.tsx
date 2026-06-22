@@ -33,8 +33,9 @@ export function AutomacaoMLView() {
     setErrorMsg(null)
     try {
       const res  = await fetch('/api/automacao/clients')
+      if (!res.ok) throw new Error(`Erro HTTP ${res.status} na rota proxy.`)
       const data = await res.json()
-      if (!data.ok) throw new Error(data.error)
+      if (!data.ok) throw new Error(data.error || data.message || 'Erro desconhecido do servidor.')
       setClients(data.clients)
       setStatus('ready')
     } catch (e) {
