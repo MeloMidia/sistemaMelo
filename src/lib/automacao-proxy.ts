@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
-const BASE_URL = process.env.AUTOMACAO_ML_URL ?? ''
+const BASE_URL = (process.env.AUTOMACAO_ML_URL ?? '').replace(/\/$/, '')
 const API_KEY  = process.env.AUTOMACAO_ML_API_KEY ?? ''
 
 /** Verifica sessão next-auth. Retorna NextResponse 401 se não autenticado. */
