@@ -6,10 +6,11 @@ import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
-import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard'
+type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -89,6 +90,19 @@ export default function HomePage() {
                 <BarChart className="w-4 h-4" />
                 Dashboard
               </button>
+              <button
+                onClick={() => setActiveTab('automacao-ml')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
+                  ${activeTab === 'automacao-ml'
+                    ? 'bg-gradient-to-r from-emerald-600/90 to-teal-600/90 text-white shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <Bot className="w-4 h-4" />
+                Automação ML
+              </button>
             </nav>
           </div>
 
@@ -120,6 +134,7 @@ export default function HomePage() {
         {activeTab === 'mentoria' && <MentoriaBoard />}
         {activeTab === 'tasks' && <TaskManager />}
         {activeTab === 'dashboard' && <DashboardView />}
+        {activeTab === 'automacao-ml' && <AutomacaoMLView />}
       </main>
     </div>
   )
