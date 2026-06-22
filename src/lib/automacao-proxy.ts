@@ -27,3 +27,9 @@ export function fastapiRequest(path: string, init?: RequestInit): Promise<Respon
     },
   })
 }
+
+/** Converte Response do FastAPI em NextResponse preservando o status code. */
+export async function proxyJson(res: Response): Promise<NextResponse> {
+  const data = await res.json().catch(() => ({ error: 'Invalid response from server' }))
+  return NextResponse.json(data, { status: res.status })
+}
