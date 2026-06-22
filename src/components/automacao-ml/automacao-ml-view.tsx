@@ -37,8 +37,8 @@ export function AutomacaoMLView() {
       if (!data.ok) throw new Error(data.error)
       setClients(data.clients)
       setStatus('ready')
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e))
       setStatus('error')
     }
   }
@@ -49,12 +49,13 @@ export function AutomacaoMLView() {
     setSelectedSheets([])
     try {
       const res  = await fetch(`/api/automacao/sheets?client_id=${client.id}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (!data.ok) throw new Error(data.error)
       setSheets(data.sheets)
       setSelectedSheets(data.sheets)
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -87,14 +88,15 @@ export function AutomacaoMLView() {
       esRef.current = es
 
       es.onmessage = (e) => {
-        const event = JSON.parse(e.data)
+        let event: Record<string, unknown>
+        try { event = JSON.parse(e.data) } catch { return }
         if (event.type === 'log') {
-          setLogs(prev => [...prev, event.text])
+          setLogs(prev => [...prev, String(event.text ?? '')])
         } else if (event.type === 'done') {
           setStatus('done')
           es.close()
         } else if (event.type === 'error') {
-          setErrorMsg(event.message ?? 'Erro desconhecido.')
+          setErrorMsg(String(event.message ?? 'Erro desconhecido.'))
           setStatus('error')
           es.close()
         } else if (event.type === 'cancelled') {
@@ -108,8 +110,8 @@ export function AutomacaoMLView() {
         setStatus('error')
         es.close()
       }
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e))
       setStatus('error')
     }
   }
