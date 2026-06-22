@@ -1,4 +1,5 @@
 import { requireAuth, fastapiRequest } from '@/lib/automacao-proxy'
+import { NextResponse } from 'next/server'
 
 export async function GET(
   _request: Request,
@@ -9,13 +10,25 @@ export async function GET(
 
   const { jobId } = await params
 
-  const fastapiRes = await fastapiRequest(`/api/stream/${jobId}`)
+  try {
+    const fastapiRes = await fastapiRequest(`/api/stream/${jobId}`)
 
-  return new Response(fastapiRes.body, {
-    headers: {
-      'Content-Type':      'text/event-stream',
-      'Cache-Control':     'no-cache',
-      'X-Accel-Buffering': 'no',
-    },
-  })
+    if (!fastapiRes.ok) {
+      return new Response(fastapiRes.body, {
+        status: fastapiRes.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(fastapiRes.body, {
+      headers: {
+        'Content-Type':      'text/event-stream',
+        'Cache-Control':     'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection':        'keep-alive',
+      },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Failed to stream logs' }, { status: 500 })
+  }
 }
