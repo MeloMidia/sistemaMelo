@@ -29,14 +29,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { name, stageId, assignedToId } = await request.json()
 
-  const lead = await prisma.lead.update({
-    where: { id },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(stageId !== undefined && { stageId }),
-      ...(assignedToId !== undefined && { assignedToId }),
-    },
-  })
-
-  return NextResponse.json(lead)
+  try {
+    const lead = await prisma.lead.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(stageId !== undefined && { stageId }),
+        ...(assignedToId !== undefined && { assignedToId }),
+      },
+    })
+    return NextResponse.json(lead)
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code
+    if (code === 'P2025') {
+      return NextResponse.json({ error: 'Lead, etapa ou responsável não encontrado' }, { status: 404 })
+    }
+    throw error
+  }
 }
