@@ -17,11 +17,21 @@ export async function GET() {
       controller.enqueue(encoder.encode(`: connected\n\n`))
 
       unsubscribe = subscribeCrmEvents((event) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+        } catch {
+          unsubscribe()
+          clearInterval(heartbeat)
+        }
       })
 
       heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(`: heartbeat\n\n`))
+        try {
+          controller.enqueue(encoder.encode(`: heartbeat\n\n`))
+        } catch {
+          unsubscribe()
+          clearInterval(heartbeat)
+        }
       }, 25_000)
     },
     cancel() {
