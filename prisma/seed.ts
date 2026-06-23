@@ -38,6 +38,35 @@ async function main() {
     }
   }
 
+  // Create initial CRM lead stages if none exist
+  const stageCount = await prisma.leadStage.count()
+  if (stageCount === 0) {
+    const defaultStages = [
+      { name: 'Novo Contato', order: 1000, color: '#3b82f6' },
+      { name: 'Em Conversa', order: 2000, color: '#f59e0b' },
+      { name: 'Qualificado', order: 3000, color: '#10b981' },
+      { name: 'Cliente', order: 4000, color: '#8b5cf6' },
+    ]
+
+    for (const stage of defaultStages) {
+      await prisma.leadStage.create({ data: stage })
+    }
+  }
+
+  // Create initial CRM tags if none exist
+  const crmTagCount = await prisma.crmTag.count()
+  if (crmTagCount === 0) {
+    const defaultTags = [
+      { name: 'Quente', color: '#ef4444' },
+      { name: 'Frio', color: '#3b82f6' },
+      { name: 'Indicação', color: '#10b981' },
+    ]
+
+    for (const tag of defaultTags) {
+      await prisma.crmTag.create({ data: tag })
+    }
+  }
+
   console.log('Seed executed successfully')
 }
 
