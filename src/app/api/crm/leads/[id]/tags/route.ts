@@ -11,11 +11,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
   const { tagId } = await request.json()
 
-  const leadTag = await prisma.leadTag.upsert({
-    where: { leadId_tagId: { leadId: id, tagId } },
-    update: {},
-    create: { leadId: id, tagId },
-  })
-
-  return NextResponse.json(leadTag)
+  try {
+    const leadTag = await prisma.leadTag.upsert({
+      where: { leadId_tagId: { leadId: id, tagId } },
+      update: {},
+      create: { leadId: id, tagId },
+    })
+    return NextResponse.json(leadTag)
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code
+    if (code === 'P2003') {
+      return NextResponse.json({ error: 'Lead ou tag informado não existe' }, { status: 400 })
+    }
+    throw error
+  }
 }

@@ -12,7 +12,13 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id, tagId } = await params
-  await prisma.leadTag.delete({ where: { leadId_tagId: { leadId: id, tagId } } })
+
+  try {
+    await prisma.leadTag.delete({ where: { leadId_tagId: { leadId: id, tagId } } })
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code
+    if (code !== 'P2025') throw error // já desvinculado — idempotente
+  }
 
   return NextResponse.json({ success: true })
 }

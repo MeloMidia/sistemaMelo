@@ -27,6 +27,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  await prisma.crmTag.delete({ where: { id } })
-  return NextResponse.json({ success: true })
+
+  try {
+    await prisma.crmTag.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code
+    if (code === 'P2025') {
+      return NextResponse.json({ error: 'Tag não encontrada' }, { status: 404 })
+    }
+    throw error
+  }
 }
