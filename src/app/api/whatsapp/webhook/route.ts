@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
 import { emitCrmEvent } from '@/lib/crm-events'
 
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET ?? ''
 
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 function isAuthorized(request: Request): boolean {
-  if (!WEBHOOK_SECRET) return true
+  if (!WEBHOOK_SECRET) return process.env.NODE_ENV !== 'production'
   const headerSecret = request.headers.get('x-webhook-secret')
-  if (headerSecret === WEBHOOK_SECRET) return true
+  if (headerSecret && timingSafeEqualStrings(headerSecret, WEBHOOK_SECRET)) return true
   const { searchParams } = new URL(request.url)
-  return searchParams.get('secret') === WEBHOOK_SECRET
+  const querySecret = searchParams.get('secret')
+  return !!querySecret && timingSafeEqualStrings(querySecret, WEBHOOK_SECRET)
 }
 
 function extractMessageText(message: Record<string, unknown> | undefined): string | null {
@@ -110,16 +119,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
-  const event = body.event as string
-  const data = (body.data ?? {}) as Record<string, unknown>
+  try {
+    const body = await request.json()
+    const event = body.event as string
+    const data = (body.data ?? {}) as Record<string, unknown>
 
-  if (event === 'messages.upsert') {
-    await handleMessagesUpsert(data)
-  } else if (event === 'connection.update') {
-    await handleConnectionUpdate(data)
-  } else if (event === 'messages.update') {
-    await handleMessagesUpdate(data)
+    if (event === 'messages.upsert') {
+      await handleMessagesUpsert(data)
+    } else if (event === 'connection.update') {
+      await handleConnectionUpdate(data)
+    } else if (event === 'messages.update') {
+      await handleMessagesUpdate(data)
+    }
+  } catch (error) {
+    console.error('Erro ao processar webhook da Evolution API:', error)
   }
 
   return NextResponse.json({ ok: true })
