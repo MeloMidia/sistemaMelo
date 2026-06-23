@@ -42,7 +42,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code
     if (code === 'P2025') {
-      return NextResponse.json({ error: 'Lead, etapa ou responsável não encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+    }
+    if (code === 'P2003') {
+      return NextResponse.json({ error: 'Etapa ou responsável informado não existe' }, { status: 400 })
     }
     throw error
   }
