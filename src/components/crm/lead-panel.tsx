@@ -46,7 +46,7 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   }, [messages])
 
   function handleSend() {
-    if (!draft.trim()) return
+    if (!draft.trim() || sendMessage.isPending) return
     sendMessage.mutate(draft.trim())
     setDraft('')
   }
@@ -200,7 +200,12 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
           placeholder="Digite uma mensagem..."
           className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl"
         />
-        <Button onClick={handleSend} className="bg-blue-600 hover:bg-blue-500 text-white cursor-pointer rounded-lg" size="icon">
+        <Button
+          onClick={handleSend}
+          disabled={!draft.trim() || sendMessage.isPending}
+          className="bg-blue-600 hover:bg-blue-500 text-white cursor-pointer rounded-lg disabled:opacity-50"
+          size="icon"
+        >
           <Send className="w-4 h-4" />
         </Button>
       </div>
