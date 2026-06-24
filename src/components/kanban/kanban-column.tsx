@@ -33,7 +33,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
   const deleteColumn = useDeleteColumn()
   const updateColumn = useUpdateColumn()
 
-  const { setNodeRef: setDroppableRef } = useDroppable({
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `column-droppable-${column.id}`,
     data: { type: 'column', column },
   })
@@ -106,10 +106,12 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
       ref={setSortableRef}
       style={style}
       className={`
-        flex flex-col w-[330px] shrink-0 rounded-2xl border
+        flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-200
         ${isDragging
           ? 'opacity-60 scale-[0.98] shadow-2xl shadow-blue-500/10 border-blue-500/20'
-          : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
+          : isOver
+            ? 'bg-blue-500/[0.02] border-blue-500/25 shadow-lg shadow-blue-500/5'
+            : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
         }
       `}
     >

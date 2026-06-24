@@ -97,7 +97,7 @@ export function TaskCard({ task }: TaskCardProps) {
   })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: isDragging ? undefined : CSS.Transform.toString(transform),
     transition,
   }
 

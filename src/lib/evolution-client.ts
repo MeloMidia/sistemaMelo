@@ -51,3 +51,20 @@ export async function getQrCode(): Promise<QrCodeResult> {
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
   return res.json()
 }
+
+export async function findMessages(phone: string): Promise<any[]> {
+  const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
+  const res = await evolutionRequest(`/chat/findMessages/${INSTANCE}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      where: {
+        key: {
+          remoteJid: jid
+        }
+      }
+    }),
+  })
+  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data : (data?.messages || [])
+}

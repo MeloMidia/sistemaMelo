@@ -7,33 +7,32 @@ import { MessageCircle } from 'lucide-react'
 
 interface LeadCardProps {
   lead: Lead
-  onSelect: () => void
+  onSelect?: () => void
+  isOverlay?: boolean
 }
 
-export function LeadCard({ lead, onSelect }: LeadCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
+    disabled: isOverlay,
   })
-
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined
 
   const lastMessage = lead.messages[0]
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
-      onClick={onSelect}
+      onClick={isOverlay ? undefined : onSelect}
       className={`
-        p-3 rounded-xl border cursor-pointer
-        ${isDragging
-          ? 'opacity-60 scale-[0.98] shadow-2xl shadow-blue-500/10 border-blue-500/20 z-10'
-          : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.15] hover:bg-white/[0.05]'
+        p-3 rounded-xl border select-none transition-all duration-150
+        ${isOverlay
+          ? 'bg-white/[0.06] border-white/[0.15] shadow-2xl shadow-black/50 scale-[1.02] cursor-grabbing'
+          : isDragging
+            ? 'opacity-25 border-dashed border-white/[0.1] bg-transparent cursor-grabbing'
+            : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.15] hover:bg-white/[0.05] cursor-pointer'
         }
       `}
     >

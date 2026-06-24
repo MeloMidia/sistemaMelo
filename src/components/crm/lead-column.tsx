@@ -11,13 +11,19 @@ interface LeadColumnProps {
 }
 
 export function LeadColumn({ stage, onSelectLead }: LeadColumnProps) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `stage-droppable-${stage.id}`,
     data: { stageId: stage.id },
   })
 
   return (
-    <div className="flex flex-col w-[330px] shrink-0 rounded-2xl border bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]">
+    <div
+      className={`flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-200 ${
+        isOver
+          ? 'bg-blue-500/[0.03] border-blue-500/30 shadow-lg shadow-blue-500/5'
+          : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
+      }`}
+    >
       <div
         className="p-4 rounded-t-2xl"
         style={{ background: `linear-gradient(to bottom, ${stage.color}26, transparent)` }}

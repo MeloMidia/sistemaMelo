@@ -69,34 +69,58 @@ export function KanbanBoard() {
     if (!activeColumnId || !activeTaskData) return
 
     const overData = over.data.current
-    let targetColumnId: string | null = null
+    let overColumnId: string | null = null
+    let isOverTask = false
 
     if (overData?.type === 'task') {
-      // Find the over-task's current column from cache (also stale in overData)
+      isOverTask = true
       const overTaskId = over.id as string
       for (const col of currentColumns) {
         if (col.tasks.some(t => t.id === overTaskId)) {
-          if (col.id !== activeColumnId) targetColumnId = col.id
+          overColumnId = col.id
           break
         }
       }
     } else if (overData?.type === 'column') {
-      const colId = overData.column.id as string
-      if (colId !== activeColumnId) targetColumnId = colId
+      overColumnId = overData.column.id as string
     } else if (over.id.toString().startsWith('column-droppable-')) {
-      const colId = over.id.toString().replace('column-droppable-', '')
-      if (colId !== activeColumnId) targetColumnId = colId
+      overColumnId = over.id.toString().replace('column-droppable-', '')
     }
 
-    if (targetColumnId) {
+    if (!overColumnId) return
+
+    if (overColumnId !== activeColumnId) {
+      // Dragging over a DIFFERENT column
       queryClient.setQueryData<Column[]>(['columns', 'kanban'], (old) => {
         if (!old) return old
         return old.map((col) => {
           if (col.id === activeColumnId) {
             return { ...col, tasks: col.tasks.filter(t => t.id !== activeTaskId) }
           }
-          if (col.id === targetColumnId) {
-            return { ...col, tasks: [...col.tasks, { ...activeTaskData!, columnId: targetColumnId! }] }
+          if (col.id === overColumnId) {
+            let newTasks = [...col.tasks]
+            if (isOverTask) {
+              const overIdx = col.tasks.findIndex(t => t.id === over.id)
+              newTasks.splice(overIdx >= 0 ? overIdx : newTasks.length, 0, { ...activeTaskData!, columnId: overColumnId! })
+            } else {
+              newTasks.push({ ...activeTaskData!, columnId: overColumnId! })
+            }
+            return { ...col, tasks: newTasks }
+          }
+          return col
+        })
+      })
+    } else if (isOverTask) {
+      // Reordering within the SAME column
+      queryClient.setQueryData<Column[]>(['columns', 'kanban'], (old) => {
+        if (!old) return old
+        return old.map((col) => {
+          if (col.id === activeColumnId) {
+            const oldIdx = col.tasks.findIndex(t => t.id === activeTaskId)
+            const newIdx = col.tasks.findIndex(t => t.id === over.id)
+            if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+              return { ...col, tasks: arrayMove(col.tasks, oldIdx, newIdx) }
+            }
           }
           return col
         })

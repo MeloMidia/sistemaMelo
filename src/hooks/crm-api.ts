@@ -106,6 +106,23 @@ export function useSendMessage(leadId: string | null) {
   })
 }
 
+export function useSyncLeadMessages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await fetch(`/api/crm/leads/${leadId}/sync`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to sync messages')
+      return data
+    },
+    onSuccess: (data, leadId) => {
+      qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
+    },
+  })
+}
+
 // ——— Tags ———
 export function useCrmTags() {
   return useQuery<CrmTag[]>({

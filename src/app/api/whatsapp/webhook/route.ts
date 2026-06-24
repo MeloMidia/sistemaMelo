@@ -44,6 +44,11 @@ async function handleMessagesUpsert(data: Record<string, unknown>) {
   if (!key?.remoteJid || !key.id) return
   if (key.fromMe) return // já registrado ao enviar via /api/crm/leads/[id]/messages
 
+  // Ignorar grupos (@g.us) e transmissões de status (@broadcast)
+  if (key.remoteJid.endsWith('@g.us') || key.remoteJid.includes('broadcast')) {
+    return
+  }
+
   const phone = normalizePhone(key.remoteJid)
   const message = data.message as Record<string, unknown> | undefined
   const text = extractMessageText(message)

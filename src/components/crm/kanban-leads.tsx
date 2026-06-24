@@ -1,23 +1,28 @@
 // src/components/crm/kanban-leads.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   DndContext,
+  DragOverlay,
   closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
+  type DragStartEvent,
   type DragEndEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core'
 import { useStages, useCreateStage, useUpdateLead, useCrmStream } from '@/hooks/crm-api'
 import { LeadColumn } from './lead-column'
 import { LeadPanel } from './lead-panel'
-import type { Lead } from '@/types/crm'
+import { LeadCard } from './lead-card'
+import type { Lead, LeadStage } from '@/types/crm'
 import { Plus, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useQueryClient } from '@tanstack/react-query'
 
 const STAGE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
 
@@ -26,8 +31,10 @@ export function KanbanLeads() {
   const createStage = useCreateStage()
   const updateLead = useUpdateLead()
   useCrmStream()
+  const queryClient = useQueryClient()
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
 
@@ -36,25 +43,110 @@ export function KanbanLeads() {
     useSensor(KeyboardSensor)
   )
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event
+    setActiveLead(active.data.current?.lead as Lead)
+  }, [])
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
     if (!over) return
 
-    const lead = active.data.current?.lead as Lead | undefined
-    const targetStageId = over.data.current?.stageId as string | undefined
-    if (!lead || !targetStageId || lead.stageId === targetStageId) return
+    const activeLeadId = active.id as string
+    const currentStages = queryClient.getQueryData<LeadStage[]>(['crm-stages'])
+    if (!currentStages) return
 
-    updateLead.mutate({ id: lead.id, stageId: targetStageId })
-  }
+    // Find the lead and its current stage in the cache
+    let activeStageId: string | null = null
+    let activeLeadData: Lead | null = null
 
-  function handleAddStage() {
+    for (const stage of currentStages) {
+      const found = stage.leads.find((l) => l.id === activeLeadId)
+      if (found) {
+        activeStageId = stage.id
+        activeLeadData = found
+        break
+      }
+    }
+
+    if (!activeStageId || !activeLeadData) return
+
+    // Find target stage ID
+    const overData = over.data.current
+    let targetStageId: string | null = null
+
+    if (overData?.stageId) {
+      targetStageId = overData.stageId as string
+    } else if (overData?.lead) {
+      targetStageId = (overData.lead as Lead).stageId
+    } else if (over.id.toString().startsWith('stage-droppable-')) {
+      targetStageId = over.id.toString().replace('stage-droppable-', '')
+    }
+
+    if (targetStageId && targetStageId !== activeStageId) {
+      // Optimistically update stages in cache
+      queryClient.setQueryData<LeadStage[]>(['crm-stages'], (old) => {
+        if (!old) return old
+        return old.map((stage) => {
+          if (stage.id === activeStageId) {
+            return {
+              ...stage,
+              leads: stage.leads.filter((l) => l.id !== activeLeadId),
+            }
+          }
+          if (stage.id === targetStageId) {
+            return {
+              ...stage,
+              leads: [...stage.leads, { ...activeLeadData!, stageId: targetStageId! }],
+            }
+          }
+          return stage
+        })
+      })
+    }
+  }, [queryClient])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveLead(null)
+    if (!over) return
+
+    const activeLeadId = active.id as string
+    const overData = over.data.current
+    let targetStageId: string | null = null
+
+    if (overData?.stageId) {
+      targetStageId = overData.stageId as string
+    } else if (overData?.lead) {
+      targetStageId = (overData.lead as Lead).stageId
+    } else if (over.id.toString().startsWith('stage-droppable-')) {
+      targetStageId = over.id.toString().replace('stage-droppable-', '')
+    }
+
+    if (!targetStageId) return
+
+    const originalLead = active.data.current?.lead as Lead | undefined
+    if (!originalLead || originalLead.stageId === targetStageId) return
+
+    updateLead.mutate(
+      { id: activeLeadId, stageId: targetStageId },
+      {
+        onError: () => {
+          // Revert to original state on error by invalidating
+          queryClient.invalidateQueries({ queryKey: ['crm-stages'] })
+        }
+      }
+    )
+  }, [queryClient, updateLead])
+
+  const handleAddStage = useCallback(() => {
     if (newStageName.trim()) {
       const color = STAGE_COLORS[Math.floor(Math.random() * STAGE_COLORS.length)]
       createStage.mutate({ name: newStageName.trim(), color })
       setNewStageName('')
       setIsAddingStage(false)
     }
-  }
+  }, [newStageName, createStage])
 
   if (isLoading) {
     return (
@@ -68,7 +160,13 @@ export function KanbanLeads() {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
       <div className="flex-1 overflow-x-auto p-6">
         <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
           {(stages || []).map((stage) => (
@@ -123,6 +221,14 @@ export function KanbanLeads() {
           )}
         </div>
       </div>
+
+      <DragOverlay>
+        {activeLead ? (
+          <div className="w-[304px] rotate-2 opacity-95 shadow-2xl">
+            <LeadCard lead={activeLead} isOverlay={true} />
+          </div>
+        ) : null}
+      </DragOverlay>
 
       {selectedLeadId && <LeadPanel leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}
     </DndContext>
