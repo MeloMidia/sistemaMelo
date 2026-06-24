@@ -54,7 +54,8 @@ async function handleMessagesUpsert(data: Record<string, unknown>) {
   if (!lead) {
     const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
     if (!firstStage) return
-    lead = await prisma.lead.create({ data: { phone, stageId: firstStage.id } })
+    const pushName = typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : null
+    lead = await prisma.lead.create({ data: { phone, stageId: firstStage.id, name: pushName } })
   }
 
   try {
