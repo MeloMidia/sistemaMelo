@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw } from 'lucide-react'
+import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause } from 'lucide-react'
 import { useLeadMessages, useSendMessage, useSyncLeadMessages } from '@/hooks/crm-api'
 
 interface LeadConversaTabProps {
@@ -19,6 +19,170 @@ const TEMPLATES = [
 ]
 
 const whatsappDoodleUrl = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='220' viewBox='0 0 180 220' fill='none'%3E%3Cg fill='%23ffffff' fill-opacity='0.008'%3E%3Cpath d='M15 15h14a2 2 0 012 2v8a2 2 0 01-2 2h-10l-4 4v-4h-2a2 2 0 01-2-2v-8a2 2 0 012-2z' stroke='%23ffffff' stroke-opacity='0.008' stroke-width='1.2' fill='none'/%3E%3Cpath d='M50 25c-2-2-5-2-7 0l-1 1-1-1c-2-2-5-2-7 0-2 2-2 5 0 7l8 8 8-8c2-2 2-5 0-7z' fill='%23ffffff' fill-opacity='0.004'/%3E%3Cpath d='M90 20l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z' fill='%23ffffff' fill-opacity='0.004'/%3E%3Cpath d='M20 70c2 0 4 2 4 4 0 3-3 6-6 6-4 0-8-4-8-8 0-3 3-6 6-6 2 0 4 2 4 4' stroke='%23ffffff' stroke-opacity='0.008' stroke-width='1.2' fill='none'/%3E%3Cpath d='M90 70v10M90 75a3 3 0 11-3-3' stroke='%23ffffff' stroke-opacity='0.008' stroke-width='1.2' fill='none'/%3E%3Cpath d='M50 75l3 3 6-6' stroke='%23ffffff' stroke-opacity='0.008' stroke-width='1.2' fill='none'/%3E%3C/g%3E%3C/svg%3E`
+
+function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOutbound: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentTime, setCurrentTime] = useState('0:00')
+  const [duration, setDuration] = useState('0:00')
+
+  function togglePlay() {
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+  }
+
+  function handleTimeUpdate() {
+    if (!audioRef.current) return
+    const current = audioRef.current.currentTime
+    const dur = audioRef.current.duration || 0
+    if (dur > 0) {
+      setProgress((current / dur) * 100)
+    }
+    setCurrentTime(formatTime(current))
+  }
+
+  function handleLoadedMetadata() {
+    if (!audioRef.current) return
+    setDuration(formatTime(audioRef.current.duration))
+  }
+
+  function handleAudioEnded() {
+    setIsPlaying(false)
+    setProgress(0)
+    setCurrentTime('0:00')
+  }
+
+  function formatTime(seconds: number) {
+    if (isNaN(seconds)) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+  }
+
+  function handleProgressBarClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!audioRef.current) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const width = rect.width
+    const percentage = clickX / width
+    audioRef.current.currentTime = percentage * audioRef.current.duration
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-1.5 min-w-[240px] select-none">
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+          isOutbound
+            ? 'bg-emerald-600/30 text-emerald-400 hover:bg-emerald-600/50'
+            : 'bg-[#00a884]/20 text-[#00a884] hover:bg-[#00a884]/30'
+        }`}
+      >
+        {isPlaying ? (
+          <Pause className="w-4 h-4 fill-current" />
+        ) : (
+          <Play className="w-4 h-4 fill-current ml-0.5" />
+        )}
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1">
+        <div 
+          onClick={handleProgressBarClick}
+          className="h-1 rounded-full cursor-pointer relative flex items-center group w-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+        >
+          <div 
+            className={`h-full rounded-full ${isOutbound ? 'bg-emerald-400' : 'bg-[#00a884]'}`}
+            style={{ width: `${progress}%` }}
+          />
+          <div 
+            className={`absolute w-2.5 h-2.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity duration-150 ${
+              isOutbound ? 'bg-emerald-400' : 'bg-[#00a884]'
+            }`}
+            style={{ left: `calc(${progress}% - 5px)` }}
+          />
+        </div>
+
+        <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+          <span>{currentTime}</span>
+          <span>{duration}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center pr-1 shrink-0">
+        <Mic className={`w-5 h-5 ${isOutbound ? 'text-emerald-400' : 'text-[#00a884]'}`} />
+      </div>
+
+      <audio
+        ref={audioRef}
+        src={`/api/crm/messages/${messageId}/media`}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={handleAudioEnded}
+        className="hidden"
+        preload="metadata"
+      />
+    </div>
+  )
+}
+
+function MessageImagePreview({ messageId }: { messageId: string }) {
+  const [hasError, setHasError] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  if (hasError) {
+    return (
+      <div className="text-slate-400 text-xs italic py-2 flex items-center gap-2">
+        <span>🖼️ Erro ao carregar imagem</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative rounded-lg overflow-hidden max-w-[280px] border border-white/5 bg-[#182229]/50 mt-1">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50">
+          <div className="w-6 h-6 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      <img
+        src={`/api/crm/messages/${messageId}/media`}
+        alt="WhatsApp Mídia"
+        onLoad={() => setIsLoading(false)}
+        onError={() => setHasError(true)}
+        className="w-full h-auto object-cover max-h-[220px] transition-all hover:scale-105 duration-200 cursor-pointer"
+        onClick={() => window.open(`/api/crm/messages/${messageId}/media`, '_blank')}
+      />
+    </div>
+  )
+}
+
+function MessageDocumentPreview({ messageId, content }: { messageId: string; content: string }) {
+  return (
+    <a
+      href={`/api/crm/messages/${messageId}/media`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 bg-[#182229] border border-white/5 rounded-lg p-2.5 mt-1 hover:bg-[#202c33] transition-colors max-w-[280px]"
+    >
+      <div className="w-9 h-9 bg-emerald-600/10 rounded flex items-center justify-center shrink-0 text-emerald-400 text-lg">
+        📄
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden text-[11px] leading-tight text-left">
+        <span className="font-semibold text-white truncate text-xs">Documento WhatsApp</span>
+        <span className="text-slate-400 truncate mt-0.5">Clique para fazer download</span>
+      </div>
+    </a>
+  )
+}
 
 export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const { data: messages } = useLeadMessages(leadId)
@@ -149,7 +313,17 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     )
   }
 
-  function renderMessageContent(content: string) {
+  function renderMessageContent(content: string, messageId: string, isOutbound: boolean) {
+    if (content.includes('tipo: áudio')) {
+      return <MessageAudioPlayer messageId={messageId} isOutbound={isOutbound} />
+    }
+    if (content.includes('tipo: imagem')) {
+      return <MessageImagePreview messageId={messageId} />
+    }
+    if (content.includes('tipo: documento')) {
+      return <MessageDocumentPreview messageId={messageId} content={content} />
+    }
+
     const urlRegex = /(https?:\/\/[^\s]+)/g
     const hasUrl = urlRegex.test(content)
     
@@ -293,7 +467,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
                       {/* Message Content */}
                       <div className="pr-4 text-left">
-                        {renderMessageContent(m.content)}
+                        {renderMessageContent(m.content, m.id, isOutbound)}
                       </div>
 
                       {/* Timestamp & Ticks inside bubble (bottom right style) */}
