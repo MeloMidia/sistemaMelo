@@ -106,6 +106,27 @@ export function useSendMessage(leadId: string | null) {
   })
 }
 
+export function useSendAudioMessage(leadId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (audioBlob: Blob) => {
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'audio.webm')
+      const res = await fetch(`/api/crm/leads/${leadId}/audio`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send audio')
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+    },
+  })
+}
+
 export function useSyncLeadMessages() {
   const qc = useQueryClient()
   return useMutation({
