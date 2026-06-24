@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tag as TagIcon, Plus, Copy, Check, X } from 'lucide-react'
 import {
   useCrmTags,
@@ -39,6 +39,10 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
 
   const attachedTagIds = new Set(lead.tags.map((lt) => lt.tagId))
 
+  useEffect(() => {
+    setValueDraft(lead.value?.toString() ?? '')
+  }, [lead.value])
+
   function handleCreateTag() {
     if (!newTagName.trim()) return
     createTag.mutate(
@@ -54,7 +58,15 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
   }
 
   function handleValueBlur() {
-    const parsed = valueDraft.trim() === '' ? null : parseFloat(valueDraft)
+    if (valueDraft.trim() === '') {
+      if (lead.value !== null) updateLead.mutate({ id: lead.id, value: null })
+      return
+    }
+    const parsed = parseFloat(valueDraft)
+    if (Number.isNaN(parsed)) {
+      setValueDraft(lead.value?.toString() ?? '')
+      return
+    }
     if (parsed !== lead.value) {
       updateLead.mutate({ id: lead.id, value: parsed })
     }
