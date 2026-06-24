@@ -70,7 +70,7 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   const attachedTagIds = new Set(lead.tags.map((lt) => lt.tagId))
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[420px] bg-[#0a0b10] border-l border-white/[0.08] shadow-2xl shadow-black/40 flex flex-col z-40">
+    <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-[#0a0b10] border-l border-white/[0.08] shadow-2xl shadow-black/40 flex flex-col z-40">
       <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
         <div>
           <h2 className="text-sm font-semibold text-white">{lead.name || lead.phone}</h2>
