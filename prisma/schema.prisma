@@ -14,6 +14,7 @@ model User {
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+  leads        Lead[]
 }
 
 model Column {
@@ -98,4 +99,71 @@ model SdrDailyLog {
   naoRealizada  Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String?
+  phone        String     @unique
+  stageId      String
+  stage        LeadStage  @relation(fields: [stageId], references: [id])
+  assignedToId String?
+  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
+  messages     Message[]
+  tags         LeadTag[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model LeadStage {
+  id    String @id @default(cuid())
+  name  String
+  order Int
+  color String @default("#3b82f6")
+  leads Lead[]
+}
+
+model Message {
+  id                String           @id @default(cuid())
+  leadId            String
+  lead              Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  whatsappMessageId String           @unique
+  direction         MessageDirection
+  content           String
+  status            MessageStatus?
+  createdAt         DateTime         @default(now())
+}
+
+model CrmTag {
+  id    String    @id @default(cuid())
+  name  String
+  color String
+  leads LeadTag[]
+}
+
+model LeadTag {
+  leadId String
+  tagId  String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag    CrmTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, tagId])
+}
+
+model WhatsappConnection {
+  id        String   @id @default(cuid())
+  status    String   @default("close")
+  updatedAt DateTime @updatedAt
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }
