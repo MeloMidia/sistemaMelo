@@ -14,6 +14,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     include: {
       tags: { include: { tag: true } },
       assignedTo: { select: { id: true, name: true } },
+      _count: { select: { messages: true } },
     },
   })
 
@@ -27,7 +28,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { name, stageId, assignedToId } = await request.json()
+  const { name, stageId, assignedToId, value } = await request.json()
 
   try {
     const lead = await prisma.lead.update({
@@ -36,6 +37,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(name !== undefined && { name }),
         ...(stageId !== undefined && { stageId }),
         ...(assignedToId !== undefined && { assignedToId }),
+        ...(value !== undefined && { value }),
       },
     })
     return NextResponse.json(lead)

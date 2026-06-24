@@ -16,6 +16,7 @@ export async function GET() {
           tags: { include: { tag: true } },
           assignedTo: { select: { id: true, name: true } },
           messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+          _count: { select: { messages: true } },
         },
       },
     },
