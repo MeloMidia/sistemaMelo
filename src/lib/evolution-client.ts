@@ -68,3 +68,14 @@ export async function findMessages(phone: string): Promise<any[]> {
   const data = await res.json()
   return Array.isArray(data) ? data : (data?.messages || [])
 }
+
+export async function sendAudioMessage(phone: string, base64Audio: string): Promise<SendTextResult> {
+  const res = await evolutionRequest(`/message/sendWhatsAppAudio/${INSTANCE}`, {
+    method: 'POST',
+    body: JSON.stringify({ number: phone, audio: base64Audio, ptt: true }),
+  })
+  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+  const data = await res.json()
+  if (!data?.key?.id) throw new Error('Resposta da Evolution API sem ID de mensagem')
+  return data as SendTextResult
+}
