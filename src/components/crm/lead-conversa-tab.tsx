@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause } from 'lucide-react'
-import { useLeadMessages, useSendMessage, useSyncLeadMessages } from '@/hooks/crm-api'
+import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause, Square, Trash2 } from 'lucide-react'
+import { useLeadMessages, useSendMessage, useSyncLeadMessages, useSendAudioMessage } from '@/hooks/crm-api'
 
 interface LeadConversaTabProps {
   leadId: string
@@ -188,7 +188,21 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const { data: messages } = useLeadMessages(leadId)
   const sendMessage = useSendMessage(leadId)
   const syncMessages = useSyncLeadMessages()
-  
+
+  const sendAudio = useSendAudioMessage(leadId)
+
+  const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'preview'>('idle')
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [micError, setMicError] = useState<string | null>(null)
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const MAX_RECORDING_SECONDS = 300
+
   const [draft, setDraft] = useState('')
   const [activeMode, setActiveMode] = useState<'responder' | 'nota'>('responder')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -225,6 +239,13 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+      mediaRecorderRef.current?.stream?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
+
   function handleSend() {
     if (!draft.trim() || sendMessage.isPending) return
     
@@ -254,6 +275,87 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     if (!file) return
     sendMessage.mutate(`📁 Arquivo enviado: ${file.name}`)
     setShowAttachMenu(false)
+  }
+
+  async function handleStartRecording() {
+    setMicError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      recordedChunksRef.current = []
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop())
+        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        setRecordedBlob(blob)
+        setPreviewUrl(URL.createObjectURL(blob))
+        setRecordingState('preview')
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setRecordingState('recording')
+      setRecordingSeconds(0)
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev + 1 >= MAX_RECORDING_SECONDS) {
+            handleStopRecording()
+            return prev
+          }
+          return prev + 1
+        })
+      }, 1000)
+    } catch {
+      setMicError('Não foi possível acessar o microfone. Verifique a permissão do navegador.')
+    }
+  }
+
+  function handleStopRecording() {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current)
+      recordingTimerRef.current = null
+    }
+    mediaRecorderRef.current?.stop()
+  }
+
+  function handleDiscardRecording() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setRecordedBlob(null)
+    setPreviewUrl(null)
+    setRecordingState('idle')
+    setRecordingSeconds(0)
+  }
+
+  function handleSendRecording() {
+    if (!recordedBlob || sendAudio.isPending) return
+    sendAudio.mutate(recordedBlob, {
+      onSuccess: () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl)
+        setRecordedBlob(null)
+        setPreviewUrl(null)
+        setRecordingState('idle')
+        setRecordingSeconds(0)
+      },
+    })
+  }
+
+  function handleMicButtonClick() {
+    if (recordingState === 'idle') {
+      handleStartRecording()
+    } else if (recordingState === 'recording') {
+      handleStopRecording()
+    }
+  }
+
+  function formatRecordingTime(totalSeconds: number) {
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`
   }
 
   function formatTime(dateString: string) {
