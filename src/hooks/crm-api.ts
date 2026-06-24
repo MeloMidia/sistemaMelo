@@ -54,7 +54,13 @@ export function useUpdateLead() {
     mutationFn: async ({
       id,
       ...data
-    }: { id: string; name?: string; stageId?: string; assignedToId?: string | null }) => {
+    }: {
+      id: string
+      name?: string
+      stageId?: string
+      assignedToId?: string | null
+      value?: number | null
+    }) => {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

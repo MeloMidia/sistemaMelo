@@ -32,8 +32,10 @@ export interface Lead {
   stageId: string
   assignedToId: string | null
   assignedTo: CrmUser | null
+  value: number | null
   tags: LeadTagWithTag[]
   messages: Message[]
+  _count: { messages: number }
   createdAt: string
   updatedAt: string
 }
