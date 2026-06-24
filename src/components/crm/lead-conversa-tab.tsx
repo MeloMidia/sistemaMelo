@@ -745,99 +745,135 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
       {/* Composing Input area */}
       <div className="p-3 bg-[#121517] flex gap-3 items-end border-t border-white/[0.04] select-none relative">
-        {/* Composing text card */}
-        <div className="flex-1 bg-[#1e2225] rounded-xl border border-white/[0.04] p-2 flex flex-col relative min-h-[96px]">
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            placeholder={activeMode === 'responder' ? "Digite uma mensagem..." : "Adicione uma nota interna..."}
-            className="bg-transparent border-none text-[#e9edef] placeholder-[#8696a0]/80 w-full text-sm outline-none resize-none flex-1 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none min-h-[44px] px-1 py-1"
-          />
-          
-          {/* Toolbar row */}
-          <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.03] mt-1 select-none">
-            {/* Attach */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowAttachMenu(!showAttachMenu)
-                setShowEmojiPicker(false)
-                setShowTemplates(false)
-              }}
-              className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                showAttachMenu ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Paperclip className="w-4.5 h-4.5 rotate-45 shrink-0" />
-            </button>
-            
-            {/* Quick templates */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowTemplates(!showTemplates)
-                setShowEmojiPicker(false)
-                setShowAttachMenu(false)
-              }}
-              className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                showTemplates ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Zap className="w-4.5 h-4.5 shrink-0" />
-            </button>
-
-            {/* Emoji */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowEmojiPicker(!showEmojiPicker)
-                setShowAttachMenu(false)
-                setShowTemplates(false)
-              }}
-              className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                showEmojiPicker ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Smile className="w-4.5 h-4.5 shrink-0" />
-            </button>
-
-            {/* Clock */}
-            <button
-              type="button"
-              onClick={() => alert('Agendamento de mensagens indisponível')}
-              className="p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer text-slate-400 hover:text-slate-200 shrink-0"
-            >
-              <Clock className="w-4.5 h-4.5 shrink-0" />
-            </button>
+        {recordingState === 'recording' ? (
+          <div className="flex-1 flex items-center gap-3 bg-[#1e2225] rounded-xl border border-red-500/30 p-3 min-h-[96px]">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <span className="text-sm text-white font-medium">Gravando... {formatRecordingTime(recordingSeconds)}</span>
+            <span className="text-xs text-slate-500 ml-auto">Clique no botão pra parar</span>
           </div>
-        </div>
+        ) : recordingState === 'preview' ? (
+          <div className="flex-1 flex items-center gap-3 bg-[#1e2225] rounded-xl border border-white/[0.04] p-3 min-h-[96px]">
+            <button
+              type="button"
+              onClick={handleDiscardRecording}
+              className="p-2 rounded-full text-red-400 hover:bg-red-500/10 cursor-pointer shrink-0"
+            >
+              <Trash2 className="w-4.5 h-4.5" />
+            </button>
+            {previewUrl && <audio controls src={previewUrl} className="flex-1 h-9" />}
+          </div>
+        ) : (
+          <div className="flex-1 bg-[#1e2225] rounded-xl border border-white/[0.04] p-2 flex flex-col relative min-h-[96px]">
+            {/* Textarea */}
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              placeholder={activeMode === 'responder' ? "Digite uma mensagem..." : "Adicione uma nota interna..."}
+              className="bg-transparent border-none text-[#e9edef] placeholder-[#8696a0]/80 w-full text-sm outline-none resize-none flex-1 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none min-h-[44px] px-1 py-1"
+            />
+
+            {/* Toolbar row */}
+            <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.03] mt-1 select-none">
+              {/* Attach */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAttachMenu(!showAttachMenu)
+                  setShowEmojiPicker(false)
+                  setShowTemplates(false)
+                }}
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
+                  showAttachMenu ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Paperclip className="w-4.5 h-4.5 rotate-45 shrink-0" />
+              </button>
+
+              {/* Quick templates */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTemplates(!showTemplates)
+                  setShowEmojiPicker(false)
+                  setShowAttachMenu(false)
+                }}
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
+                  showTemplates ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Zap className="w-4.5 h-4.5 shrink-0" />
+              </button>
+
+              {/* Emoji */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmojiPicker(!showEmojiPicker)
+                  setShowAttachMenu(false)
+                  setShowTemplates(false)
+                }}
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
+                  showEmojiPicker ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Smile className="w-4.5 h-4.5 shrink-0" />
+              </button>
+
+              {/* Clock */}
+              <button
+                type="button"
+                onClick={() => alert('Agendamento de mensagens indisponível')}
+                className="p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer text-slate-400 hover:text-slate-200 shrink-0"
+              >
+                <Clock className="w-4.5 h-4.5 shrink-0" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Floating Action Button */}
         <button
           type="button"
-          onClick={handleSend}
-          disabled={sendMessage.isPending}
+          onClick={
+            recordingState === 'preview'
+              ? handleSendRecording
+              : recordingState === 'recording'
+                ? handleMicButtonClick
+                : draft.trim()
+                  ? handleSend
+                  : handleMicButtonClick
+          }
+          disabled={sendMessage.isPending || sendAudio.isPending}
           className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg transition-all duration-200 cursor-pointer ${
             activeMode === 'responder'
               ? 'bg-[#00a884] hover:bg-[#009675] text-white'
               : 'bg-[#e2a03f] hover:bg-[#c98629] text-white'
           } disabled:opacity-50`}
         >
-          {draft.trim() ? (
+          {recordingState === 'recording' ? (
+            <Square className="w-4 h-4 fill-current" />
+          ) : recordingState === 'preview' ? (
+            <Send className="w-5 h-5 fill-current ml-0.5" />
+          ) : draft.trim() ? (
             <Send className="w-5 h-5 fill-current ml-0.5" />
           ) : (
             <Mic className="w-5 h-5" />
           )}
         </button>
       </div>
+
+      {micError && (
+        <div className="absolute bottom-[110px] left-4 right-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg px-3 py-2 z-50">
+          {micError}
+        </div>
+      )}
     </div>
   )
 }
