@@ -69,7 +69,10 @@ async function handleMessagesUpsert(data: Record<string, unknown>) {
   if (!lead) {
     const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
     if (!firstStage) return
-    const pushName = typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : 'Contato WhatsApp'
+    // pushName só é confiável quando a mensagem é recebida do contato (fromMe=false).
+    // Em mensagens enviadas por nós (ex: primeiro contato feito pelo SDR), o pushName reflete
+    // o nome do próprio perfil do WhatsApp Business, não o do destinatário.
+    const pushName = !key.fromMe && typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : 'Contato WhatsApp'
     lead = await prisma.lead.create({ data: { phone, stageId: firstStage.id, name: pushName } })
   }
 
