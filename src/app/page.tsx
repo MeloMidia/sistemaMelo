@@ -6,11 +6,13 @@ import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
-import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
+import { KanbanLeads } from '@/components/crm/kanban-leads'
+import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml'
+type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -103,11 +105,25 @@ export default function HomePage() {
                 <Bot className="w-4 h-4" />
                 Automação ML
               </button>
+              <button
+                onClick={() => setActiveTab('crm')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
+                  ${activeTab === 'crm'
+                    ? 'bg-gradient-to-r from-green-600/90 to-lime-600/90 text-white shadow-lg shadow-green-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <MessageSquare className="w-4 h-4" />
+                CRM
+              </button>
             </nav>
           </div>
 
           {/* User area */}
           <div className="flex items-center gap-3">
+            <WhatsappSettings />
             {session?.user && (
               <div className="flex items-center gap-2.5 text-sm">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/30 to-indigo-500/30 flex items-center justify-center ring-1 ring-white/10">
@@ -135,6 +151,7 @@ export default function HomePage() {
         {activeTab === 'tasks' && <TaskManager />}
         {activeTab === 'dashboard' && <DashboardView />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
+        {activeTab === 'crm' && <KanbanLeads />}
       </main>
     </div>
   )
