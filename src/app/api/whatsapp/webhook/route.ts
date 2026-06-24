@@ -42,24 +42,34 @@ function describeMediaType(message: Record<string, unknown> | undefined): string
 async function handleMessagesUpsert(data: Record<string, unknown>) {
   const key = data.key as { remoteJid?: string; id?: string; fromMe?: boolean } | undefined
   if (!key?.remoteJid || !key.id) return
-  if (key.fromMe) return // já registrado ao enviar via /api/crm/leads/[id]/messages
 
   // Ignorar grupos (@g.us) e transmissões de status (@broadcast)
   if (key.remoteJid.endsWith('@g.us') || key.remoteJid.includes('broadcast')) {
     return
   }
 
+  // Verificar se a mensagem já existe no banco de dados para evitar duplicação
+  const exists = await prisma.message.findUnique({
+    where: { whatsappMessageId: key.id }
+  })
+  if (exists) return
+
   const phone = normalizePhone(key.remoteJid)
   const message = data.message as Record<string, unknown> | undefined
   const text = extractMessageText(message)
   const mediaType = text ? null : describeMediaType(message)
-  const content = text ?? (mediaType ? `[mídia recebida — tipo: ${mediaType}]` : '[mensagem não suportada]')
+  
+  const content = text ?? (
+    mediaType 
+      ? `[mídia ${key.fromMe ? 'enviada' : 'recebida'} — tipo: ${mediaType}]` 
+      : '[mensagem não suportada]'
+  )
 
   let lead = await prisma.lead.findUnique({ where: { phone } })
   if (!lead) {
     const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
     if (!firstStage) return
-    const pushName = typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : null
+    const pushName = typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : 'Contato WhatsApp'
     lead = await prisma.lead.create({ data: { phone, stageId: firstStage.id, name: pushName } })
   }
 
@@ -68,14 +78,15 @@ async function handleMessagesUpsert(data: Record<string, unknown>) {
       data: {
         leadId: lead.id,
         whatsappMessageId: key.id,
-        direction: 'INBOUND',
+        direction: key.fromMe ? 'OUTBOUND' : 'INBOUND',
         content,
+        status: key.fromMe ? 'SENT' : null
       },
     })
     emitCrmEvent({ type: 'new-message', leadId: lead.id, message: created })
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code
-    if (code !== 'P2002') throw error // duplicado (reenvio do webhook) — ignora
+    if (code !== 'P2002') throw error // duplicado — ignora
   }
 }
 

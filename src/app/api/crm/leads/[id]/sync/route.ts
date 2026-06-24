@@ -57,7 +57,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const messageContent = item.message
       const text = extractMessageText(messageContent)
       const mediaType = text ? null : describeMediaType(messageContent)
-      const content = text ?? (mediaType ? `[mídia recebida — tipo: ${mediaType}]` : '[mensagem não suportada]')
+      const content = text ?? (
+        mediaType 
+          ? `[mídia ${item.key.fromMe ? 'enviada' : 'recebida'} — tipo: ${mediaType}]` 
+          : '[mensagem não suportada]'
+      )
 
       const status = item.key.fromMe ? (statusMap[Number(item.status)] || 'SENT') : null
       const createdAt = item.messageTimestamp ? new Date(Number(item.messageTimestamp) * 1000) : new Date()
