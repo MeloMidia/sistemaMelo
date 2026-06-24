@@ -10,16 +10,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { name, color, order } = await request.json()
 
-  const stage = await prisma.leadStage.update({
-    where: { id },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(color !== undefined && { color }),
-      ...(order !== undefined && { order }),
-    },
-  })
-
-  return NextResponse.json(stage)
+  try {
+    const stage = await prisma.leadStage.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(color !== undefined && { color }),
+        ...(order !== undefined && { order }),
+      },
+    })
+    return NextResponse.json(stage)
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code
+    if (code === 'P2025') {
+      return NextResponse.json({ error: 'Etapa não encontrada' }, { status: 404 })
+    }
+    throw error
+  }
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
