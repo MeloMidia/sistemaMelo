@@ -279,8 +279,9 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
   async function handleStartRecording() {
     setMicError(null)
+    let stream: MediaStream | null = null
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
       recordedChunksRef.current = []
 
@@ -289,11 +290,21 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
       }
 
       recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop())
+        stream?.getTracks().forEach((track) => track.stop())
         const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         setRecordedBlob(blob)
         setPreviewUrl(URL.createObjectURL(blob))
         setRecordingState('preview')
+      }
+
+      recorder.onerror = () => {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current)
+          recordingTimerRef.current = null
+        }
+        stream?.getTracks().forEach((track) => track.stop())
+        setMicError('Ocorreu um erro durante a gravação. Tente novamente.')
+        setRecordingState('idle')
       }
 
       mediaRecorderRef.current = recorder
@@ -310,7 +321,9 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
           return prev + 1
         })
       }, 1000)
-    } catch {
+    } catch (err) {
+      console.error('Erro ao iniciar gravação de áudio:', err)
+      stream?.getTracks().forEach((track) => track.stop())
       setMicError('Não foi possível acessar o microfone. Verifique a permissão do navegador.')
     }
   }
@@ -320,7 +333,9 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
       clearInterval(recordingTimerRef.current)
       recordingTimerRef.current = null
     }
-    mediaRecorderRef.current?.stop()
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
   }
 
   function handleDiscardRecording() {
