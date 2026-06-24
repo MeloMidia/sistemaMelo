@@ -24,6 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!(file instanceof Blob)) {
     return NextResponse.json({ error: 'Arquivo de áudio não enviado' }, { status: 400 })
   }
+  if (file.size === 0) {
+    return NextResponse.json({ error: 'Arquivo de áudio vazio' }, { status: 400 })
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const base64Audio = buffer.toString('base64')
