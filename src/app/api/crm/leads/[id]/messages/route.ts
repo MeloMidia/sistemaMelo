@@ -6,17 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { sendTextMessage } from '@/lib/evolution-client'
 import { emitCrmEvent } from '@/lib/crm-events'
 import { randomUUID } from 'crypto'
-
-const RATE_LIMIT_PER_MINUTE = 30
-const sentTimestamps: number[] = []
-
-function checkRateLimit(): boolean {
-  const now = Date.now()
-  while (sentTimestamps.length && now - sentTimestamps[0] > 60_000) sentTimestamps.shift()
-  if (sentTimestamps.length >= RATE_LIMIT_PER_MINUTE) return false
-  sentTimestamps.push(now)
-  return true
-}
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
