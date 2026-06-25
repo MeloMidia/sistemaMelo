@@ -26,9 +26,9 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
 
-  function commitRename(id: string) {
+  function commitRename(id: string, currentName: string) {
     const trimmed = editingName.trim()
-    if (trimmed) updateCategory.mutate({ id, name: trimmed })
+    if (trimmed && trimmed !== currentName) updateCategory.mutate({ id, name: trimmed })
     setEditingId(null)
   }
 
@@ -67,6 +67,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
               onChange={() => onToggle(category.id)}
               className="w-3.5 h-3.5 rounded cursor-pointer accent-current"
               style={{ accentColor: category.color }}
+              aria-label={`Mostrar categoria ${category.name}`}
             />
             <input
               type="color"
@@ -74,13 +75,14 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
               onChange={(e) => updateCategory.mutate({ id: category.id, color: e.target.value })}
               className="w-3.5 h-3.5 rounded-full border-0 bg-transparent cursor-pointer shrink-0"
               title="Mudar cor"
+              aria-label="Mudar cor"
             />
             {editingId === category.id ? (
               <input
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
-                onBlur={() => commitRename(category.id)}
-                onKeyDown={(e) => e.key === 'Enter' && commitRename(category.id)}
+                onBlur={() => commitRename(category.id, category.name)}
+                onKeyDown={(e) => e.key === 'Enter' && commitRename(category.id, category.name)}
                 autoFocus
                 className="text-xs text-white bg-white/[0.06] border border-white/[0.15] rounded px-1.5 py-0.5 flex-1 outline-none min-w-0"
               />
@@ -100,6 +102,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
               type="button"
               onClick={() => deleteCategory.mutate(category.id)}
               className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 cursor-pointer shrink-0"
+              aria-label="Excluir categoria"
             >
               <Trash2 className="w-3 h-3" />
             </button>
