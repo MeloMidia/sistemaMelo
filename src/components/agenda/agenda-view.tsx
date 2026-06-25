@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { startOfWeek, addDays, endOfWeek, formatWeekRangeLabel } from '@/lib/agenda-date'
 import { useAgendaEvents, useEventCategories } from '@/hooks/agenda-api'
@@ -19,19 +19,24 @@ export function AgendaView() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [visibleCategoryIds, setVisibleCategoryIds] = useState<Set<string>>(new Set())
   const [modalState, setModalState] = useState<ModalState>(null)
+  const knownCategoryIdsRef = useRef<Set<string>>(new Set())
 
   const weekEnd = endOfWeek(weekStart)
   const { data: events } = useAgendaEvents(weekStart, weekEnd)
   const { data: categories } = useEventCategories()
 
-  // Toda categoria nova entra visível por padrão.
+  // Toda categoria nova entra visível por padrão, mas categorias já vistas
+  // antes (mesmo escondidas pelo usuário) não são reativadas em refetches.
   useEffect(() => {
     if (!categories) return
+    const newlySeenIds = categories
+      .map((c) => c.id)
+      .filter((id) => !knownCategoryIdsRef.current.has(id))
+    if (newlySeenIds.length === 0) return
+    for (const id of newlySeenIds) knownCategoryIdsRef.current.add(id)
     setVisibleCategoryIds((prev) => {
       const next = new Set(prev)
-      for (const c of categories) {
-        if (!next.has(c.id) && !prev.has(c.id)) next.add(c.id)
-      }
+      for (const id of newlySeenIds) next.add(id)
       return next
     })
   }, [categories])
