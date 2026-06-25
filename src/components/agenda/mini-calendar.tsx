@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { startOfWeek, addDays, isSameDay } from '@/lib/agenda-date'
 
@@ -23,6 +23,11 @@ function buildMonthGrid(monthDate: Date): Date[] {
 
 export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(weekStart))
+
+  useEffect(() => {
+    setViewMonth(startOfMonth(weekStart))
+  }, [weekStart])
+
   const today = new Date()
   const weekEnd = addDays(weekStart, 6)
   const days = buildMonthGrid(viewMonth)
@@ -43,6 +48,7 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
           <button
             type="button"
             onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+            aria-label="Mês anterior"
             className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 hover:text-white cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -50,6 +56,7 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
           <button
             type="button"
             onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+            aria-label="Próximo mês"
             className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 hover:text-white cursor-pointer"
           >
             <ChevronRight className="w-3.5 h-3.5" />
