@@ -35,6 +35,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code
+    // já apagada — idempotente, mesmo padrão de detach de tags
     if (code === 'P2025') return NextResponse.json({ success: true })
     throw error
   }
