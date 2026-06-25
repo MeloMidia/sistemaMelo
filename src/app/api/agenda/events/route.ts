@@ -3,19 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-
-function validateRange(startsAt: Date, endsAt: Date): string | null {
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
-    return 'Data ou horário inválido'
-  }
-  if (endsAt <= startsAt) {
-    return 'O horário de fim deve ser depois do início'
-  }
-  if (startsAt.toDateString() !== endsAt.toDateString()) {
-    return 'O evento deve começar e terminar no mesmo dia'
-  }
-  return null
-}
+import { validateEventRange } from '@/lib/agenda-date'
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
@@ -28,10 +16,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Parâmetros start e end são obrigatórios' }, { status: 400 })
   }
 
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return NextResponse.json({ error: 'Parâmetros start e end inválidos' }, { status: 400 })
+  }
+
   const events = await prisma.agendaEvent.findMany({
     where: {
-      startsAt: { lte: new Date(end) },
-      endsAt: { gte: new Date(start) },
+      startsAt: { lte: endDate },
+      endsAt: { gte: startDate },
     },
     include: { category: true },
     orderBy: { startsAt: 'asc' },
@@ -50,7 +44,7 @@ export async function POST(request: Request) {
 
   const start = new Date(startsAt)
   const end = new Date(endsAt)
-  const validationError = validateRange(start, end)
+  const validationError = validateEventRange(start, end)
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }

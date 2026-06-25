@@ -22,6 +22,19 @@ export function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString()
 }
 
+export function validateEventRange(startsAt: Date, endsAt: Date): string | null {
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    return 'Data ou horário inválido'
+  }
+  if (endsAt <= startsAt) {
+    return 'O horário de fim deve ser depois do início'
+  }
+  if (!isSameDay(startsAt, endsAt)) {
+    return 'O evento deve começar e terminar no mesmo dia'
+  }
+  return null
+}
+
 export function formatWeekRangeLabel(weekStart: Date): string {
   const weekEnd = addDays(weekStart, 6)
   const startMonth = weekStart.toLocaleDateString('pt-BR', { month: 'long' })

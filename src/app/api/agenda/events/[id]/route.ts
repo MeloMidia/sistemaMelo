@@ -3,19 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-
-function validateRange(startsAt: Date, endsAt: Date): string | null {
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
-    return 'Data ou horário inválido'
-  }
-  if (endsAt <= startsAt) {
-    return 'O horário de fim deve ser depois do início'
-  }
-  if (startsAt.toDateString() !== endsAt.toDateString()) {
-    return 'O evento deve começar e terminar no mesmo dia'
-  }
-  return null
-}
+import { validateEventRange } from '@/lib/agenda-date'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -29,7 +17,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const start = startsAt ? new Date(startsAt) : existing.startsAt
   const end = endsAt ? new Date(endsAt) : existing.endsAt
-  const validationError = validateRange(start, end)
+  const validationError = validateEventRange(start, end)
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }
