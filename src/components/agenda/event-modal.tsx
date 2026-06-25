@@ -85,7 +85,10 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
 
   function handleDelete() {
     if (!event) return
-    deleteEvent.mutate(event.id, { onSuccess: onClose })
+    deleteEvent.mutate(event.id, {
+      onSuccess: onClose,
+      onError: () => setError('Erro ao excluir evento'),
+    })
   }
 
   return (
