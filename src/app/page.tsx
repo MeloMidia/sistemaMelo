@@ -6,13 +6,14 @@ import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
-import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot, MessageSquare } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot, MessageSquare, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { KanbanLeads } from '@/components/crm/kanban-leads'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
+import { AgendaView } from '@/components/agenda/agenda-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm'
+type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm' | 'agenda'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -118,6 +119,19 @@ export default function HomePage() {
                 <MessageSquare className="w-4 h-4" />
                 CRM
               </button>
+              <button
+                onClick={() => setActiveTab('agenda')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
+                  ${activeTab === 'agenda'
+                    ? 'bg-gradient-to-r from-orange-600/90 to-amber-600/90 text-white shadow-lg shadow-orange-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <Calendar className="w-4 h-4" />
+                Agenda
+              </button>
             </nav>
           </div>
 
@@ -152,6 +166,7 @@ export default function HomePage() {
         {activeTab === 'dashboard' && <DashboardView />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm' && <KanbanLeads />}
+        {activeTab === 'agenda' && <AgendaView />}
       </main>
     </div>
   )
