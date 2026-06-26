@@ -163,8 +163,8 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                       height: height - 4,
                       width: `calc(${widthPct}% - 6px)`,
                       left: `calc(${leftPct}% + 3px)`,
-                      backgroundColor: `${color}14`,
-                      borderColor: `${color}60`,
+                      backgroundColor: `${color}28`,
+                      borderColor: color,
                     }}
                     className="absolute rounded-lg border border-l-[3.5px] px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex flex-col justify-start group"
                   >

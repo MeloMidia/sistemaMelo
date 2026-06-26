@@ -10,18 +10,18 @@ import {
 } from '@/hooks/agenda-api'
 
 const PRESET_COLORS = [
-  '#3b82f6', // Azul (Default)
+  '#0055ff', // Azul bem forte
+  '#ff2222', // Vermelho
+  '#00cc44', // Verde
+  '#ffbb00', // Amarelo
+  '#ff6600', // Laranja
+  '#9933ff', // Roxo
+  '#ff007f', // Rosa
+  '#00cccc', // Ciano
+  '#cbd5e1', // Prata
   '#6366f1', // Indigo
-  '#8b5cf6', // Violeta
-  '#ec4899', // Rosa
-  '#ef4444', // Vermelho
-  '#f97316', // Laranja
-  '#eab308', // Amarelo
-  '#10b981', // Esmeralda
   '#14b8a6', // Teal
-  '#06b6d4', // Ciano
-  '#64748b', // Slate
-  '#475569', // Slate Escuro
+  '#94a3b8', // Slate
 ]
 
 interface CategorySidebarProps {

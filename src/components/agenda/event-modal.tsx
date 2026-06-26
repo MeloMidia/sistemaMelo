@@ -92,8 +92,8 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#07080c]/70 backdrop-blur-md">
-      <div className="bg-[#0c0e17] border border-white/[0.08] w-full max-w-sm rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 select-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      <div className="bg-[#0c0e17] border border-white/[0.15] w-full max-w-sm rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 select-none">
         <div className="flex justify-between items-center p-5 border-b border-white/[0.05]">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
             {mode === 'create' ? 'Novo evento' : 'Editar evento'}
