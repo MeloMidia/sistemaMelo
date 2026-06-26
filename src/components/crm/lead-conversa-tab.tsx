@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause, Square, Trash2 } from 'lucide-react'
-import { useLeadMessages, useSendMessage, useSyncLeadMessages, useSendAudioMessage } from '@/hooks/crm-api'
+import {
+  useLeadMessages,
+  useSendAudioMessage,
+  useSendMediaMessage,
+  useSendMessage,
+  useSyncLeadMessages,
+} from '@/hooks/crm-api'
 
 interface LeadConversaTabProps {
   leadId: string
@@ -165,6 +171,17 @@ function MessageImagePreview({ messageId }: { messageId: string }) {
   )
 }
 
+function MessageVideoPreview({ messageId }: { messageId: string }) {
+  return (
+    <video
+      src={`/api/crm/messages/${messageId}/media`}
+      controls
+      className="max-w-[280px] max-h-[220px] rounded-lg border border-white/5 bg-black mt-1"
+      preload="metadata"
+    />
+  )
+}
+
 function MessageDocumentPreview({ messageId, content }: { messageId: string; content: string }) {
   return (
     <a
@@ -190,6 +207,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const syncMessages = useSyncLeadMessages()
 
   const sendAudio = useSendAudioMessage(leadId)
+  const sendMedia = useSendMediaMessage(leadId)
 
   const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'preview'>('idle')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -248,10 +266,12 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
   function handleSend() {
     if (!draft.trim() || sendMessage.isPending) return
-    
-    // Prefix note text if in Note Interna mode
-    const contentToSend = activeMode === 'nota' ? `[Nota Interna] ${draft.trim()}` : draft.trim()
-    sendMessage.mutate(contentToSend)
+
+    sendMessage.mutate(
+      activeMode === 'nota'
+        ? { content: draft.trim(), internal: true }
+        : draft.trim()
+    )
     
     setDraft('')
     setShowEmojiPicker(false)
@@ -273,8 +293,14 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    sendMessage.mutate(`📁 Arquivo enviado: ${file.name}`)
+    setMicError(null)
+    sendMedia.mutate(file, {
+      onError: (error) => {
+        setMicError(error instanceof Error ? error.message : 'Falha ao enviar arquivo.')
+      },
+    })
     setShowAttachMenu(false)
+    e.target.value = ''
   }
 
   async function handleStartRecording() {
@@ -431,13 +457,15 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   }
 
   function renderMessageContent(content: string, messageId: string, isOutbound: boolean) {
-    if (content.includes('tipo: áudio')) {
+    const normalizedContent = content.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+
+    if (normalizedContent.includes('tipo: audio')) {
       return <MessageAudioPlayer messageId={messageId} isOutbound={isOutbound} />
     }
-    if (content.includes('tipo: imagem')) {
+    if (normalizedContent.includes('tipo: imagem')) {
       return <MessageImagePreview messageId={messageId} />
     }
-    if (content.includes('tipo: documento')) {
+    if (normalizedContent.includes('tipo: documento')) {
       return <MessageDocumentPreview messageId={messageId} content={content} />
     }
 

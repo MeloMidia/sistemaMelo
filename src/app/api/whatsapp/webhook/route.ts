@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { normalizePhone } from '@/lib/phone'
 import { emitCrmEvent } from '@/lib/crm-events'
+import {
+  applyWhatsappMessageStatus,
+  extractPayloadList,
+  importWhatsappMessage,
+  normalizeEvolutionEvent,
+} from '@/lib/whatsapp-sync'
 
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET ?? ''
+const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
@@ -15,82 +21,22 @@ function timingSafeEqualStrings(a: string, b: string): boolean {
 
 function isAuthorized(request: Request): boolean {
   if (!WEBHOOK_SECRET) return process.env.NODE_ENV !== 'production'
+
   const headerSecret = request.headers.get('x-webhook-secret')
   if (headerSecret && timingSafeEqualStrings(headerSecret, WEBHOOK_SECRET)) return true
+
+  const bearerSecret = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+  if (bearerSecret && timingSafeEqualStrings(bearerSecret, WEBHOOK_SECRET)) return true
+
   const { searchParams } = new URL(request.url)
   const querySecret = searchParams.get('secret')
   return !!querySecret && timingSafeEqualStrings(querySecret, WEBHOOK_SECRET)
 }
 
-function extractMessageText(message: Record<string, unknown> | undefined): string | null {
-  if (!message) return null
-  if (typeof message.conversation === 'string') return message.conversation
-  const extended = message.extendedTextMessage as { text?: string } | undefined
-  if (extended?.text) return extended.text
-  return null
-}
-
-function describeMediaType(message: Record<string, unknown> | undefined): string | null {
-  if (!message) return null
-  if (message.imageMessage) return 'imagem'
-  if (message.audioMessage) return 'áudio'
-  if (message.videoMessage) return 'vídeo'
-  if (message.documentMessage) return 'documento'
-  return null
-}
-
-async function handleMessagesUpsert(data: Record<string, unknown>) {
-  const key = data.key as { remoteJid?: string; id?: string; fromMe?: boolean } | undefined
-  if (!key?.remoteJid || !key.id) return
-
-  // Ignorar grupos (@g.us) e transmissões de status (@broadcast)
-  if (key.remoteJid.endsWith('@g.us') || key.remoteJid.includes('broadcast')) {
-    return
-  }
-
-  // Verificar se a mensagem já existe no banco de dados para evitar duplicação
-  const exists = await prisma.message.findUnique({
-    where: { whatsappMessageId: key.id }
-  })
-  if (exists) return
-
-  const phone = normalizePhone(key.remoteJid)
-  const message = data.message as Record<string, unknown> | undefined
-  const text = extractMessageText(message)
-  const mediaType = text ? null : describeMediaType(message)
-  
-  const content = text ?? (
-    mediaType 
-      ? `[mídia ${key.fromMe ? 'enviada' : 'recebida'} — tipo: ${mediaType}]` 
-      : '[mensagem não suportada]'
-  )
-
-  let lead = await prisma.lead.findUnique({ where: { phone } })
-  if (!lead) {
-    const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
-    if (!firstStage) return
-    // pushName só é confiável quando a mensagem é recebida do contato (fromMe=false).
-    // Em mensagens enviadas por nós (ex: primeiro contato feito pelo SDR), o pushName reflete
-    // o nome do próprio perfil do WhatsApp Business, não o do destinatário.
-    const pushName = !key.fromMe && typeof data.pushName === 'string' && data.pushName.trim() ? data.pushName : 'Contato WhatsApp'
-    lead = await prisma.lead.create({ data: { phone, stageId: firstStage.id, name: pushName } })
-  }
-
-  try {
-    const created = await prisma.message.create({
-      data: {
-        leadId: lead.id,
-        whatsappMessageId: key.id,
-        direction: key.fromMe ? 'OUTBOUND' : 'INBOUND',
-        content,
-        status: key.fromMe ? 'SENT' : null
-      },
-    })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message: created })
-  } catch (error: unknown) {
-    const code = (error as { code?: string })?.code
-    if (code !== 'P2002') throw error // duplicado — ignora
-  }
+function isExpectedInstance(body: Record<string, unknown>): boolean {
+  if (!INSTANCE) return true
+  const instance = typeof body.instance === 'string' ? body.instance : null
+  return !instance || instance === INSTANCE
 }
 
 async function handleConnectionUpdate(data: Record<string, unknown>) {
@@ -106,50 +52,30 @@ async function handleConnectionUpdate(data: Record<string, unknown>) {
   emitCrmEvent({ type: 'connection-update', status: state })
 }
 
-// Mapeia o código de ACK do Baileys (0=pending, 1=server_ack, 2=delivery_ack, 3/4=read/played)
-const ACK_STATUS_MAP: Record<string, 'SENT' | 'DELIVERED' | 'READ'> = {
-  '1': 'SENT',
-  '2': 'DELIVERED',
-  '3': 'READ',
-  '4': 'READ',
-}
-
-async function handleMessagesUpdate(data: Record<string, unknown>) {
-  const key = data.key as { id?: string } | undefined
-  const keyId = (data.keyId ?? key?.id) as string | undefined
-  if (!keyId) return
-
-  const status = ACK_STATUS_MAP[String(data.status ?? '')]
-  if (!status) return
-
-  try {
-    const updated = await prisma.message.update({
-      where: { whatsappMessageId: keyId },
-      data: { status },
-    })
-    emitCrmEvent({ type: 'new-message', leadId: updated.leadId, message: updated })
-  } catch (error: unknown) {
-    const code = (error as { code?: string })?.code
-    if (code !== 'P2025') throw error // mensagem ainda não existe localmente — ignora
-  }
-}
-
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const body = await request.json()
-    const event = body.event as string
-    const data = (body.data ?? {}) as Record<string, unknown>
+    const body = (await request.json()) as Record<string, unknown>
+    if (!isExpectedInstance(body)) return NextResponse.json({ ok: true, ignored: 'instance' })
 
-    if (event === 'messages.upsert') {
-      await handleMessagesUpsert(data)
-    } else if (event === 'connection.update') {
-      await handleConnectionUpdate(data)
+    const event = normalizeEvolutionEvent(body.event)
+    const data = body.data ?? {}
+
+    if (event === 'messages.upsert' || event === 'messages.set') {
+      const results = await Promise.all(extractPayloadList(data).map((item) => importWhatsappMessage(item)))
+      for (const result of results) {
+        if (result) emitCrmEvent({ type: 'new-message', leadId: result.lead.id, message: result.message })
+      }
     } else if (event === 'messages.update') {
-      await handleMessagesUpdate(data)
+      const updates = await Promise.all(extractPayloadList(data).map((item) => applyWhatsappMessageStatus(item)))
+      for (const message of updates) {
+        if (message) emitCrmEvent({ type: 'new-message', leadId: message.leadId, message })
+      }
+    } else if (event === 'connection.update') {
+      await handleConnectionUpdate((data ?? {}) as Record<string, unknown>)
     }
   } catch (error) {
     console.error('Erro ao processar webhook da Evolution API:', error)

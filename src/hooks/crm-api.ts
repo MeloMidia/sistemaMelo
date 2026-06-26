@@ -89,11 +89,12 @@ export function useLeadMessages(leadId: string | null) {
 export function useSendMessage(leadId: string | null) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async (input: string | { content: string; internal?: boolean }) => {
+      const payload = typeof input === 'string' ? { content: input } : input
       const res = await fetch(`/api/crm/leads/${leadId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to send message')
@@ -118,6 +119,27 @@ export function useSendAudioMessage(leadId: string | null) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to send audio')
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+    },
+  })
+}
+
+export function useSendMediaMessage(leadId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file, file.name)
+      const res = await fetch(`/api/crm/leads/${leadId}/media`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send media')
       return data
     },
     onSuccess: () => {

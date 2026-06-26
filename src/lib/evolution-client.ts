@@ -52,7 +52,7 @@ export async function getQrCode(): Promise<QrCodeResult> {
   return res.json()
 }
 
-export async function findMessages(phone: string): Promise<any[]> {
+export async function findMessages(phone: string): Promise<Record<string, unknown>[]> {
   const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
   const res = await evolutionRequest(`/chat/findMessages/${INSTANCE}`, {
     method: 'POST',
@@ -66,13 +66,47 @@ export async function findMessages(phone: string): Promise<any[]> {
   })
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
   const data = await res.json()
-  return Array.isArray(data) ? data : (data?.messages || [])
+  const messages = Array.isArray(data)
+    ? data
+    : data && typeof data === 'object' && 'messages' in data && Array.isArray(data.messages)
+      ? data.messages
+      : []
+  return messages.filter((item: any): item is Record<string, unknown> => {
+    return Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+  })
 }
 
 export async function sendAudioMessage(phone: string, base64Audio: string): Promise<SendTextResult> {
   const res = await evolutionRequest(`/message/sendWhatsAppAudio/${INSTANCE}`, {
     method: 'POST',
     body: JSON.stringify({ number: phone, audio: base64Audio, ptt: true }),
+  })
+  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+  const data = await res.json()
+  if (!data?.key?.id) throw new Error('Resposta da Evolution API sem ID de mensagem')
+  return data as SendTextResult
+}
+
+export type MediaMessageType = 'image' | 'video' | 'document'
+
+export async function sendMediaMessage(input: {
+  phone: string
+  mediaType: MediaMessageType
+  mimeType: string
+  base64Media: string
+  fileName: string
+  caption?: string
+}): Promise<SendTextResult> {
+  const res = await evolutionRequest(`/message/sendMedia/${INSTANCE}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      number: input.phone,
+      mediatype: input.mediaType,
+      mimetype: input.mimeType,
+      media: input.base64Media,
+      fileName: input.fileName,
+      caption: input.caption ?? '',
+    }),
   })
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
   const data = await res.json()

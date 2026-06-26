@@ -25,27 +25,54 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id } = await params
+  const { content, internal } = (await request.json()) as { content?: unknown; internal?: unknown }
+
+  const lead = await prisma.lead.findUnique({ where: { id } })
+  if (!lead) return NextResponse.json({ error: 'Lead nao encontrado' }, { status: 404 })
+
+  if (typeof content !== 'string' || !content.trim()) {
+    return NextResponse.json({ error: 'Mensagem vazia' }, { status: 400 })
+  }
+
+  const normalizedContent = content.trim()
+
+  if (internal === true) {
+    const message = await prisma.message.create({
+      data: {
+        leadId: lead.id,
+        whatsappMessageId: `note-${randomUUID()}`,
+        direction: 'OUTBOUND',
+        content: `[Nota Interna] ${normalizedContent}`,
+        status: null,
+      },
+    })
+    await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
+    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
+    return NextResponse.json(message)
+  }
+
   if (!checkRateLimit()) {
     return NextResponse.json({ error: 'Limite de envio atingido, aguarde um minuto' }, { status: 429 })
   }
 
-  const { id } = await params
-  const { content } = await request.json()
-
-  const lead = await prisma.lead.findUnique({ where: { id } })
-  if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
-
   try {
-    const result = await sendTextMessage(lead.phone, content)
-    const message = await prisma.message.create({
-      data: {
+    const result = await sendTextMessage(lead.phone, normalizedContent)
+    const message = await prisma.message.upsert({
+      where: { whatsappMessageId: result.key.id },
+      create: {
         leadId: lead.id,
         whatsappMessageId: result.key.id,
         direction: 'OUTBOUND',
-        content,
+        content: normalizedContent,
+        status: 'SENT',
+      },
+      update: {
+        content: normalizedContent,
         status: 'SENT',
       },
     })
+    await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
     emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(message)
   } catch (error) {
@@ -54,10 +81,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         leadId: lead.id,
         whatsappMessageId: `failed-${randomUUID()}`,
         direction: 'OUTBOUND',
-        content,
+        content: normalizedContent,
         status: 'FAILED',
       },
     })
+    await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
     emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Falha ao enviar mensagem' },

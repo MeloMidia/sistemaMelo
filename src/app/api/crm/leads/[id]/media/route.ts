@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { sendAudioMessage } from '@/lib/evolution-client'
 import { emitCrmEvent } from '@/lib/crm-events'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { randomUUID } from 'crypto'
+import { sendMediaMessage, type MediaMessageType } from '@/lib/evolution-client'
+
+const MAX_MEDIA_SIZE = 25 * 1024 * 1024
+
+function resolveMediaType(mimeType: string): MediaMessageType {
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType.startsWith('video/')) return 'video'
+  return 'document'
+}
+
+function mediaLabel(mediaType: MediaMessageType): string {
+  if (mediaType === 'image') return 'imagem'
+  if (mediaType === 'video') return 'video'
+  return 'documento'
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -20,20 +34,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!lead) return NextResponse.json({ error: 'Lead nao encontrado' }, { status: 404 })
 
   const formData = await request.formData()
-  const file = formData.get('audio')
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: 'Arquivo de audio nao enviado' }, { status: 400 })
+  const file = formData.get('file')
+  const captionValue = formData.get('caption')
+  const caption = typeof captionValue === 'string' ? captionValue.trim() : ''
+
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: 'Arquivo nao enviado' }, { status: 400 })
   }
   if (file.size === 0) {
-    return NextResponse.json({ error: 'Arquivo de audio vazio' }, { status: 400 })
+    return NextResponse.json({ error: 'Arquivo vazio' }, { status: 400 })
+  }
+  if (file.size > MAX_MEDIA_SIZE) {
+    return NextResponse.json({ error: 'Arquivo acima do limite de 25 MB' }, { status: 413 })
   }
 
+  const mediaType = resolveMediaType(file.type || 'application/octet-stream')
   const buffer = Buffer.from(await file.arrayBuffer())
-  const base64Audio = buffer.toString('base64')
-  const content = '[midia enviada - tipo: audio]'
+  const content = `[midia enviada - tipo: ${mediaLabel(mediaType)}]`
 
   try {
-    const result = await sendAudioMessage(lead.phone, base64Audio)
+    const result = await sendMediaMessage({
+      phone: lead.phone,
+      mediaType,
+      mimeType: file.type || 'application/octet-stream',
+      base64Media: buffer.toString('base64'),
+      fileName: file.name || `arquivo-${randomUUID()}`,
+      caption,
+    })
+
     const message = await prisma.message.upsert({
       where: { whatsappMessageId: result.key.id },
       create: {
@@ -48,6 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: 'SENT',
       },
     })
+
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
     emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(message)
@@ -64,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
     emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Falha ao enviar audio' },
+      { error: error instanceof Error ? error.message : 'Falha ao enviar arquivo' },
       { status: 502 }
     )
   }
