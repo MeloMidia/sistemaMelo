@@ -217,7 +217,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             placeholder="Nova categoria..."
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-slate-650 text-xs rounded-xl px-2.5 py-1.5 outline-none focus:border-blue-500/50 transition-colors duration-200"
+            className="flex-1 min-w-0 bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-slate-650 text-xs rounded-xl px-2.5 py-1.5 outline-none focus:border-blue-500/50 transition-colors duration-200"
           />
           
           <button

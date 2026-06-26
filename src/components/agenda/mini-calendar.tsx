@@ -43,7 +43,38 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
   return (
     <div className="px-1 select-none">
       <div className="flex items-center justify-between mb-3.5">
-        <span className="text-xs font-bold text-slate-200 tracking-wide">{monthLabel}</span>
+        <div className="flex items-center gap-1 text-slate-200">
+          <select
+            value={viewMonth.getMonth()}
+            onChange={(e) => setViewMonth(new Date(viewMonth.getFullYear(), parseInt(e.target.value), 1))}
+            className="bg-transparent text-xs font-bold text-slate-200 cursor-pointer outline-none hover:text-white transition-all duration-150 appearance-none hover:bg-white/[0.06] rounded px-1.5 py-0.5 [color-scheme:dark]"
+          >
+            {Array.from({ length: 12 }, (_, i) => {
+              const date = new Date(2026, i, 1)
+              const name = date.toLocaleDateString('pt-BR', { month: 'long' })
+              return (
+                <option key={i} value={i} className="bg-[#0c0e17] text-white">
+                  {name.charAt(0).toUpperCase() + name.slice(1)}
+                </option>
+              )
+            })}
+          </select>
+          <span className="text-xs font-semibold text-slate-600">/</span>
+          <select
+            value={viewMonth.getFullYear()}
+            onChange={(e) => setViewMonth(new Date(parseInt(e.target.value), viewMonth.getMonth(), 1))}
+            className="bg-transparent text-xs font-bold text-slate-200 cursor-pointer outline-none hover:text-white transition-all duration-150 appearance-none hover:bg-white/[0.06] rounded px-1.5 py-0.5 [color-scheme:dark]"
+          >
+            {Array.from({ length: 11 }, (_, i) => {
+              const year = new Date().getFullYear() - 5 + i
+              return (
+                <option key={year} value={year} className="bg-[#0c0e17] text-white">
+                  {year}
+                </option>
+              )
+            })}
+          </select>
+        </div>
         <div className="flex gap-1">
           <button
             type="button"
