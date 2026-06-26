@@ -92,75 +92,92 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#07080c]/80 backdrop-blur-sm">
-      <div className="bg-[#0f111a] border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex justify-between items-center p-5 border-b border-white/5">
-          <h2 className="text-base font-semibold text-white">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#07080c]/70 backdrop-blur-md">
+      <div className="bg-[#0c0e17] border border-white/[0.08] w-full max-w-sm rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 select-none">
+        <div className="flex justify-between items-center p-5 border-b border-white/[0.05]">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
             {mode === 'create' ? 'Novo evento' : 'Editar evento'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
-            <X className="w-4.5 h-4.5" />
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="w-7 h-7 rounded-full bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.06] hover:border-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-3.5">
           {error && (
-            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {error}
+            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Título do evento"
-            className="w-full bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50"
-            autoFocus
-          />
-
-          <input
-            type="date"
-            value={dateValue}
-            onChange={(e) => setDateValue(e.target.value)}
-            className="w-full bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/50 [color-scheme:dark]"
-          />
-
-          <div className="flex gap-2">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Título</label>
             <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/50 [color-scheme:dark]"
-            />
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/50 [color-scheme:dark]"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex: Reunião de Alinhamento"
+              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-650 outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
+              autoFocus
             />
           </div>
 
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/50"
-          >
-            <option value="" className="bg-[#0f111a]">Sem categoria</option>
-            {(categories || []).map((c) => (
-              <option key={c.id} value={c.id} className="bg-[#0f111a]">
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Data</label>
+            <input
+              type="date"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200 [color-scheme:dark]"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Horário</label>
+            <div className="flex gap-2">
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="flex-1 bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200 [color-scheme:dark]"
+              />
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="flex-1 bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200 [color-scheme:dark]"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Categoria</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
+            >
+              <option value="" className="bg-[#0c0e17]">Sem categoria</option>
+              {(categories || []).map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#0c0e17]">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between p-5 border-t border-white/5">
+        <div className="flex items-center justify-between p-5 border-t border-white/[0.05] bg-[#07080c]/20">
           {mode === 'edit' ? (
             <button
               type="button"
               onClick={handleDelete}
               disabled={isPending}
-              className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 cursor-pointer disabled:opacity-50 active:scale-95 transition-all duration-200"
             >
               <Trash2 className="w-4 h-4" />
               Excluir
@@ -172,7 +189,7 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white cursor-pointer"
+              className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer transition-all duration-200"
             >
               Cancelar
             </button>
@@ -180,7 +197,7 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
               type="button"
               onClick={handleSave}
               disabled={isPending}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer disabled:opacity-50 shadow-[0_4px_12px_rgba(59,130,246,0.2)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.35)] active:scale-95 transition-all duration-200"
             >
               Salvar
             </button>

@@ -73,23 +73,30 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
   const today = new Date()
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto select-none bg-[#07080c]">
       {/* Cabeçalho dos dias */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] sticky top-0 bg-[#07080c] z-10 border-b border-white/[0.06]">
-        <div />
+      <div className="grid grid-cols-[65px_repeat(7,1fr)] sticky top-0 bg-[#07080c]/90 backdrop-blur-md z-10 border-b border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+        <div className="border-r border-white/[0.04]" />
         {days.map((day, i) => {
           const isToday = isSameDay(day, today)
           return (
-            <div key={i} className="text-center py-2">
-              <div className="text-[11px] text-slate-500 font-medium tracking-wide">
+            <div key={i} className="text-center py-3 border-r border-white/[0.03] last:border-r-0 flex flex-col justify-between min-h-[76px]">
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                 {WEEKDAY_LABELS[day.getDay()]}
               </div>
-              <div
-                className={`mx-auto mt-1 w-8 h-8 flex items-center justify-center rounded-full text-sm font-semibold ${
-                  isToday ? 'bg-blue-600 text-white' : 'text-white'
-                }`}
-              >
-                {day.getDate()}
+              <div className="flex-1 flex flex-col items-center justify-center mt-1">
+                <div
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-200 ${
+                    isToday 
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] border border-blue-400/20' 
+                      : 'text-slate-300 hover:bg-white/[0.06] hover:text-white border border-transparent'
+                  }`}
+                >
+                  {day.getDate()}
+                </div>
+                {isToday && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shadow-[0_0_8px_rgba(59,130,246,1)] animate-pulse" />
+                )}
               </div>
             </div>
           )
@@ -97,12 +104,12 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
       </div>
 
       {/* Grade de horas */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+      <div className="grid grid-cols-[65px_repeat(7,1fr)]">
         {/* Coluna de horários */}
-        <div>
+        <div className="border-r border-white/[0.04] bg-[#07080c]/30">
           {HOURS.map((hour) => (
-            <div key={hour} style={{ height: HOUR_HEIGHT }} className="text-right pr-2 -mt-2">
-              {hour > 0 && <span className="text-[10px] text-slate-500">{formatHourLabel(hour)}</span>}
+            <div key={hour} style={{ height: HOUR_HEIGHT }} className="text-right pr-3 -mt-2 flex items-start justify-end">
+              {hour > 0 && <span className="text-[10px] font-bold text-slate-500/80 tracking-wider">{formatHourLabel(hour)}</span>}
             </div>
           ))}
         </div>
@@ -111,14 +118,20 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
         {days.map((day, dayIndex) => {
           const dayEvents = events.filter((e) => isSameDay(new Date(e.startsAt), day))
           const positioned = layoutDayEvents(dayEvents)
+          const isDayToday = isSameDay(day, today)
 
           return (
-            <div key={dayIndex} className="relative border-l border-white/[0.04]">
+            <div 
+              key={dayIndex} 
+              className={`relative border-r border-white/[0.03] last:border-r-0 ${
+                isDayToday ? 'bg-gradient-to-b from-blue-500/[0.015] to-transparent' : ''
+              }`}
+            >
               {HOURS.map((hour) => (
                 <div
                   key={hour}
                   style={{ height: HOUR_HEIGHT }}
-                  className="border-b border-white/[0.04] cursor-pointer hover:bg-white/[0.02]"
+                  className="border-b border-white/[0.04] cursor-pointer hover:bg-white/[0.015] transition-colors duration-150"
                   onClick={() => onCreateAt(day, hour)}
                 />
               ))}
@@ -134,6 +147,8 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                 const widthPct = 100 / columnCount
                 const leftPct = column * widthPct
                 const color = event.category?.color ?? '#64748b'
+                
+                const timeStr = `${start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
 
                 return (
                   <button
@@ -144,18 +159,25 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                       onEditEvent(event)
                     }}
                     style={{
-                      top,
-                      height,
-                      width: `calc(${widthPct}% - 4px)`,
-                      left: `calc(${leftPct}% + 2px)`,
-                      backgroundColor: `${color}26`,
-                      borderColor: color,
+                      top: top + 2,
+                      height: height - 4,
+                      width: `calc(${widthPct}% - 6px)`,
+                      left: `calc(${leftPct}% + 3px)`,
+                      backgroundColor: `${color}14`,
+                      borderColor: `${color}60`,
                     }}
-                    className="absolute rounded-md border-l-[3px] px-1.5 py-0.5 text-left overflow-hidden cursor-pointer hover:brightness-125 transition-[filter]"
+                    className="absolute rounded-lg border border-l-[3.5px] px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex flex-col justify-start group"
                   >
-                    <span className="text-[11px] font-medium text-white truncate block leading-tight">
+                    <span 
+                      className="text-[11px] font-bold text-slate-100 truncate block leading-tight tracking-tight group-hover:text-white transition-colors duration-150"
+                    >
                       {event.title}
                     </span>
+                    {height >= 38 && (
+                      <span className="text-[9px] text-slate-400 font-semibold truncate block mt-0.5 select-none leading-none">
+                        {timeStr}
+                      </span>
+                    )}
                   </button>
                 )
               })}

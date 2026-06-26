@@ -57,47 +57,53 @@ export function AgendaView() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[#07080c]">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-white/[0.06] shrink-0">
-        <button
-          type="button"
-          onClick={() => setModalState({ mode: 'create', date: new Date(), hour: 9 })}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-semibold cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          Criar
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setWeekStart(startOfWeek(new Date()))}
-          className="px-3 py-1.5 text-sm text-slate-300 border border-white/[0.1] rounded-lg hover:bg-white/[0.06] cursor-pointer"
-        >
-          Hoje
-        </button>
-
-        <div className="flex gap-1">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setWeekStart((d) => addDays(d, -7))}
-            className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-400 hover:text-white cursor-pointer"
+            onClick={() => setModalState({ mode: 'create', date: new Date(), hour: 9 })}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-all duration-200"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
+            Criar
           </button>
+
           <button
             type="button"
-            onClick={() => setWeekStart((d) => addDays(d, 7))}
-            className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-400 hover:text-white cursor-pointer"
+            onClick={() => setWeekStart(startOfWeek(new Date()))}
+            className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white border border-white/[0.08] hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.06] rounded-xl transition-all duration-200 cursor-pointer"
           >
-            <ChevronRight className="w-4 h-4" />
+            Hoje
           </button>
+
+          <div className="flex gap-1 ml-1">
+            <button
+              type="button"
+              onClick={() => setWeekStart((d) => addDays(d, -7))}
+              className="w-8 h-8 rounded-full border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06] text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+              aria-label="Semana anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekStart((d) => addDays(d, 7))}
+              className="w-8 h-8 rounded-full border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06] text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+              aria-label="Próxima semana"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <span className="text-sm font-medium text-white">{formatWeekRangeLabel(weekStart)}</span>
+        <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
+          {formatWeekRangeLabel(weekStart)}
+        </span>
       </div>
 
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-56 shrink-0 border-r border-white/[0.06] py-4 overflow-y-auto">
+        <aside className="w-60 shrink-0 border-r border-white/[0.06] py-6 px-4 overflow-y-auto bg-[#090a0f]/30 backdrop-blur-md space-y-6">
           <MiniCalendar weekStart={weekStart} onSelectDate={(date) => setWeekStart(startOfWeek(date))} />
           <CategorySidebar visibleIds={visibleCategoryIds} onToggle={toggleCategory} />
         </aside>
