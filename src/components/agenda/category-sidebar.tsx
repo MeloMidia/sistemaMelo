@@ -9,6 +9,21 @@ import {
   useDeleteEventCategory,
 } from '@/hooks/agenda-api'
 
+const PRESET_COLORS = [
+  '#3b82f6', // Azul (Default)
+  '#6366f1', // Indigo
+  '#8b5cf6', // Violeta
+  '#ec4899', // Rosa
+  '#ef4444', // Vermelho
+  '#f97316', // Laranja
+  '#eab308', // Amarelo
+  '#10b981', // Esmeralda
+  '#14b8a6', // Teal
+  '#06b6d4', // Ciano
+  '#64748b', // Slate
+  '#475569', // Slate Escuro
+]
+
 interface CategorySidebarProps {
   visibleIds: Set<string>
   onToggle: (id: string) => void
@@ -25,6 +40,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
   const [newColor, setNewColor] = useState('#3b82f6')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [activePickerId, setActivePickerId] = useState<string | null>(null)
 
   function commitRename(id: string, currentName: string) {
     const trimmed = editingName.trim()
@@ -81,17 +97,43 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
               </div>
 
               {/* Custom Color Dot */}
-              <div 
-                className="relative w-3.5 h-3.5 rounded-full border border-white/20 shrink-0 cursor-pointer overflow-hidden transition-transform duration-200 hover:scale-110" 
-                style={{ backgroundColor: category.color }}
-              >
-                <input
-                  type="color"
-                  value={category.color}
-                  onChange={(e) => updateCategory.mutate({ id: category.id, color: e.target.value })}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150"
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActivePickerId(activePickerId === category.id ? null : category.id)}
+                  className="w-3.5 h-3.5 rounded-full border border-white/20 cursor-pointer transition-transform duration-200 hover:scale-110 focus:outline-none"
+                  style={{ backgroundColor: category.color }}
                   title="Mudar cor"
                 />
+                
+                {activePickerId === category.id && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 cursor-default" 
+                      onClick={() => setActivePickerId(null)}
+                    />
+                    <div className="absolute left-0 top-6 z-50 p-2 bg-[#09090b] border border-white/[0.08] rounded-xl shadow-xl shadow-black/50 w-[112px] animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {PRESET_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => {
+                              updateCategory.mutate({ id: category.id, color })
+                              setActivePickerId(null)
+                            }}
+                            className="w-5 h-5 rounded-md border border-white/10 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer flex items-center justify-center"
+                            style={{ backgroundColor: color }}
+                          >
+                            {category.color === color && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white mix-blend-difference" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {editingId === category.id ? (
@@ -132,16 +174,42 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
       {isAdding && (
         <div className="flex items-center gap-2 mt-3 p-2 bg-white/[0.02] border border-white/[0.04] rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
           {/* Custom color dot picker */}
-          <div 
-            className="relative w-6 h-6 rounded-xl border border-white/10 shrink-0 cursor-pointer overflow-hidden transition-transform duration-150 hover:scale-105" 
-            style={{ backgroundColor: newColor }}
-          >
-            <input
-              type="color"
-              value={newColor}
-              onChange={(e) => setNewColor(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150"
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setActivePickerId(activePickerId === 'new' ? null : 'new')}
+              className="w-6 h-6 rounded-xl border border-white/10 cursor-pointer transition-transform duration-150 hover:scale-105 focus:outline-none"
+              style={{ backgroundColor: newColor }}
             />
+            
+            {activePickerId === 'new' && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40 cursor-default" 
+                  onClick={() => setActivePickerId(null)}
+                />
+                <div className="absolute left-0 bottom-8 z-50 p-2 bg-[#09090b] border border-white/[0.08] rounded-xl shadow-xl shadow-black/50 w-[112px] animate-in fade-in slide-in-from-bottom-1 duration-150">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setNewColor(color)
+                          setActivePickerId(null)
+                        }}
+                        className="w-5 h-5 rounded-md border border-white/10 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer flex items-center justify-center"
+                        style={{ backgroundColor: color }}
+                      >
+                        {newColor === color && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white mix-blend-difference" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           
           <input
