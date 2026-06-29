@@ -1,4 +1,6 @@
 // src/lib/evolution-client.ts
+import { normalizePhone } from '@/lib/phone'
+
 const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
@@ -54,28 +56,38 @@ export async function getQrCode(): Promise<QrCodeResult> {
 
 export async function findMessages(phone: string): Promise<Record<string, unknown>[]> {
   const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
-  const res = await evolutionRequest(`/chat/findMessages/${INSTANCE}`, {
-    method: 'POST',
-    body: JSON.stringify({
-      where: {
-        key: {
-          remoteJid: jid
-        }
-      },
-      page: 1,
-      offset: 150
-    }),
-  })
-  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
-  const data = await res.json()
-  const messages = Array.isArray(data)
-    ? data
-    : data && typeof data === 'object' && 'messages' in data && Array.isArray(data.messages)
-      ? data.messages
-      : []
-  return messages.filter((item: any): item is Record<string, unknown> => {
-    return Boolean(item) && typeof item === 'object' && !Array.isArray(item)
-  })
+  const PAGE_SIZE = 150
+  const MAX_PAGES = 20 // teto de segurança: até 3000 mensagens por sync
+  const all: Record<string, unknown>[] = []
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await evolutionRequest(`/chat/findMessages/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        where: {
+          key: {
+            remoteJid: jid
+          }
+        },
+        page,
+        offset: PAGE_SIZE
+      }),
+    })
+    if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+    const data = await res.json()
+    const messages = Array.isArray(data)
+      ? data
+      : data && typeof data === 'object' && 'messages' in data && Array.isArray(data.messages)
+        ? data.messages
+        : []
+    const page_items = messages.filter((item: any): item is Record<string, unknown> => {
+      return Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+    })
+    all.push(...page_items)
+    if (page_items.length < PAGE_SIZE) break // última página
+  }
+
+  return all
 }
 
 export async function sendAudioMessage(phone: string, base64Audio: string): Promise<SendTextResult> {
@@ -142,7 +154,7 @@ export async function handleLabel(input: {
   labelId: string
   action: 'add' | 'remove'
 }): Promise<void> {
-  const cleanPhone = input.phone.replace(/\D/g, '')
+  const cleanPhone = normalizePhone(input.phone)
   const res = await evolutionRequest(`/label/handleLabel/${INSTANCE}`, {
     method: 'POST',
     body: JSON.stringify({

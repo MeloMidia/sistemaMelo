@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { normalizeDateToMidnight } from '@/lib/date-range'
+import { normalizeDateToBrazilDay } from '@/lib/date-range'
 
 export type AgendaMeetingDay = { date: Date; agendadas: number; realizadas: number }
 
@@ -19,11 +19,14 @@ export async function getAgendaMeetingStats(startDate: Date, endDate: Date) {
   let totalRealizadas = 0
 
   for (const event of events) {
+    // Reunião cancelada não conta como agendada nem aparece no gráfico diário.
+    if (event.status === 'CANCELADA') continue
+
     totalAgendadas += 1
     const isRealizada = event.status === 'REALIZADA'
     if (isRealizada) totalRealizadas += 1
 
-    const day = normalizeDateToMidnight(event.startsAt)
+    const day = normalizeDateToBrazilDay(event.startsAt)
     const key = day.toISOString()
     const entry = byDay.get(key) ?? { date: day, agendadas: 0, realizadas: 0 }
     entry.agendadas += 1

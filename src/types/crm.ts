@@ -41,6 +41,13 @@ export interface Lead {
   updatedAt: string
 }
 
+export interface LeadLite {
+  id: string
+  name: string | null
+  phone: string
+  temperature: string | null
+}
+
 export interface LeadStage {
   id: string
   name: string

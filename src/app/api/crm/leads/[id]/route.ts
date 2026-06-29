@@ -40,6 +40,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(value !== undefined && { value }),
         ...(temperature !== undefined && { temperature }),
       },
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+      },
     })
     return NextResponse.json(lead)
   } catch (error: unknown) {

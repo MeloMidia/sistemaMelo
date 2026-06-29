@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { LeadStage, CrmTag, CrmUser, Message, WhatsappConnection } from '@/types/crm'
+import type { LeadStage, LeadLite, CrmTag, CrmUser, Message, WhatsappConnection } from '@/types/crm'
 
 // ——— Stages (board) ———
 export function useStages() {
@@ -15,6 +15,20 @@ export function useStages() {
       return res.json()
     },
     staleTime: 10_000,
+  })
+}
+
+// Lista leve de leads (sem tags/mensagens/etc.) para seletores como o de
+// "Lead vinculado" no modal de eventos — evita buscar o board pesado do CRM.
+export function useLeadsLite() {
+  return useQuery<LeadLite[]>({
+    queryKey: ['crm-leads-lite'],
+    queryFn: async () => {
+      const res = await fetch('/api/crm/leads')
+      if (!res.ok) throw new Error('Failed to fetch leads')
+      return res.json()
+    },
+    staleTime: 30_000,
   })
 }
 
@@ -124,6 +138,21 @@ export function useUpdateLead() {
       if (context?.previousStages) {
         qc.setQueryData(['crm-stages'], context.previousStages)
       }
+    },
+    onSuccess: (updatedLead: { id: string }) => {
+      // Substitui o merge otimista (parcial) pela resposta confirmada do
+      // servidor — corrige campos como updatedAt/assignedTo sem precisar
+      // invalidar e re-buscar o board inteiro (caro, ver fix de performance
+      // do termômetro).
+      qc.setQueryData<LeadStage[]>(['crm-stages'], (old) => {
+        if (!old) return old
+        return old.map((stage) => ({
+          ...stage,
+          leads: stage.leads.map((lead) =>
+            lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
+          ),
+        }))
+      })
     },
     onSettled: (_data, _error, variables) => {
       if (variables.temperature !== undefined) {

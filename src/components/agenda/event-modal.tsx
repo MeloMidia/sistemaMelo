@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { useCreateAgendaEvent, useUpdateAgendaEvent, useDeleteAgendaEvent, useEventCategories } from '@/hooks/agenda-api'
-import { useStages } from '@/hooks/crm-api'
+import { useLeadsLite } from '@/hooks/crm-api'
 import { getLeadDisplayName } from '@/lib/phone'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 
@@ -49,8 +49,7 @@ export function EventModal({
   onClose
 }: EventModalProps) {
   const { data: categories } = useEventCategories()
-  const { data: stages } = useStages()
-  const leads = (stages ?? []).flatMap((stage) => stage.leads)
+  const { data: leads } = useLeadsLite()
   const createEvent = useCreateAgendaEvent()
   const updateEvent = useUpdateAgendaEvent()
   const deleteEvent = useDeleteAgendaEvent()
@@ -71,6 +70,13 @@ export function EventModal({
   const [leadId, setLeadId] = useState<string>(event?.leadId ?? '')
   const [status, setStatus] = useState<AgendaEventStatus>(event?.status ?? 'AGENDADA')
   const [error, setError] = useState<string | null>(null)
+
+  function handleLeadIdChange(value: string) {
+    setLeadId(value)
+    // Sem lead vinculado o seletor de status fica oculto; reseta para o
+    // padrão para não salvar um status "fantasma" que o usuário não vê mais.
+    if (!value) setStatus('AGENDADA')
+  }
 
   const isPending = createEvent.isPending || updateEvent.isPending || deleteEvent.isPending
 
@@ -200,11 +206,11 @@ export function EventModal({
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lead vinculado</label>
             <select
               value={leadId}
-              onChange={(e) => setLeadId(e.target.value)}
+              onChange={(e) => handleLeadIdChange(e.target.value)}
               className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
             >
               <option value="" className="bg-[#0c0e17]">Sem lead</option>
-              {leads.map((lead) => (
+              {(leads ?? []).map((lead) => (
                 <option key={lead.id} value={lead.id} className="bg-[#0c0e17]">
                   {lead.temperature ? `${lead.temperature} ` : ''}{getLeadDisplayName(lead)}
                 </option>

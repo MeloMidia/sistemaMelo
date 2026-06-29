@@ -20,7 +20,7 @@ export function AutomacaoMLView() {
   const esRef                             = useRef<EventSource | null>(null)
 
   useEffect(() => {
-    loadClients().then(checkRunningStatus)
+    loadClients()
     return () => { esRef.current?.close() }
   }, [])
 
@@ -38,6 +38,7 @@ export function AutomacaoMLView() {
       if (!data.ok) throw new Error(data.error || data.message || 'Erro desconhecido do servidor.')
       setClients(data.clients)
       setStatus('ready')
+      await checkRunningStatus()
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : String(e))
       setStatus('error')

@@ -59,6 +59,19 @@ export function normalizeDateToMidnight(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
 }
 
+const BRAZIL_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
+
+/**
+ * Trunca para o início do dia civil no horário de Brasília (UTC-3), e não no
+ * dia UTC. getDateRange computa os limites de período no horário local do
+ * navegador (Brasil); sem essa compensação, um evento perto da meia-noite
+ * local cai no dia UTC seguinte/anterior e aparece no dia errado do gráfico.
+ */
+export function normalizeDateToBrazilDay(date: Date): Date {
+  const shifted = new Date(date.getTime() - BRAZIL_UTC_OFFSET_MS)
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()))
+}
+
 export function formatDateLabel(date: Date | string): string {
   const d = new Date(date)
   const day = d.getUTCDate()

@@ -1,7 +1,7 @@
 // src/components/crm/kanban-leads.tsx
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -38,6 +38,13 @@ export function KanbanLeads() {
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
 
+  // Snapshot do estado REAL antes de qualquer reordenação otimista do
+  // dragOver — handleDragOver já escreve no cache ['crm-stages'] durante o
+  // arraste, então o onMutate/onError do useUpdateLead captura um estado
+  // já alterado. Guardamos aqui o estado verdadeiro pra poder restaurar
+  // corretamente se o PUT falhar.
+  const dragStartSnapshotRef = useRef<LeadStage[] | null>(null)
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
@@ -46,7 +53,8 @@ export function KanbanLeads() {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
     setActiveLead(active.data.current?.lead as Lead)
-  }, [])
+    dragStartSnapshotRef.current = queryClient.getQueryData<LeadStage[]>(['crm-stages']) ?? null
+  }, [queryClient])
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
@@ -128,11 +136,20 @@ export function KanbanLeads() {
     const originalLead = active.data.current?.lead as Lead | undefined
     if (!originalLead || originalLead.stageId === targetStageId) return
 
+    const trueSnapshot = dragStartSnapshotRef.current
+
     updateLead.mutate(
       { id: activeLeadId, stageId: targetStageId },
       {
         onError: () => {
-          // Revert to original state on error by invalidating
+          // useUpdateLead's próprio onError já restaurou um snapshot, mas
+          // esse snapshot foi tirado DEPOIS do handleDragOver já ter movido
+          // o lead no cache — ou seja, é o estado pós-drag, não o original.
+          // Restauramos aqui o snapshot verdadeiro (de antes do drag) e, por
+          // segurança, invalidamos para confirmar com o servidor.
+          if (trueSnapshot) {
+            queryClient.setQueryData(['crm-stages'], trueSnapshot)
+          }
           queryClient.invalidateQueries({ queryKey: ['crm-stages'] })
         }
       }
