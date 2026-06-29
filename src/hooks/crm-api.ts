@@ -60,6 +60,7 @@ export function useUpdateLead() {
       stageId?: string
       assignedToId?: string | null
       value?: number | null
+      temperature?: string | null
     }) => {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: 'PUT',
@@ -69,7 +70,66 @@ export function useUpdateLead() {
       if (!res.ok) throw new Error('Failed to update lead')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onMutate: async (newLeadData) => {
+      await qc.cancelQueries({ queryKey: ['crm-stages'] })
+      const previousStages = qc.getQueryData<LeadStage[]>(['crm-stages'])
+
+      if (previousStages) {
+        qc.setQueryData<LeadStage[]>(
+          ['crm-stages'],
+          previousStages.map((stage) => {
+            const isTargetStage = newLeadData.stageId && stage.id === newLeadData.stageId
+            const hasLead = stage.leads.some((lead) => lead.id === newLeadData.id)
+
+            if (hasLead) {
+              if (newLeadData.stageId && newLeadData.stageId !== stage.id) {
+                return {
+                  ...stage,
+                  leads: stage.leads.filter((lead) => lead.id !== newLeadData.id),
+                }
+              }
+              return {
+                ...stage,
+                leads: stage.leads.map((lead) => {
+                  if (lead.id === newLeadData.id) {
+                    return { ...lead, ...newLeadData }
+                  }
+                  return lead
+                }),
+              }
+            } else if (isTargetStage) {
+              let leadData = null
+              for (const s of previousStages) {
+                const l = s.leads.find((lead) => lead.id === newLeadData.id)
+                if (l) {
+                  leadData = l
+                  break
+                }
+              }
+              if (leadData) {
+                return {
+                  ...stage,
+                  leads: [...stage.leads, { ...leadData, ...newLeadData }],
+                }
+              }
+            }
+            return stage
+          })
+        )
+      }
+
+      return { previousStages }
+    },
+    onError: (err, newLeadData, context) => {
+      if (context?.previousStages) {
+        qc.setQueryData(['crm-stages'], context.previousStages)
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      if (variables.temperature !== undefined) {
+        qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      }
+    },
   })
 }
 

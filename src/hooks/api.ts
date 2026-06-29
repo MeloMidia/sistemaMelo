@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Column, Task } from '@/types'
 import { getDashboardData } from '@/app/actions/metrics'
 import { getSdrLogs } from '@/app/actions/sdr'
-import { getDateRange, getPreviousPeriodRange, type PeriodKey } from '@/lib/date-range'
+import { getAgendaMeetingStats } from '@/app/actions/agenda-stats'
+import { getDateRange, getPreviousPeriodRange, type DateRange, type PeriodKey } from '@/lib/date-range'
 
 // ——— Columns ———
 export function useColumns(source: string = 'kanban') {
@@ -199,34 +200,42 @@ export function useReorderTasks() {
 export type DashboardData = {
   metrics: Awaited<ReturnType<typeof getDashboardData>>['metrics']
   logs: Awaited<ReturnType<typeof getSdrLogs>>
+  agenda: Awaited<ReturnType<typeof getAgendaMeetingStats>>
 }
 
-export function useDashboardData(period: PeriodKey) {
+function rangeKey(range?: DateRange): string {
+  if (!range || Number.isNaN(range.start.getTime()) || Number.isNaN(range.end.getTime())) return ''
+  return `${range.start.toISOString()}_${range.end.toISOString()}`
+}
+
+export function useDashboardData(period: PeriodKey, customRange?: DateRange) {
   return useQuery<DashboardData>({
-    queryKey: ['dashboard', period],
+    queryKey: ['dashboard', period, rangeKey(customRange)],
     queryFn: async () => {
-      const range = getDateRange(period)
-      const [current, logs] = await Promise.all([
+      const range = getDateRange(period, customRange)
+      const [current, logs, agenda] = await Promise.all([
         getDashboardData(range.start, range.end),
         getSdrLogs(range.start, range.end),
+        getAgendaMeetingStats(range.start, range.end),
       ])
-      return { metrics: current.metrics, logs }
+      return { metrics: current.metrics, logs, agenda }
     },
     staleTime: 60_000,
   })
 }
 
-export function useDashboardPrev(period: PeriodKey, enabled: boolean) {
+export function useDashboardPrev(period: PeriodKey, enabled: boolean, customRange?: DateRange) {
   return useQuery<DashboardData>({
-    queryKey: ['dashboard', period, 'prev'],
+    queryKey: ['dashboard', period, rangeKey(customRange), 'prev'],
     queryFn: async () => {
-      const range = getDateRange(period)
+      const range = getDateRange(period, customRange)
       const prevRange = getPreviousPeriodRange(range)
-      const [prev, logs] = await Promise.all([
+      const [prev, logs, agenda] = await Promise.all([
         getDashboardData(prevRange.start, prevRange.end),
         getSdrLogs(prevRange.start, prevRange.end),
+        getAgendaMeetingStats(prevRange.start, prevRange.end),
       ])
-      return { metrics: prev.metrics, logs }
+      return { metrics: prev.metrics, logs, agenda }
     },
     staleTime: 60_000,
     enabled,

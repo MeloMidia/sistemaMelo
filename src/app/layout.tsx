@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SistemaMelo — Processos",
+  title: "melo flow — Processos",
   description: "Sistema interno de gestão de tarefas no estilo Processos",
 };
 

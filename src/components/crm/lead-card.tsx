@@ -4,6 +4,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import type { Lead } from '@/types/crm'
 import { MessageCircle } from 'lucide-react'
+import { getLeadDisplayName } from '@/lib/phone'
 
 interface LeadCardProps {
   lead: Lead
@@ -37,7 +38,8 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
       `}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-white truncate">{lead.name || lead.phone}</span>
+        <span className="text-sm font-medium text-white truncate">{getLeadDisplayName(lead)}</span>
+        {lead.temperature && <span className="text-[11px] shrink-0 select-none">{lead.temperature}</span>}
       </div>
 
       <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">

@@ -10,7 +10,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { title, startsAt, endsAt, categoryId } = await request.json()
+  const { title, description, startsAt, endsAt, categoryId, leadId, status } = await request.json()
 
   const existing = await prisma.agendaEvent.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
@@ -27,11 +27,22 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       where: { id },
       data: {
         ...(title !== undefined && { title }),
+        ...(description !== undefined && { description: description || null }),
         startsAt: start,
         endsAt: end,
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        ...(leadId !== undefined && { leadId: leadId || null }),
+        ...(status !== undefined && { status }),
       },
-      include: { category: true },
+      include: {
+        category: true,
+        lead: {
+          select: {
+            id: true,
+            temperature: true,
+          },
+        },
+      },
     })
     return NextResponse.json(event)
   } catch (error: unknown) {

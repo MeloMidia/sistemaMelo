@@ -57,14 +57,12 @@ export default function LoginPage() {
         {/* Top gradient line */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
 
-        <CardHeader className="text-center space-y-5 pb-2 pt-8">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/25 ring-1 ring-white/10">
-            <LayoutDashboard className="w-8 h-8 text-white" />
+        <CardHeader className="text-center space-y-3 pb-4 pt-10">
+          <div className="flex items-center justify-center gap-1.5 select-none pb-2">
+            <span className="text-3xl font-medium tracking-tight text-amber-400 lowercase">melo</span>
+            <span className="text-3xl font-light italic tracking-tight text-slate-350 lowercase">flow</span>
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
-              SistemaMelo
-            </CardTitle>
             <CardDescription className="text-slate-400 mt-1.5 text-sm">
               Gestão de tarefas interna
             </CardDescription>

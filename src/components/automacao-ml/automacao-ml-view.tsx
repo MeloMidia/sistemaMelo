@@ -20,7 +20,7 @@ export function AutomacaoMLView() {
   const esRef                             = useRef<EventSource | null>(null)
 
   useEffect(() => {
-    loadClients()
+    loadClients().then(checkRunningStatus)
     return () => { esRef.current?.close() }
   }, [])
 
@@ -41,6 +41,17 @@ export function AutomacaoMLView() {
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : String(e))
       setStatus('error')
+    }
+  }
+
+  async function checkRunningStatus() {
+    try {
+      const res  = await fetch('/api/automacao/status')
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.running) setStatus('running')
+    } catch {
+      // ignora — não bloqueia a tela se a checagem de status falhar
     }
   }
 

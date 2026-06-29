@@ -1,8 +1,16 @@
-export type PeriodKey = 'this-month' | 'last-month' | 'last-30' | 'last-90'
+export type PeriodKey = 'this-month' | 'last-month' | 'last-30' | 'last-90' | 'custom'
 
 export type DateRange = { start: Date; end: Date }
 
-export function getDateRange(period: PeriodKey): DateRange {
+export function getDateRange(period: PeriodKey, customRange?: DateRange): DateRange {
+  if (period === 'custom' && customRange) {
+    const start = new Date(customRange.start)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(customRange.end)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+  }
+
   const now = new Date()
 
   if (period === 'this-month') {

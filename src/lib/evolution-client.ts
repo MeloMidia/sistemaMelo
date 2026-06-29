@@ -61,7 +61,9 @@ export async function findMessages(phone: string): Promise<Record<string, unknow
         key: {
           remoteJid: jid
         }
-      }
+      },
+      page: 1,
+      offset: 150
     }),
   })
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
@@ -112,4 +114,46 @@ export async function sendMediaMessage(input: {
   const data = await res.json()
   if (!data?.key?.id) throw new Error('Resposta da Evolution API sem ID de mensagem')
   return data as SendTextResult
+}
+
+export interface WhatsappLabel {
+  id: string
+  name: string
+  color?: string | number
+}
+
+export async function findLabels(): Promise<WhatsappLabel[]> {
+  try {
+    const res = await evolutionRequest(`/label/findLabels/${INSTANCE}`)
+    if (!res.ok) {
+      console.error(`Evolution API findLabels retornou status ${res.status}`)
+      return []
+    }
+    const data = await res.json()
+    return Array.isArray(data) ? (data as WhatsappLabel[]) : []
+  } catch (err) {
+    console.error('Erro ao buscar etiquetas do WhatsApp:', err)
+    return []
+  }
+}
+
+export async function handleLabel(input: {
+  phone: string
+  labelId: string
+  action: 'add' | 'remove'
+}): Promise<void> {
+  const cleanPhone = input.phone.replace(/\D/g, '')
+  const res = await evolutionRequest(`/label/handleLabel/${INSTANCE}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      number: cleanPhone,
+      labelId: input.labelId,
+      action: input.action,
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`Evolution API handleLabel retornou status ${res.status}: ${text}`)
+    throw new Error(`Evolution API handleLabel retornou ${res.status}`)
+  }
 }

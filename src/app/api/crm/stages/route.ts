@@ -11,7 +11,7 @@ export async function GET() {
     orderBy: { order: 'asc' },
     include: {
       leads: {
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           tags: { include: { tag: true } },
           assignedTo: { select: { id: true, name: true } },

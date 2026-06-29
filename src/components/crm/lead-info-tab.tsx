@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tag as TagIcon, Plus, Copy, Check, X } from 'lucide-react'
+import { Tag as TagIcon, Plus, Copy, Check, X, Calendar } from 'lucide-react'
 import {
   useCrmTags,
   useCreateCrmTag,
@@ -13,6 +13,9 @@ import {
 import type { Lead, LeadStage } from '@/types/crm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
+import { useEventCategories } from '@/hooks/agenda-api'
+import { EventModal } from '@/components/agenda/event-modal'
 
 interface LeadInfoTabProps {
   lead: Lead
@@ -30,8 +33,10 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
   const detachTag = useDetachTag(lead.id)
   const { data: users } = useCrmUsers()
   const updateLead = useUpdateLead()
+  const { data: eventCategories } = useEventCategories()
 
   const [isAddingTag, setIsAddingTag] = useState(false)
+  const [isScheduling, setIsScheduling] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#3b82f6')
   const [valueDraft, setValueDraft] = useState(lead.value?.toString() ?? '')
@@ -97,11 +102,29 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
 
         <span className="text-slate-500">Contato</span>
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-white truncate">{lead.name || lead.phone}</span>
-          <span className="text-slate-500 text-xs shrink-0">{lead.phone}</span>
+          <span className="text-white truncate">{getLeadDisplayName(lead)}</span>
+          <span className="text-slate-500 text-xs shrink-0">{formatPhoneNumber(lead.phone)}</span>
           <button onClick={handleCopyPhone} className="text-slate-500 hover:text-white cursor-pointer shrink-0">
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
+        </div>
+
+        <span className="text-slate-500">Termômetro</span>
+        <div className="flex items-center gap-2">
+          {['🟢', '🟡', '🔴'].map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => updateLead.mutate({ id: lead.id, temperature: lead.temperature === emoji ? null : emoji })}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200 cursor-pointer ${
+                lead.temperature === emoji
+                  ? 'bg-white/[0.08] border-white/20 scale-110 shadow-md font-bold'
+                  : 'bg-transparent border-transparent hover:bg-white/[0.04] opacity-40 hover:opacity-100'
+              }`}
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
 
         <span className="text-slate-500">Valor</span>
@@ -136,6 +159,26 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
         <span className="text-slate-500">Touchpoints</span>
         <span className="text-white">{lead._count.messages}</span>
       </div>
+
+      <Button
+        onClick={() => setIsScheduling(true)}
+        className="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-bold uppercase tracking-wider py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(249,115,22,0.2)] hover:shadow-[0_4px_20px_rgba(249,115,22,0.35)] active:scale-95 transition-all duration-200 cursor-pointer mt-1 mb-3"
+      >
+        <Calendar className="w-4 h-4" />
+        Agendar Reunião
+      </Button>
+
+      {isScheduling && (
+        <EventModal
+          mode="create"
+          initialDate={new Date()}
+          initialHour={9}
+          initialTitle={`Reunião: ${getLeadDisplayName(lead)}`}
+          initialDescription={`Reunião com o lead ${getLeadDisplayName(lead)} (${formatPhoneNumber(lead.phone)})`}
+          initialCategoryId={eventCategories?.find(c => c.name.toLowerCase().includes('agendada'))?.id}
+          onClose={() => setIsScheduling(false)}
+        />
+      )}
 
       <div>
         <label className="text-[11px] text-slate-500 font-medium mb-1 block">Tags</label>

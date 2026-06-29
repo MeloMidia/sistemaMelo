@@ -3,12 +3,24 @@
 import { useState } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { useCreateAgendaEvent, useUpdateAgendaEvent, useDeleteAgendaEvent, useEventCategories } from '@/hooks/agenda-api'
-import type { AgendaEvent } from '@/types/agenda'
+import { useStages } from '@/hooks/crm-api'
+import { getLeadDisplayName } from '@/lib/phone'
+import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
+
+const STATUS_OPTIONS: { value: AgendaEventStatus; label: string }[] = [
+  { value: 'AGENDADA', label: 'Agendada' },
+  { value: 'REALIZADA', label: 'Realizada' },
+  { value: 'NAO_REALIZADA', label: 'Não realizada' },
+  { value: 'CANCELADA', label: 'Cancelada' },
+]
 
 interface EventModalProps {
   mode: 'create' | 'edit'
   initialDate?: Date
   initialHour?: number
+  initialTitle?: string
+  initialDescription?: string
+  initialCategoryId?: string
   event?: AgendaEvent
   onClose: () => void
 }
@@ -26,8 +38,19 @@ function toTimeInputValue(date: Date): string {
   return `${h}:${m}`
 }
 
-export function EventModal({ mode, initialDate, initialHour, event, onClose }: EventModalProps) {
+export function EventModal({
+  mode,
+  initialDate,
+  initialHour,
+  initialTitle,
+  initialDescription,
+  initialCategoryId,
+  event,
+  onClose
+}: EventModalProps) {
   const { data: categories } = useEventCategories()
+  const { data: stages } = useStages()
+  const leads = (stages ?? []).flatMap((stage) => stage.leads)
   const createEvent = useCreateAgendaEvent()
   const updateEvent = useUpdateAgendaEvent()
   const deleteEvent = useDeleteAgendaEvent()
@@ -35,7 +58,8 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
   const baseDate = event ? new Date(event.startsAt) : (initialDate ?? new Date())
   const baseStartHour = event ? undefined : (initialHour ?? 9)
 
-  const [title, setTitle] = useState(event?.title ?? '')
+  const [title, setTitle] = useState(event?.title ?? initialTitle ?? '')
+  const [description, setDescription] = useState(event?.description ?? initialDescription ?? '')
   const [dateValue, setDateValue] = useState(toDateInputValue(baseDate))
   const [startTime, setStartTime] = useState(
     event ? toTimeInputValue(new Date(event.startsAt)) : `${String(baseStartHour).padStart(2, '0')}:00`
@@ -43,7 +67,9 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
   const [endTime, setEndTime] = useState(
     event ? toTimeInputValue(new Date(event.endsAt)) : `${String((baseStartHour ?? 9) + 1).padStart(2, '0')}:00`
   )
-  const [categoryId, setCategoryId] = useState<string>(event?.categoryId ?? '')
+  const [categoryId, setCategoryId] = useState<string>(event?.categoryId ?? initialCategoryId ?? '')
+  const [leadId, setLeadId] = useState<string>(event?.leadId ?? '')
+  const [status, setStatus] = useState<AgendaEventStatus>(event?.status ?? 'AGENDADA')
   const [error, setError] = useState<string | null>(null)
 
   const isPending = createEvent.isPending || updateEvent.isPending || deleteEvent.isPending
@@ -65,7 +91,7 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
       return
     }
 
-    const payload = { title: title.trim(), startsAt, endsAt, categoryId: categoryId || null }
+    const payload = { title: title.trim(), description: description.trim() || null, startsAt, endsAt, categoryId: categoryId || null, leadId: leadId || null }
 
     if (mode === 'create') {
       createEvent.mutate(payload, {
@@ -74,7 +100,7 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
       })
     } else if (event) {
       updateEvent.mutate(
-        { id: event.id, ...payload },
+        { id: event.id, ...payload, status },
         {
           onSuccess: onClose,
           onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
@@ -168,6 +194,49 @@ export function EventModal({ mode, initialDate, initialHour, event, onClose }: E
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lead vinculado</label>
+            <select
+              value={leadId}
+              onChange={(e) => setLeadId(e.target.value)}
+              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
+            >
+              <option value="" className="bg-[#0c0e17]">Sem lead</option>
+              {leads.map((lead) => (
+                <option key={lead.id} value={lead.id} className="bg-[#0c0e17]">
+                  {lead.temperature ? `${lead.temperature} ` : ''}{getLeadDisplayName(lead)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {mode === 'edit' && leadId && (
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Status da reunião</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as AgendaEventStatus)}
+                className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-[#0c0e17]">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Descrição / Anotações</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Adicione anotações sobre a reunião/compromisso..."
+              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-650 outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200 resize-none h-20"
+            />
           </div>
         </div>
 

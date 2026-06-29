@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { AgendaEvent, EventCategory } from '@/types/agenda'
+import type { AgendaEvent, AgendaEventStatus, EventCategory } from '@/types/agenda'
 
 // ——— Events ———
 export function useAgendaEvents(start: Date, end: Date) {
@@ -20,7 +20,7 @@ export function useAgendaEvents(start: Date, end: Date) {
 export function useCreateAgendaEvent() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (data: { title: string; startsAt: string; endsAt: string; categoryId?: string | null }) => {
+    mutationFn: async (data: { title: string; description?: string | null; startsAt: string; endsAt: string; categoryId?: string | null; leadId?: string | null }) => {
       const res = await fetch('/api/agenda/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,7 +30,10 @@ export function useCreateAgendaEvent() {
       if (!res.ok) throw new Error(result.error || 'Failed to create event')
       return result
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agenda-events'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -43,9 +46,12 @@ export function useUpdateAgendaEvent() {
     }: {
       id: string
       title?: string
+      description?: string | null
       startsAt?: string
       endsAt?: string
       categoryId?: string | null
+      leadId?: string | null
+      status?: AgendaEventStatus
     }) => {
       const res = await fetch(`/api/agenda/events/${id}`, {
         method: 'PUT',
@@ -56,7 +62,10 @@ export function useUpdateAgendaEvent() {
       if (!res.ok) throw new Error(result.error || 'Failed to update event')
       return result
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agenda-events'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -68,7 +77,10 @@ export function useDeleteAgendaEvent() {
       if (!res.ok) throw new Error('Failed to delete event')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agenda-events'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -113,7 +125,10 @@ export function useUpdateEventCategory() {
       if (!res.ok) throw new Error('Failed to update category')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agenda-categories'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-categories'] })
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+    },
   })
 }
 

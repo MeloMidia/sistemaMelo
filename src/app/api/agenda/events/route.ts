@@ -27,7 +27,15 @@ export async function GET(request: Request) {
       startsAt: { lte: endDate },
       endsAt: { gte: startDate },
     },
-    include: { category: true },
+    include: {
+      category: true,
+      lead: {
+        select: {
+          id: true,
+          temperature: true,
+        },
+      },
+    },
     orderBy: { startsAt: 'asc' },
   })
   return NextResponse.json(events)
@@ -37,7 +45,7 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title, startsAt, endsAt, categoryId } = await request.json()
+  const { title, description, startsAt, endsAt, categoryId, leadId } = await request.json()
   if (!title || !startsAt || !endsAt) {
     return NextResponse.json({ error: 'Título, início e fim são obrigatórios' }, { status: 400 })
   }
@@ -51,8 +59,23 @@ export async function POST(request: Request) {
 
   try {
     const event = await prisma.agendaEvent.create({
-      data: { title, startsAt: start, endsAt: end, categoryId: categoryId || null },
-      include: { category: true },
+      data: {
+        title,
+        description: description || null,
+        startsAt: start,
+        endsAt: end,
+        categoryId: categoryId || null,
+        leadId: leadId || null,
+      },
+      include: {
+        category: true,
+        lead: {
+          select: {
+            id: true,
+            temperature: true,
+          },
+        },
+      },
     })
     return NextResponse.json(event)
   } catch (error: unknown) {

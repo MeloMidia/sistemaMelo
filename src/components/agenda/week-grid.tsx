@@ -108,8 +108,12 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
         {/* Coluna de horários */}
         <div className="border-r border-white/[0.04] bg-[#07080c]/30">
           {HOURS.map((hour) => (
-            <div key={hour} style={{ height: HOUR_HEIGHT }} className="text-right pr-3 -mt-2 flex items-start justify-end">
-              {hour > 0 && <span className="text-[10px] font-bold text-slate-500/80 tracking-wider">{formatHourLabel(hour)}</span>}
+            <div key={hour} style={{ height: HOUR_HEIGHT }} className="relative text-right pr-3 flex items-start justify-end">
+              {hour > 0 && (
+                <span className="absolute top-0 right-3 -translate-y-1/2 text-[10px] font-bold text-slate-500/80 tracking-wider">
+                  {formatHourLabel(hour)}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -158,6 +162,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                       e.stopPropagation()
                       onEditEvent(event)
                     }}
+                    title={event.description || undefined}
                     style={{
                       top: top + 2,
                       height: height - 4,
@@ -168,10 +173,15 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                     }}
                     className="absolute rounded-lg border border-l-[3.5px] px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex flex-col justify-start group"
                   >
-                    <span 
-                      className="text-[11px] font-bold text-slate-100 truncate block leading-tight tracking-tight group-hover:text-white transition-colors duration-150"
-                    >
-                      {event.title}
+                    <span className="flex items-center gap-1 min-w-0">
+                      <span
+                        className="text-[11px] font-bold text-slate-100 truncate leading-tight tracking-tight group-hover:text-white transition-colors duration-150"
+                      >
+                        {event.title}
+                      </span>
+                      {event.lead?.temperature && (
+                        <span className="text-[10px] shrink-0 select-none">{event.lead.temperature}</span>
+                      )}
                     </span>
                     {height >= 38 && (
                       <span className="text-[9px] text-slate-400 font-semibold truncate block mt-0.5 select-none leading-none">

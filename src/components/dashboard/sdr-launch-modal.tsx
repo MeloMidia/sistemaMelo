@@ -17,12 +17,12 @@ const EMPTY_FORM = {
 }
 
 const FIELDS: { name: keyof typeof EMPTY_FORM; label: string; color: 'blue' | 'red'; colSpan?: boolean }[] = [
-  { name: 'leadsWhatsapp', label: 'Leads WhatsApp', color: 'blue' },
-  { name: 'agendadas', label: 'Agendadas', color: 'blue' },
-  { name: 'realizadas', label: 'Realizadas', color: 'blue' },
+  { name: 'leadsWhatsapp', label: 'Leads WhatsApp', color: 'blue', colSpan: true },
   { name: 'faltaLead', label: 'Falta — lead', color: 'red' },
-  { name: 'naoRealizada', label: 'Não realizada', color: 'red', colSpan: true },
+  { name: 'naoRealizada', label: 'Não realizada', color: 'red' },
 ]
+// Agendadas/Realizadas saíram daqui: agora vêm de eventos reais da Agenda
+// vinculados a um lead (ver getAgendaMeetingStats), não mais de lançamento manual.
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear()

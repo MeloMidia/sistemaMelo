@@ -53,7 +53,5 @@ export const WEEKDAY_LABELS = ['DOM.', 'SEG.', 'TER.', 'QUA.', 'QUI.', 'SEX.', '
 export const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 export function formatHourLabel(hour: number): string {
-  if (hour === 0) return '12 AM'
-  if (hour === 12) return '12 PM'
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
+  return `${String(hour).padStart(2, '0')}:00`
 }

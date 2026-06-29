@@ -7,6 +7,8 @@ import { useStages } from '@/hooks/crm-api'
 import { LeadInfoTab } from './lead-info-tab'
 import { LeadConversaTab } from './lead-conversa-tab'
 
+import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
+
 interface LeadPanelProps {
   leadId: string
   onClose: () => void
@@ -27,8 +29,9 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
 
   if (!lead || !stage) return null
 
-  const initial = (lead.name || lead.phone).charAt(0).toUpperCase()
-  const avatarColor = getAvatarColor(lead.name || lead.phone)
+  const displayName = getLeadDisplayName(lead)
+  const initial = displayName.charAt(0).toUpperCase()
+  const avatarColor = getAvatarColor(displayName)
 
   return (
     <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-[#0a0b10] border-l border-white/[0.08] shadow-2xl shadow-black/40 flex flex-col z-40">
@@ -41,8 +44,8 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
             {initial}
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white">{lead.name || lead.phone}</h2>
-            <p className="text-xs text-slate-500">{lead.phone}</p>
+            <h2 className="text-sm font-semibold text-white">{displayName}</h2>
+            <p className="text-xs text-slate-500">{formatPhoneNumber(lead.phone)}</p>
           </div>
         </div>
         <button

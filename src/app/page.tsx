@@ -30,13 +30,9 @@ export default function HomePage() {
         <div className="flex items-center justify-between px-6 h-[60px]">
           {/* Logo + Nav */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
-                <LayoutDashboard className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-heading)' }}>
-                SistemaMelo
-              </span>
+            <div className="flex items-center gap-1 select-none">
+              <span className="text-xl font-medium tracking-tight text-amber-400 lowercase">melo</span>
+              <span className="text-xl font-light italic tracking-tight text-slate-300 lowercase">flow</span>
             </div>
 
             {/* Tabs */}

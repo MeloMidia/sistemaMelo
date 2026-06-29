@@ -110,8 +110,10 @@ model Lead {
   assignedToId String?
   assignedTo   User?      @relation(fields: [assignedToId], references: [id])
   value        Float?
+  temperature  String?
   messages     Message[]
   tags         LeadTag[]
+  events       AgendaEvent[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -176,15 +178,26 @@ model EventCategory {
   events AgendaEvent[]
 }
 
+enum AgendaEventStatus {
+  AGENDADA
+  REALIZADA
+  NAO_REALIZADA
+  CANCELADA
+}
+
 model AgendaEvent {
-  id         String         @id @default(cuid())
-  title      String
-  startsAt   DateTime
-  endsAt     DateTime
-  categoryId String?
-  category   EventCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  categoryId  String?
+  category    EventCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  leadId      String?
+  lead        Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  status      AgendaEventStatus @default(AGENDADA)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([startsAt, endsAt])
 }

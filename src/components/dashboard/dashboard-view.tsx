@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, Target } from 'lucide-react'
-import { type PeriodKey } from '@/lib/date-range'
+import { type DateRange, type PeriodKey } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
@@ -34,17 +34,47 @@ type SdrTotals = {
   naoRealizada: number
 }
 
-function aggregateSdrLogs(logs: SdrLog[]): SdrTotals {
-  return logs.reduce(
+type AgendaStats = DashboardData['agenda']
+
+// Agendadas/Realizadas agora vêm de eventos reais da Agenda vinculados a um lead
+// (ver getAgendaMeetingStats) — o lançamento manual de SDR só alimenta os demais campos.
+function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTotals {
+  const manual = logs.reduce(
     (acc, log) => ({
       leadsWhatsapp: acc.leadsWhatsapp + log.leadsWhatsapp,
-      agendadas: acc.agendadas + log.agendadas,
-      realizadas: acc.realizadas + log.realizadas,
       faltaLead: acc.faltaLead + log.faltaLead,
       naoRealizada: acc.naoRealizada + log.naoRealizada,
     }),
-    { leadsWhatsapp: 0, agendadas: 0, realizadas: 0, faltaLead: 0, naoRealizada: 0 }
+    { leadsWhatsapp: 0, faltaLead: 0, naoRealizada: 0 }
   )
+  return {
+    ...manual,
+    agendadas: agenda?.totalAgendadas ?? 0,
+    realizadas: agenda?.totalRealizadas ?? 0,
+  }
+}
+
+function buildDailyChartData(logs: SdrLog[], agenda: AgendaStats | undefined) {
+  const byDay = new Map<string, { date: Date; leadsWhatsapp: number; agendadas: number; realizadas: number }>()
+
+  for (const log of logs) {
+    const date = new Date(log.date)
+    const key = date.toISOString()
+    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0 }
+    entry.leadsWhatsapp += log.leadsWhatsapp
+    byDay.set(key, entry)
+  }
+
+  for (const day of agenda?.daily ?? []) {
+    const date = new Date(day.date)
+    const key = date.toISOString()
+    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0 }
+    entry.agendadas += day.agendadas
+    entry.realizadas += day.realizadas
+    byDay.set(key, entry)
+  }
+
+  return Array.from(byDay.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
 }
 
 function calcDelta(current: number, previous: number | null): KpiDelta | undefined {
@@ -66,24 +96,32 @@ const EMPTY_METRICS: MetricTotals = {
   investimentoTrafego: 0,
 }
 
+function defaultCustomRange(): DateRange {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - 7)
+  return { start, end }
+}
+
 export function DashboardView() {
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [showComparison, setShowComparison] = useState(true)
+  const [customRange, setCustomRange] = useState<DateRange>(defaultCustomRange)
   const queryClient = useQueryClient()
 
-  const { data: currentData, isLoading } = useDashboardData(period)
-  const { data: prevData } = useDashboardPrev(period, showComparison)
+  const { data: currentData, isLoading } = useDashboardData(period, customRange)
+  const { data: prevData } = useDashboardPrev(period, showComparison, customRange)
 
   const currentMetrics: MetricTotals = currentData?.metrics ?? EMPTY_METRICS
   const sdrLogs: SdrLog[] = currentData?.logs ?? []
   const prevMetrics: MetricTotals | null = prevData?.metrics ?? null
-  const prevSdrTotals: SdrTotals | null = prevData ? aggregateSdrLogs(prevData.logs) : null
+  const prevSdrTotals: SdrTotals | null = prevData ? buildSdrTotals(prevData.logs, prevData.agenda) : null
 
   const onSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   }, [queryClient])
 
-  const sdr = aggregateSdrLogs(sdrLogs)
+  const sdr = buildSdrTotals(sdrLogs, currentData?.agenda)
   const cac = currentMetrics.vendasQtd > 0
     ? currentMetrics.investimentoTrafego / currentMetrics.vendasQtd
     : 0
@@ -124,8 +162,10 @@ export function DashboardView() {
           <PeriodSelector
             period={period}
             showComparison={showComparison}
+            customRange={customRange}
             onPeriodChange={setPeriod}
             onComparisonChange={setShowComparison}
+            onCustomRangeChange={setCustomRange}
           />
           <div className="flex items-center gap-3 flex-wrap">
             <SdrLaunchModal onSuccess={onSuccess} />
@@ -293,14 +333,7 @@ export function DashboardView() {
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
             <h3 className="text-sm font-semibold text-slate-200 mb-1">Evolução diária</h3>
             <p className="text-xs text-slate-500 mb-4">Leads, agendamentos e realizações por dia</p>
-            <DailyLineChart
-              data={sdrLogs.map(l => ({
-                date: l.date,
-                leadsWhatsapp: l.leadsWhatsapp,
-                agendadas: l.agendadas,
-                realizadas: l.realizadas,
-              }))}
-            />
+            <DailyLineChart data={buildDailyChartData(sdrLogs, currentData?.agenda)} />
           </div>
         </div>
 
