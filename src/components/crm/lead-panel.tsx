@@ -37,9 +37,21 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
     <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-[#0a0b10] border-l border-white/[0.08] shadow-2xl shadow-black/40 flex flex-col z-40">
       <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
+          {lead.profilePicUrl ? (
+            <img
+              src={lead.profilePicUrl}
+              alt={displayName}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                const sibling = e.currentTarget.nextElementSibling as HTMLElement | null
+                if (sibling) sibling.style.display = 'flex'
+              }}
+              className="w-9 h-9 rounded-full object-cover shrink-0"
+            />
+          ) : null}
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0"
-            style={{ backgroundColor: avatarColor }}
+            style={{ backgroundColor: avatarColor, display: lead.profilePicUrl ? 'none' : undefined }}
           >
             {initial}
           </div>

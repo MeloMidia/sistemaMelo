@@ -149,6 +149,20 @@ export async function findLabels(): Promise<WhatsappLabel[]> {
   }
 }
 
+export async function fetchProfilePictureUrl(phone: string): Promise<string | null> {
+  try {
+    const res = await evolutionRequest(`/chat/fetchProfilePictureUrl/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ number: phone }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return typeof data?.profilePictureUrl === 'string' ? data.profilePictureUrl : null
+  } catch {
+    return null
+  }
+}
+
 export async function handleLabel(input: {
   phone: string
   labelId: string

@@ -46,10 +46,22 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
       `}
     >
       <div className="flex items-start gap-2.5">
-        {/* Avatar circular, mesma paleta usada no painel do lead */}
+        {/* Avatar: foto real quando disponível, inicial colorida como fallback */}
+        {lead.profilePicUrl ? (
+          <img
+            src={lead.profilePicUrl}
+            alt={displayName}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const sibling = e.currentTarget.nextElementSibling as HTMLElement | null
+              if (sibling) sibling.style.display = 'flex'
+            }}
+            className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5"
+          />
+        ) : null}
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 mt-0.5"
-          style={{ backgroundColor: avatarColor }}
+          style={{ backgroundColor: avatarColor, display: lead.profilePicUrl ? 'none' : undefined }}
         >
           {initial}
         </div>

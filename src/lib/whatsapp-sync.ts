@@ -1,6 +1,7 @@
 import type { MessageStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
+import { fetchProfilePictureUrl } from '@/lib/evolution-client'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -217,13 +218,23 @@ async function findOrCreateLead(raw: UnknownRecord, remoteJid: string, fromMe: b
   const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
   if (!firstStage) return null
 
-  return prisma.lead.create({
+  const newLead = await prisma.lead.create({
     data: {
       phone,
       stageId: firstStage.id,
       name: pushName ?? 'Contato WhatsApp',
     },
   })
+
+  // Busca a foto de perfil em paralelo — não bloqueia o fluxo de importação
+  // da mensagem. Se falhar ou a pessoa não tiver foto pública, deixa null.
+  fetchProfilePictureUrl(newLead.phone).then((url) => {
+    if (url) {
+      prisma.lead.update({ where: { id: newLead.id }, data: { profilePicUrl: url } }).catch(() => {})
+    }
+  })
+
+  return newLead
 }
 
 export async function importWhatsappMessage(raw: UnknownRecord, options?: { leadId?: string }) {
