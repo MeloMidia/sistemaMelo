@@ -55,3 +55,19 @@ export const HOURS = Array.from({ length: 24 }, (_, i) => i)
 export function formatHourLabel(hour: number): string {
   return `${String(hour).padStart(2, '0')}:00`
 }
+
+const BRAZIL_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
+
+/**
+ * Combina o dia civil de Brasília de `date` (normalizado via
+ * normalizeDateToBrazilDay) com um horário "HH:MM" também em horário de
+ * Brasília, retornando o instante UTC correto. Não usa Date.setHours
+ * (que depende do fuso do runtime) — em produção (Vercel) o processo
+ * roda em UTC, então setHours daria o horário errado (3h adiantado).
+ */
+export function combineDateAndTime(brazilDay: Date, time: string): Date {
+  const [h, m] = time.split(':').map(Number)
+  return new Date(
+    Date.UTC(brazilDay.getUTCFullYear(), brazilDay.getUTCMonth(), brazilDay.getUTCDate(), h, m, 0, 0) + BRAZIL_UTC_OFFSET_MS
+  )
+}

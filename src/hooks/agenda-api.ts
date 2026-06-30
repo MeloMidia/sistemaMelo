@@ -84,6 +84,88 @@ export function useDeleteAgendaEvent() {
   })
 }
 
+// ——— Séries recorrentes ———
+export function useCreateAgendaEventSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: {
+      title: string
+      description?: string | null
+      categoryId?: string | null
+      leadId?: string | null
+      startTime: string
+      endTime: string
+      seriesStartDate: string
+      weekdays: number[]
+      untilDate: string
+    }) => {
+      const res = await fetch('/api/agenda/events/series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to create event series')
+      return result
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export function useUpdateAgendaEventSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      seriesId,
+      ...data
+    }: {
+      seriesId: string
+      fromDate: string
+      title?: string
+      description?: string | null
+      categoryId?: string | null
+      leadId?: string | null
+      status?: AgendaEventStatus
+      startTime?: string
+      endTime?: string
+    }) => {
+      const res = await fetch(`/api/agenda/events/series/${seriesId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to update event series')
+      return result
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export function useDeleteAgendaEventSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ seriesId, fromDate }: { seriesId: string; fromDate: string }) => {
+      const res = await fetch(`/api/agenda/events/series/${seriesId}?from=${encodeURIComponent(fromDate)}`, {
+        method: 'DELETE',
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to delete event series')
+      return result
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
 // ——— Categories ———
 export function useEventCategories() {
   return useQuery<EventCategory[]>({

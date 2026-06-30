@@ -33,6 +33,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
         ...(leadId !== undefined && { leadId: leadId || null }),
         ...(status !== undefined && { status }),
+        // Editar um evento individualmente sempre o desvincula da série
+        // (a edição "este e os seguintes" usa a rota /series/[seriesId]).
+        seriesId: null,
       },
       include: {
         category: true,

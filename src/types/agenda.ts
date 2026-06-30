@@ -17,4 +17,5 @@ export interface AgendaEvent {
   leadId: string | null
   lead?: { id: string; temperature: string | null } | null
   status: AgendaEventStatus
+  seriesId: string | null
 }

@@ -196,8 +196,10 @@ model AgendaEvent {
   leadId      String?
   lead        Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
   status      AgendaEventStatus @default(AGENDADA)
+  seriesId    String?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([startsAt, endsAt])
+  @@index([seriesId])
 }
