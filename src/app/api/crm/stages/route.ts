@@ -11,7 +11,6 @@ export async function GET() {
     orderBy: { order: 'asc' },
     include: {
       leads: {
-        orderBy: { createdAt: 'desc' },
         include: {
           tags: { include: { tag: true } },
           assignedTo: { select: { id: true, name: true } },
@@ -22,7 +21,23 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json(stages)
+  // Ordena como lista de conversas do WhatsApp: sem mensagem ainda → topo
+  // (ordenados por criação desc), com mensagem → por data da última mensagem desc.
+  const sorted = stages.map((stage) => ({
+    ...stage,
+    leads: [...stage.leads].sort((a, b) => {
+      const aLast = a.messages[0]?.createdAt?.getTime() ?? null
+      const bLast = b.messages[0]?.createdAt?.getTime() ?? null
+      if (aLast === null && bLast === null) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }
+      if (aLast === null) return -1
+      if (bLast === null) return 1
+      return bLast - aLast
+    }),
+  }))
+
+  return NextResponse.json(sorted)
 }
 
 export async function POST(request: Request) {

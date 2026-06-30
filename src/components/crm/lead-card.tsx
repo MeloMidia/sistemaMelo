@@ -6,6 +6,11 @@ import type { Lead } from '@/types/crm'
 import { MessageCircle } from 'lucide-react'
 import { getLeadDisplayName } from '@/lib/phone'
 
+const AVATAR_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
+function getAvatarColor(seed: string): string {
+  return AVATAR_COLORS[Math.abs(seed.charCodeAt(0)) % AVATAR_COLORS.length]
+}
+
 interface LeadCardProps {
   lead: Lead
   onSelect?: () => void
@@ -20,6 +25,9 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
   })
 
   const lastMessage = lead.messages[0]
+  const displayName = getLeadDisplayName(lead)
+  const initial = displayName.charAt(0).toUpperCase()
+  const avatarColor = getAvatarColor(displayName)
 
   return (
     <div
@@ -37,31 +45,43 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
         }
       `}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-white truncate">{getLeadDisplayName(lead)}</span>
-        {lead.temperature && <span className="text-[11px] shrink-0 select-none">{lead.temperature}</span>}
-      </div>
-
-      <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
-        <MessageCircle className="w-3 h-3 shrink-0" />
-        <span className="truncate">{lastMessage?.content ?? 'Sem mensagens'}</span>
-      </div>
-
-      {lead.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {lead.tags.map((lt) => (
-            <span
-              key={lt.tagId}
-              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-              style={{ backgroundColor: `${lt.tag.color}26`, color: lt.tag.color }}
-            >
-              {lt.tag.name}
-            </span>
-          ))}
+      <div className="flex items-start gap-2.5">
+        {/* Avatar circular, mesma paleta usada no painel do lead */}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 mt-0.5"
+          style={{ backgroundColor: avatarColor }}
+        >
+          {initial}
         </div>
-      )}
 
-      {lead.assignedTo && <div className="mt-2 text-[11px] text-slate-500">{lead.assignedTo.name}</div>}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-sm font-medium text-white truncate">{displayName}</span>
+            {lead.temperature && <span className="text-[11px] shrink-0 select-none">{lead.temperature}</span>}
+          </div>
+
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
+            <MessageCircle className="w-3 h-3 shrink-0" />
+            <span className="truncate">{lastMessage?.content ?? 'Sem mensagens'}</span>
+          </div>
+
+          {lead.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {lead.tags.map((lt) => (
+                <span
+                  key={lt.tagId}
+                  className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${lt.tag.color}26`, color: lt.tag.color }}
+                >
+                  {lt.tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {lead.assignedTo && <div className="mt-1 text-[11px] text-slate-500">{lead.assignedTo.name}</div>}
+        </div>
+      </div>
     </div>
   )
 }
