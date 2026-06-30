@@ -166,17 +166,14 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                     style={{
                       top: top + 2,
                       height: height - 4,
-                      width: `calc(${widthPct}% - 6px)`,
-                      left: `calc(${leftPct}% + 3px)`,
-                      backgroundColor: `${color}28`,
-                      borderColor: color,
+                      width: `calc(${widthPct}% - 4px)`,
+                      left: `calc(${leftPct}% + 2px)`,
+                      backgroundColor: color,
                     }}
-                    className="absolute rounded-lg border border-l-[3.5px] px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex flex-col justify-start group"
+                    className="absolute rounded-lg px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:opacity-90 hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-150 flex flex-col justify-start"
                   >
                     <span className="flex items-center gap-1 min-w-0">
-                      <span
-                        className="text-[11px] font-bold text-slate-100 truncate leading-tight tracking-tight group-hover:text-white transition-colors duration-150"
-                      >
+                      <span className="text-[11px] font-bold text-white truncate leading-tight tracking-tight">
                         {event.title}
                       </span>
                       {event.lead?.temperature && (
@@ -184,7 +181,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                       )}
                     </span>
                     {height >= 38 && (
-                      <span className="text-[9px] text-slate-400 font-semibold truncate block mt-0.5 select-none leading-none">
+                      <span className="text-[9px] text-white/75 font-semibold truncate block mt-0.5 select-none leading-none">
                         {timeStr}
                       </span>
                     )}
