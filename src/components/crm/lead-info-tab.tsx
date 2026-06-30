@@ -7,7 +7,7 @@ import {
   useCreateCrmTag,
   useAttachTag,
   useDetachTag,
-  useCrmUsers,
+
   useUpdateLead,
 } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
@@ -31,7 +31,6 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
   const createTag = useCreateCrmTag()
   const attachTag = useAttachTag(lead.id)
   const detachTag = useDetachTag(lead.id)
-  const { data: users } = useCrmUsers()
   const updateLead = useUpdateLead()
   const { data: eventCategories } = useEventCategories()
 
@@ -89,9 +88,6 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
         <span className="text-slate-500">Criado em</span>
         <span className="text-white">{formatDate(lead.createdAt)}</span>
 
-        <span className="text-slate-500">Pipeline</span>
-        <span className="text-white">Pipeline Principal</span>
-
         <span className="text-slate-500">Estágio</span>
         <span
           className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit"
@@ -141,20 +137,6 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
             className="bg-transparent text-white outline-none w-full border-b border-transparent focus:border-blue-500/50"
           />
         </div>
-
-        <span className="text-slate-500">Dono</span>
-        <select
-          value={lead.assignedToId ?? ''}
-          onChange={(e) => updateLead.mutate({ id: lead.id, assignedToId: e.target.value || null })}
-          className="bg-white/[0.05] border border-white/[0.1] rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-blue-500/50"
-        >
-          <option value="" className="bg-[#0a0b10]">Sem responsável</option>
-          {(users || []).map((u) => (
-            <option key={u.id} value={u.id} className="bg-[#0a0b10]">
-              {u.name}
-            </option>
-          ))}
-        </select>
 
         <span className="text-slate-500">Touchpoints</span>
         <span className="text-white">{lead._count.messages}</span>
