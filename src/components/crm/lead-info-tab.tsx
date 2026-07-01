@@ -156,7 +156,7 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           initialDate={new Date()}
           initialHour={9}
           initialTitle={`Reunião: ${getLeadDisplayName(lead)}`}
-          initialDescription={`Reunião com o lead ${getLeadDisplayName(lead)} (${formatPhoneNumber(lead.phone)})`}
+          initialLeadId={lead.id}
           initialCategoryId={
             eventCategories?.find(c => c.name.toLowerCase().includes('agendada'))?.id
             ?? eventCategories?.[0]?.id

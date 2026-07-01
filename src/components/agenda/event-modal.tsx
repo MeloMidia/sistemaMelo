@@ -30,6 +30,7 @@ interface EventModalProps {
   initialTitle?: string
   initialDescription?: string
   initialCategoryId?: string
+  initialLeadId?: string
   event?: AgendaEvent
   onClose: () => void
 }
@@ -59,6 +60,7 @@ export function EventModal({
   initialTitle,
   initialDescription,
   initialCategoryId,
+  initialLeadId,
   event,
   onClose
 }: EventModalProps) {
@@ -84,7 +86,7 @@ export function EventModal({
     event ? toTimeInputValue(new Date(event.endsAt)) : `${String((baseStartHour ?? 9) + 1).padStart(2, '0')}:00`
   )
   const [categoryId, setCategoryId] = useState<string>(event?.categoryId ?? initialCategoryId ?? '')
-  const [leadId, setLeadId] = useState<string>(event?.leadId ?? '')
+  const [leadId, setLeadId] = useState<string>(event?.leadId ?? initialLeadId ?? '')
   const [status, setStatus] = useState<AgendaEventStatus>(event?.status ?? 'AGENDADA')
   const [error, setError] = useState<string | null>(null)
 
