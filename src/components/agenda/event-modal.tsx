@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Trash2, Repeat } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { X, Trash2, Repeat, Search } from 'lucide-react'
 import {
   useCreateAgendaEvent,
   useUpdateAgendaEvent,
@@ -12,7 +12,7 @@ import {
   useEventCategories,
 } from '@/hooks/agenda-api'
 import { useLeadsLite } from '@/hooks/crm-api'
-import { getLeadDisplayName } from '@/lib/phone'
+import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 import { WEEKDAY_LABELS } from '@/lib/agenda-date'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 
@@ -91,6 +91,21 @@ export function EventModal({
   const [repeatOn, setRepeatOn] = useState(false)
   const [repeatWeekdays, setRepeatWeekdays] = useState<Set<number>>(new Set())
   const [repeatUntil, setRepeatUntil] = useState('')
+
+  const [leadSearch, setLeadSearch] = useState('')
+  const [leadDropdownOpen, setLeadDropdownOpen] = useState(false)
+  const leadInputRef = useRef<HTMLInputElement>(null)
+
+  const selectedLead = (leads ?? []).find((l) => l.id === leadId)
+  const filteredLeads = leadSearch.trim()
+    ? (leads ?? []).filter((l) => {
+        const q = leadSearch.trim().toLowerCase()
+        return (
+          getLeadDisplayName(l).toLowerCase().includes(q) ||
+          l.phone.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+        )
+      })
+    : (leads ?? [])
 
   function handleToggleRepeat() {
     setRepeatOn((wasOn) => {
@@ -378,18 +393,57 @@ export function EventModal({
 
           <div className="space-y-1">
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lead vinculado</label>
-            <select
-              value={leadId}
-              onChange={(e) => handleLeadIdChange(e.target.value)}
-              className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
-            >
-              <option value="" className="bg-[#0c0e17]">Sem lead</option>
-              {(leads ?? []).map((lead) => (
-                <option key={lead.id} value={lead.id} className="bg-[#0c0e17]">
-                  {lead.temperature ? `${lead.temperature} ` : ''}{getLeadDisplayName(lead)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="relative flex items-center">
+                <Search className="absolute left-3 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                <input
+                  ref={leadInputRef}
+                  type="text"
+                  value={leadDropdownOpen ? leadSearch : (selectedLead ? getLeadDisplayName(selectedLead) : '')}
+                  placeholder="Buscar lead por nome ou telefone..."
+                  onFocus={() => { setLeadDropdownOpen(true); setLeadSearch('') }}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  onBlur={() => setTimeout(() => setLeadDropdownOpen(false), 150)}
+                  className="w-full pl-9 pr-7 py-2.5 bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl text-sm text-white placeholder:text-slate-600 outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
+                />
+                {leadId && !leadDropdownOpen && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); handleLeadIdChange(''); setLeadSearch('') }}
+                    className="absolute right-2.5 text-slate-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {leadDropdownOpen && (
+                <div className="absolute z-20 top-full mt-1 w-full bg-[#0c0e17] border border-white/[0.12] rounded-xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
+                  <button
+                    type="button"
+                    onMouseDown={() => { handleLeadIdChange(''); setLeadSearch(''); setLeadDropdownOpen(false) }}
+                    className="w-full text-left px-3.5 py-2 text-sm text-slate-500 hover:text-white hover:bg-white/[0.06] border-b border-white/[0.06]"
+                  >
+                    Sem lead
+                  </button>
+                  {filteredLeads.map((lead) => (
+                    <button
+                      key={lead.id}
+                      type="button"
+                      onMouseDown={() => { handleLeadIdChange(lead.id); setLeadSearch(''); setLeadDropdownOpen(false) }}
+                      className="w-full text-left px-3.5 py-2 text-sm text-white hover:bg-white/[0.06] flex items-center gap-2"
+                    >
+                      {lead.temperature && <span className="text-[12px] shrink-0">{lead.temperature}</span>}
+                      <span className="truncate">{getLeadDisplayName(lead)}</span>
+                      <span className="text-slate-500 text-xs shrink-0 ml-auto">{formatPhoneNumber(lead.phone)}</span>
+                    </button>
+                  ))}
+                  {filteredLeads.length === 0 && (
+                    <div className="px-3.5 py-3 text-sm text-slate-500">Nenhum lead encontrado</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {mode === 'edit' && leadId && (
