@@ -54,7 +54,23 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
 
   function handleLoadedMetadata() {
     if (!audioRef.current) return
-    setDuration(formatTime(audioRef.current.duration))
+    const dur = audioRef.current.duration
+    if (!isFinite(dur)) {
+      // Arquivos opus/ogg do WhatsApp não têm duração no cabeçalho do stream.
+      // Seek para um número enorme força o browser a encontrar o fim do arquivo.
+      audioRef.current.currentTime = 1e101
+    } else {
+      setDuration(formatTime(dur))
+    }
+  }
+
+  function handleSeeked() {
+    if (!audioRef.current) return
+    const dur = audioRef.current.duration
+    if (isFinite(dur)) {
+      setDuration(formatTime(dur))
+      audioRef.current.currentTime = 0
+    }
   }
 
   function handleAudioEnded() {
@@ -64,7 +80,7 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
   }
 
   function formatTime(seconds: number) {
-    if (isNaN(seconds)) return '0:00'
+    if (!isFinite(seconds) || isNaN(seconds) || seconds < 0) return '0:00'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`
@@ -132,6 +148,7 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onSeeked={handleSeeked}
         onEnded={handleAudioEnded}
         className="hidden"
         preload="metadata"
