@@ -19,10 +19,11 @@ import { LeadColumn } from './lead-column'
 import { LeadPanel } from './lead-panel'
 import { LeadCard } from './lead-card'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
+import { getLeadDisplayName } from '@/lib/phone'
 
 const STAGE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
 
@@ -37,6 +38,7 @@ export function KanbanLeads() {
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Snapshot do estado REAL antes de qualquer reordenação otimista do
   // dragOver — handleDragOver já escreve no cache ['crm-stages'] durante o
@@ -176,7 +178,43 @@ export function KanbanLeads() {
     )
   }
 
+  const q = searchQuery.trim().toLowerCase()
+  const visibleStages = q
+    ? (stages || []).map((stage) => ({
+        ...stage,
+        leads: stage.leads.filter((lead) => {
+          const name = getLeadDisplayName(lead).toLowerCase()
+          const phone = lead.phone.replace(/\D/g, '')
+          return name.includes(q) || phone.includes(q.replace(/\D/g, ''))
+        }),
+      }))
+    : (stages || [])
+
   return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Barra de busca */}
+      <div className="px-6 py-3 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
+        <div className="relative max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar lead por nome ou telefone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-7 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500/40 focus:bg-white/[0.06] transition-all"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
@@ -186,7 +224,7 @@ export function KanbanLeads() {
     >
       <div className="flex-1 overflow-x-auto p-6">
         <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
-          {(stages || []).map((stage) => (
+          {visibleStages.map((stage) => (
             <LeadColumn key={stage.id} stage={stage} onSelectLead={setSelectedLeadId} />
           ))}
 
@@ -249,5 +287,6 @@ export function KanbanLeads() {
 
       {selectedLeadId && <LeadPanel leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}
     </DndContext>
+    </div>
   )
 }

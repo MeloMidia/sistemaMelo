@@ -15,7 +15,7 @@ export interface AgendaEvent {
   categoryId: string | null
   category: EventCategory | null
   leadId: string | null
-  lead?: { id: string; temperature: string | null } | null
+  lead?: { id: string; temperature: string | null; name: string | null; phone: string } | null
   status: AgendaEventStatus
   seriesId: string | null
 }

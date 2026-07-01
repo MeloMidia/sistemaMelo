@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { startOfWeek, addDays, endOfWeek, formatWeekRangeLabel } from '@/lib/agenda-date'
 import { useAgendaEvents, useEventCategories } from '@/hooks/agenda-api'
 import { MiniCalendar } from './mini-calendar'
@@ -19,6 +19,7 @@ export function AgendaView() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [visibleCategoryIds, setVisibleCategoryIds] = useState<Set<string>>(new Set())
   const [modalState, setModalState] = useState<ModalState>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const knownCategoryIdsRef = useRef<Set<string>>(new Set())
 
   const weekEnd = endOfWeek(weekStart)
@@ -50,9 +51,17 @@ export function AgendaView() {
     })
   }
 
-  const filteredEvents = (events || []).filter(
-    (e) => !e.categoryId || visibleCategoryIds.has(e.categoryId)
-  )
+  const q = searchQuery.trim().toLowerCase()
+  const filteredEvents = (events || []).filter((e) => {
+    if (e.categoryId && !visibleCategoryIds.has(e.categoryId)) return false
+    if (!q) return true
+    if (e.title.toLowerCase().includes(q)) return true
+    const leadName = e.lead?.name ?? ''
+    if (leadName && leadName.toLowerCase().includes(q)) return true
+    const leadPhone = e.lead?.phone ?? ''
+    if (leadPhone && leadPhone.replace(/\D/g, '').includes(q.replace(/\D/g, ''))) return true
+    return false
+  })
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[#07080c]">
@@ -96,9 +105,30 @@ export function AgendaView() {
           </div>
         </div>
 
-        <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
-          {formatWeekRangeLabel(weekStart)}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
+            {formatWeekRangeLabel(weekStart)}
+          </span>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar reunião ou contato..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-7 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/40 focus:bg-white/[0.06] w-56 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Body */}
