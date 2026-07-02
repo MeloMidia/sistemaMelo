@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Trash2, Repeat, Search } from 'lucide-react'
+import { X, Trash2, Repeat, Search, Trophy } from 'lucide-react'
+import confetti from 'canvas-confetti'
 import {
   useCreateAgendaEvent,
   useUpdateAgendaEvent,
@@ -14,6 +15,7 @@ import {
 import { useLeadsLite } from '@/hooks/crm-api'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 import { WEEKDAY_LABELS } from '@/lib/agenda-date'
+import { addSaleMetric } from '@/app/actions/metrics'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 
 const STATUS_OPTIONS: { value: AgendaEventStatus; label: string }[] = [
@@ -99,6 +101,16 @@ export function EventModal({
   const leadInputRef = useRef<HTMLInputElement>(null)
   const [autoFilledNote, setAutoFilledNote] = useState('')
 
+  // Sale conversion states
+  const wasAlreadyRealizada = mode === 'edit' && event?.status === 'REALIZADA'
+  const [convertedToSale, setConvertedToSale] = useState<boolean | null>(null)
+  const [saleValue, setSaleValue] = useState('')
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [celebrationValue, setCelebrationValue] = useState(0)
+  const confettiCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  const showSaleQuestion = status === 'REALIZADA' && !wasAlreadyRealizada
+
   const selectedLead = (leads ?? []).find((l) => l.id === leadId)
   const filteredLeads = leadSearch.trim()
     ? (leads ?? []).filter((l) => {
@@ -112,8 +124,6 @@ export function EventModal({
 
   function handleToggleRepeat() {
     setRepeatOn((wasOn) => {
-      // Ao ligar, pré-seleciona o dia da semana da data ATUAL do formulário
-      // (não a data de quando o modal abriu — o usuário pode ter trocado).
       if (!wasOn && repeatWeekdays.size === 0) {
         setRepeatWeekdays(new Set([parseDateInputValue(dateValue).getDay()]))
       }
@@ -121,8 +131,6 @@ export function EventModal({
     })
   }
 
-  // Quando o evento editado pertence a uma série, pergunta se a mudança
-  // (salvar ou excluir) vale só pra esta ocorrência ou pra série inteira.
   const [seriesChoice, setSeriesChoice] = useState<null | 'save' | 'delete'>(null)
 
   function toggleRepeatWeekday(day: number) {
@@ -134,7 +142,6 @@ export function EventModal({
     })
   }
 
-  // Copia nota interna do lead para a descrição ao criar evento
   useEffect(() => {
     if (mode !== 'create' || !leadId || !leads) return
     const lead = leads.find((l) => l.id === leadId)
@@ -145,7 +152,6 @@ export function EventModal({
     }
   }, [leadId, leads]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sincroniza o status com o nome da categoria selecionada
   useEffect(() => {
     if (!categoryId || !categories) return
     const cat = categories.find((c) => c.id === categoryId)
@@ -162,6 +168,44 @@ export function EventModal({
     }
   }, [categoryId, categories])
 
+  // Reset sale question when status leaves REALIZADA
+  useEffect(() => {
+    if (status !== 'REALIZADA') {
+      setConvertedToSale(null)
+      setSaleValue('')
+    }
+  }, [status])
+
+  // Fire confetti when celebration activates
+  useEffect(() => {
+    if (!showCelebration) return
+    const canvas = confettiCanvasRef.current
+    if (!canvas) return
+    const myConfetti = confetti.create(canvas, { resize: true, useWorker: false })
+    const end = Date.now() + 4500
+    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']
+    const frame = () => {
+      myConfetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 60,
+        origin: { x: 0, y: 0.7 },
+        colors,
+        gravity: 0.8,
+      })
+      myConfetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 60,
+        origin: { x: 1, y: 0.7 },
+        colors,
+        gravity: 0.8,
+      })
+      if (Date.now() < end) requestAnimationFrame(frame)
+    }
+    frame()
+  }, [showCelebration])
+
   function handleLeadIdChange(value: string) {
     setLeadId(value)
     if (!value) setStatus('AGENDADA')
@@ -175,6 +219,19 @@ export function EventModal({
     return new Date(`${dateValue}T${time}:00`).toISOString()
   }
 
+  async function afterEventSaved() {
+    if (showSaleQuestion && convertedToSale === true && saleValue) {
+      const val = parseFloat(saleValue.replace(',', '.'))
+      if (!isNaN(val) && val > 0) {
+        await addSaleMetric(val)
+        setCelebrationValue(val)
+        setShowCelebration(true)
+        return
+      }
+    }
+    onClose()
+  }
+
   function handleSave() {
     setError(null)
     if (!title.trim()) {
@@ -185,6 +242,15 @@ export function EventModal({
     const endsAt = buildIso(endTime)
     if (new Date(endsAt) <= new Date(startsAt)) {
       setError('O horário de fim deve ser depois do início')
+      return
+    }
+
+    if (showSaleQuestion && convertedToSale === null) {
+      setError('Informe se houve conversão em venda')
+      return
+    }
+    if (showSaleQuestion && convertedToSale === true && !saleValue.trim()) {
+      setError('Informe o valor da venda')
       return
     }
 
@@ -216,13 +282,13 @@ export function EventModal({
           untilDate: parseDateInputValue(repeatUntil).toISOString(),
         },
         {
-          onSuccess: onClose,
+          onSuccess: afterEventSaved,
           onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
         }
       )
     } else if (mode === 'create') {
       createEvent.mutate(payload, {
-        onSuccess: onClose,
+        onSuccess: afterEventSaved,
         onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
       })
     } else if (event?.seriesId) {
@@ -231,7 +297,7 @@ export function EventModal({
       updateEvent.mutate(
         { id: event.id, ...payload, status },
         {
-          onSuccess: onClose,
+          onSuccess: afterEventSaved,
           onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
         }
       )
@@ -263,7 +329,7 @@ export function EventModal({
         updateSeries.mutate(
           { seriesId: event.seriesId!, fromDate: event.startsAt, ...payload, status, startTime, endTime },
           {
-            onSuccess: onClose,
+            onSuccess: afterEventSaved,
             onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
           }
         )
@@ -271,7 +337,7 @@ export function EventModal({
         updateEvent.mutate(
           { id: event.id, ...payload, startsAt, endsAt, status },
           {
-            onSuccess: onClose,
+            onSuccess: afterEventSaved,
             onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
           }
         )
@@ -420,6 +486,52 @@ export function EventModal({
             </select>
           </div>
 
+          {/* Sale conversion question — appears when status is REALIZADA and wasn't before */}
+          {showSaleQuestion && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3.5 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+              <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Converteu em venda?</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConvertedToSale(true)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
+                    convertedToSale === true
+                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                      : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-emerald-500/40 hover:text-emerald-300'
+                  }`}
+                >
+                  Sim
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setConvertedToSale(false); setSaleValue('') }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
+                    convertedToSale === false
+                      ? 'bg-slate-600 border-slate-500 text-white'
+                      : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-slate-500/40 hover:text-slate-300'
+                  }`}
+                >
+                  Não
+                </button>
+              </div>
+              {convertedToSale === true && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Valor da venda (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={saleValue}
+                    onChange={(e) => setSaleValue(e.target.value)}
+                    placeholder="Ex: 2500"
+                    className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-emerald-500/30 focus:border-emerald-500/60 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all duration-200"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1">
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lead vinculado</label>
             <div className="relative">
@@ -555,6 +667,37 @@ export function EventModal({
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Celebration overlay */}
+        {showCelebration && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center overflow-hidden rounded-2xl">
+            <canvas
+              ref={confettiCanvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            />
+            <div className="relative z-10 flex flex-col items-center gap-5 text-center px-8 animate-in fade-in zoom-in-90 duration-300">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400/20 to-emerald-500/20 border border-yellow-400/30 flex items-center justify-center shadow-[0_0_40px_rgba(234,179,8,0.3)]">
+                <Trophy className="w-9 h-9 text-yellow-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-black text-white tracking-tight">Venda registrada!</p>
+                <p className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-emerald-400">
+                  R$ {celebrationValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">adicionado ao faturamento do dashboard</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-2 px-8 py-3 bg-gradient-to-r from-yellow-500 to-emerald-500 hover:from-yellow-400 hover:to-emerald-400 text-white text-sm font-black uppercase tracking-wider rounded-2xl cursor-pointer shadow-[0_4px_20px_rgba(234,179,8,0.3)] active:scale-95 transition-all duration-200"
+              >
+                Fechar
+              </button>
+            </div>
+            {/* Dark overlay behind content */}
+            <div className="absolute inset-0 bg-[#07080c]/90 -z-[1]" />
           </div>
         )}
       </div>

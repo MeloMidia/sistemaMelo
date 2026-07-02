@@ -90,3 +90,10 @@ export async function overwriteDashboardMetrics(data: {
   })
   return { success: true, metric: newMetric }
 }
+
+export async function addSaleMetric(value: number) {
+  await prisma.dashboardMetric.create({
+    data: { vendasQtd: 1, faturamento: Number(value) },
+  })
+  return { success: true }
+}
