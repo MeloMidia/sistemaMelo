@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { upsertSdrLog, getSdrLogByDate } from '@/app/actions/sdr'
 import { Loader2, Target } from 'lucide-react'
 import { getDateRange, type DateRange, type PeriodKey } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
@@ -37,22 +38,23 @@ type SdrTotals = {
 
 type AgendaStats = DashboardData['agenda']
 
-// Agendadas/Realizadas agora vêm de eventos reais da Agenda vinculados a um lead
-// (ver getAgendaMeetingStats) — o lançamento manual de SDR só alimenta os demais campos.
+// Agendadas/Realizadas: total de eventos reais da Agenda + ajustes manuais lançados no SdrDailyLog.
 function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTotals {
   const manual = logs.reduce(
     (acc, log) => ({
       leadsWhatsapp: acc.leadsWhatsapp + log.leadsWhatsapp,
+      agendadas: acc.agendadas + log.agendadas,
+      realizadas: acc.realizadas + log.realizadas,
       faltaLead: acc.faltaLead + log.faltaLead,
       naoRealizada: acc.naoRealizada + log.naoRealizada,
     }),
-    { leadsWhatsapp: 0, faltaLead: 0, naoRealizada: 0 }
+    { leadsWhatsapp: 0, agendadas: 0, realizadas: 0, faltaLead: 0, naoRealizada: 0 }
   )
   return {
-    ...manual,
-    agendadas: agenda?.totalAgendadas ?? 0,
-    realizadas: agenda?.totalRealizadas ?? 0,
-    // Não realizada: soma manual + agenda (evita perda de dados históricos lançados antes)
+    leadsWhatsapp: manual.leadsWhatsapp,
+    faltaLead: manual.faltaLead,
+    agendadas: (agenda?.totalAgendadas ?? 0) + manual.agendadas,
+    realizadas: (agenda?.totalRealizadas ?? 0) + manual.realizadas,
     naoRealizada: manual.naoRealizada + (agenda?.totalNaoRealizadas ?? 0),
   }
 }
@@ -123,6 +125,32 @@ export function DashboardView() {
   const onSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   }, [queryClient])
+
+  async function handleSaveAgendadas(value: number) {
+    const today = new Date()
+    const existing = await getSdrLogByDate(today)
+    await upsertSdrLog(today, {
+      leadsWhatsapp: existing?.leadsWhatsapp ?? 0,
+      agendadas: value,
+      realizadas: existing?.realizadas ?? 0,
+      faltaLead: existing?.faltaLead ?? 0,
+      naoRealizada: existing?.naoRealizada ?? 0,
+    })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }
+
+  async function handleSaveRealizadas(value: number) {
+    const today = new Date()
+    const existing = await getSdrLogByDate(today)
+    await upsertSdrLog(today, {
+      leadsWhatsapp: existing?.leadsWhatsapp ?? 0,
+      agendadas: existing?.agendadas ?? 0,
+      realizadas: value,
+      faltaLead: existing?.faltaLead ?? 0,
+      naoRealizada: existing?.naoRealizada ?? 0,
+    })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }
 
   const sdr = buildSdrTotals(sdrLogs, currentData?.agenda)
   const cac = currentMetrics.vendasQtd > 0
@@ -243,8 +271,8 @@ export function DashboardView() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TriGoalBar title="Total de Vendas" currentValue={currentMetrics.vendasQtd} goal1={19} goal2={25} goal3={31} formatValue={formatNum} />
             <TriGoalBar title="Leads WhatsApp" currentValue={sdr.leadsWhatsapp} goal1={225} goal2={295} goal3={368} formatValue={formatNum} />
-            <TriGoalBar title="Reuniões Agendadas" currentValue={sdr.agendadas} goal1={90} goal2={118} goal3={147} formatValue={formatNum} />
-            <TriGoalBar title="Reuniões Realizadas" currentValue={sdr.realizadas} goal1={63} goal2={83} goal3={103} formatValue={formatNum} />
+            <TriGoalBar title="Reuniões Agendadas" currentValue={sdr.agendadas} goal1={90} goal2={118} goal3={147} formatValue={formatNum} onSave={handleSaveAgendadas} editLabel="Adicionar ao total de hoje" />
+            <TriGoalBar title="Reuniões Realizadas" currentValue={sdr.realizadas} goal1={63} goal2={83} goal3={103} formatValue={formatNum} onSave={handleSaveRealizadas} editLabel="Adicionar ao total de hoje" />
           </div>
         </section>
 
