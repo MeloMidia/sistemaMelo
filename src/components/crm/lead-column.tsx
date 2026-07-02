@@ -1,4 +1,3 @@
-// src/components/crm/lead-column.tsx
 'use client'
 
 import { useDroppable } from '@dnd-kit/core'
@@ -16,36 +15,57 @@ export function LeadColumn({ stage, onSelectLead }: LeadColumnProps) {
     data: { stageId: stage.id },
   })
 
+  const totalValue = stage.leads.reduce((sum, l) => sum + (l.value ?? 0), 0)
+
   return (
     <div
-      className={`flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-200 ${
-        isOver
-          ? 'bg-blue-500/[0.03] border-blue-500/30 shadow-lg shadow-blue-500/5'
-          : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
-      }`}
+      className="flex flex-col w-[290px] shrink-0 rounded-2xl overflow-hidden transition-all duration-200"
+      style={{
+        background: '#0d0f18',
+        border: `1px solid ${isOver ? `${stage.color}50` : 'rgba(255,255,255,0.06)'}`,
+        boxShadow: isOver ? `0 0 24px ${stage.color}12, inset 0 0 24px ${stage.color}06` : 'none',
+      }}
     >
-      <div
-        className="p-4 rounded-t-2xl"
-        style={{ background: `linear-gradient(to bottom, ${stage.color}26, transparent)` }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full ring-2 ring-white/5" style={{ backgroundColor: stage.color }} />
-          <h3 className="text-sm font-semibold text-white tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
-            {stage.name}
-          </h3>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-300">
-            {stage.leads.length}
-          </span>
+      {/* Linha colorida no topo */}
+      <div className="h-[3px] w-full shrink-0" style={{ backgroundColor: stage.color }} />
+
+      {/* Cabeçalho */}
+      <div className="px-4 pt-3.5 pb-3 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-[13px] font-bold text-white tracking-tight">{stage.name}</h3>
+            <span
+              className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
+              style={{
+                backgroundColor: `${stage.color}18`,
+                color: stage.color,
+                border: `1px solid ${stage.color}25`,
+              }}
+            >
+              {stage.leads.length}
+            </span>
+          </div>
+          {totalValue > 0 && (
+            <span className="text-[11px] text-slate-400 font-semibold tabular-nums">
+              R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          )}
         </div>
       </div>
 
-      <div ref={setNodeRef} className="flex-1 p-3 space-y-2.5 min-h-[80px] overflow-y-auto max-h-[calc(100vh-280px)]">
+      {/* Lista de leads */}
+      <div
+        ref={setNodeRef}
+        className="flex-1 px-3 pb-3 space-y-2 min-h-[60px] overflow-y-auto max-h-[calc(100vh-300px)]"
+      >
         {stage.leads.map((lead) => (
           <LeadCard key={lead.id} lead={lead} onSelect={() => onSelectLead(lead.id)} />
         ))}
 
         {stage.leads.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-slate-600 text-sm">Nenhum lead</div>
+          <div className="flex items-center justify-center h-16 text-slate-700 text-xs font-medium">
+            Solte um lead aqui
+          </div>
         )}
       </div>
     </div>

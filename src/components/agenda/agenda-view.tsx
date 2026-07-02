@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { startOfWeek, addDays, endOfWeek, formatWeekRangeLabel } from '@/lib/agenda-date'
-import { useAgendaEvents, useEventCategories } from '@/hooks/agenda-api'
+import { useAgendaEvents, useEventCategories, useUpdateAgendaEvent } from '@/hooks/agenda-api'
 import { MiniCalendar } from './mini-calendar'
 import { CategorySidebar } from './category-sidebar'
 import { WeekGrid } from './week-grid'
@@ -15,7 +15,7 @@ type ModalState =
   | { mode: 'edit'; event: AgendaEvent }
   | null
 
-export function AgendaView() {
+export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: string) => void }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [visibleCategoryIds, setVisibleCategoryIds] = useState<Set<string>>(new Set())
   const [modalState, setModalState] = useState<ModalState>(null)
@@ -25,6 +25,7 @@ export function AgendaView() {
   const weekEnd = endOfWeek(weekStart)
   const { data: events } = useAgendaEvents(weekStart, weekEnd)
   const { data: categories } = useEventCategories()
+  const updateEvent = useUpdateAgendaEvent()
 
   // Toda categoria nova entra visível por padrão, mas categorias já vistas
   // antes (mesmo escondidas pelo usuário) não são reativadas em refetches.
@@ -143,6 +144,8 @@ export function AgendaView() {
           events={filteredEvents}
           onCreateAt={(date, hour) => setModalState({ mode: 'create', date, hour })}
           onEditEvent={(event) => setModalState({ mode: 'edit', event })}
+          onUpdateEvent={(id, startsAt, endsAt) => updateEvent.mutate({ id, startsAt, endsAt })}
+          onOpenLeadInCrm={onOpenLeadInCrm}
         />
       </div>
 

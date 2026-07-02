@@ -17,7 +17,13 @@ type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml' 
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
+  const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
   const { data: session } = useSession()
+
+  function openLeadInCrm(leadId: string) {
+    setCrmOpenLeadId(leadId)
+    setActiveTab('crm')
+  }
 
   return (
     <div className="dark min-h-screen flex flex-col bg-[#07080c] text-white relative">
@@ -36,98 +42,40 @@ export default function HomePage() {
             </div>
 
             {/* Tabs */}
-            <nav className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-              <button
-                onClick={() => setActiveTab('kanban')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'kanban'
-                    ? 'bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Processos
-              </button>
-              <button
-                onClick={() => setActiveTab('mentoria')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'mentoria'
-                    ? 'bg-gradient-to-r from-purple-600/90 to-fuchsia-600/90 text-white shadow-lg shadow-purple-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <GraduationCap className="w-4 h-4" />
-                Mentoria
-              </button>
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'tasks'
-                    ? 'bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <ClipboardList className="w-4 h-4" />
-                Gestão de Tarefas
-              </button>
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'dashboard'
-                    ? 'bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <BarChart className="w-4 h-4" />
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveTab('automacao-ml')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'automacao-ml'
-                    ? 'bg-gradient-to-r from-emerald-600/90 to-teal-600/90 text-white shadow-lg shadow-emerald-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <Bot className="w-4 h-4" />
-                Automação ML
-              </button>
-              <button
-                onClick={() => setActiveTab('crm')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'crm'
-                    ? 'bg-gradient-to-r from-green-600/90 to-lime-600/90 text-white shadow-lg shadow-green-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <MessageSquare className="w-4 h-4" />
-                CRM
-              </button>
-              <button
-                onClick={() => setActiveTab('agenda')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-                  ${activeTab === 'agenda'
-                    ? 'bg-gradient-to-r from-orange-600/90 to-amber-600/90 text-white shadow-lg shadow-orange-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }
-                `}
-              >
-                <Calendar className="w-4 h-4" />
-                Agenda
-              </button>
+            <nav className="flex items-center gap-0.5">
+              {([
+                { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#6366f1' },
+                { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#a855f7' },
+                { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#3b82f6' },
+                { id: 'dashboard',    icon: BarChart,        label: 'Dashboard',    color: '#0ea5e9' },
+                { id: 'automacao-ml', icon: Bot,             label: 'Automação ML', color: '#10b981' },
+                { id: 'crm',          icon: MessageSquare,   label: 'CRM',          color: '#22c55e' },
+                { id: 'agenda',       icon: Calendar,        label: 'Agenda',       color: '#f97316' },
+              ] as const).map(({ id, icon: Icon, label, color }) => {
+                const isActive = activeTab === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all duration-150 ${
+                      isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                    }`}
+                    style={{ backgroundColor: isActive ? `${color}15` : undefined }}
+                  >
+                    <Icon
+                      className="w-[15px] h-[15px] transition-colors"
+                      style={{ color: isActive ? color : undefined }}
+                    />
+                    <span>{label}</span>
+                    {isActive && (
+                      <span
+                        className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                    )}
+                  </button>
+                )
+              })}
             </nav>
           </div>
 
@@ -156,13 +104,13 @@ export default function HomePage() {
 
       {/* Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {activeTab === 'kanban' && <KanbanBoard />}
-        {activeTab === 'mentoria' && <MentoriaBoard />}
-        {activeTab === 'tasks' && <TaskManager />}
-        {activeTab === 'dashboard' && <DashboardView />}
+        {activeTab === 'kanban'       && <KanbanBoard />}
+        {activeTab === 'mentoria'     && <MentoriaBoard />}
+        {activeTab === 'tasks'        && <TaskManager />}
+        {activeTab === 'dashboard'    && <DashboardView />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
-        {activeTab === 'crm' && <KanbanLeads />}
-        {activeTab === 'agenda' && <AgendaView />}
+        {activeTab === 'crm'          && <KanbanLeads openLeadId={crmOpenLeadId} />}
+        {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
     </div>
   )

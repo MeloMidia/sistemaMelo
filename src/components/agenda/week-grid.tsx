@@ -1,17 +1,24 @@
 'use client'
 
+import { useRef, useState, useCallback } from 'react'
 import { addDays, isSameDay, WEEKDAY_LABELS, HOURS, formatHourLabel } from '@/lib/agenda-date'
 import type { AgendaEvent } from '@/types/agenda'
+
+const HOUR_HEIGHT = 48
+const MIN_EVENT_HEIGHT = 22
+const GRID_START_HOUR = HOURS[0]          // 7
+const GRID_OFFSET_MIN = GRID_START_HOUR * 60
+const SNAP_MIN = 15
+const MIN_DRAG_PX = 5                      // threshold click vs drag
 
 interface WeekGridProps {
   weekStart: Date
   events: AgendaEvent[]
   onCreateAt: (date: Date, hour: number) => void
   onEditEvent: (event: AgendaEvent) => void
+  onUpdateEvent: (id: string, startsAt: string, endsAt: string) => void
+  onOpenLeadInCrm?: (leadId: string) => void
 }
-
-const HOUR_HEIGHT = 48 // px
-const MIN_EVENT_HEIGHT = 22 // px
 
 interface PositionedEvent {
   event: AgendaEvent
@@ -19,11 +26,6 @@ interface PositionedEvent {
   columnCount: number
 }
 
-// Atribui cada evento a uma "coluna" (pra não sobrepor visualmente) e calcula
-// quantos eventos ele realmente sobrepõe no tempo, pra dividir a largura.
-// Simplificação aceita: columnCount é por evento (overlaps individuais), não
-// um empacotamento ótimo de todo o grupo — suficiente pro volume baixo de
-// eventos de uma agenda interna pequena.
 function layoutDayEvents(dayEvents: AgendaEvent[]): PositionedEvent[] {
   const sorted = [...dayEvents].sort(
     (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
@@ -35,9 +37,8 @@ function layoutDayEvents(dayEvents: AgendaEvent[]): PositionedEvent[] {
     const start = new Date(event.startsAt).getTime()
     let placed = false
     for (let i = 0; i < columns.length; i++) {
-      const lastInColumn = columns[i][columns[i].length - 1]
-      const lastEnd = new Date(lastInColumn.endsAt).getTime()
-      if (start >= lastEnd) {
+      const last = columns[i][columns[i].length - 1]
+      if (start >= new Date(last.endsAt).getTime()) {
         columns[i].push(event)
         placement.set(event.id, i)
         placed = true
@@ -51,31 +52,239 @@ function layoutDayEvents(dayEvents: AgendaEvent[]): PositionedEvent[] {
   }
 
   return sorted.map((event) => {
-    const start = new Date(event.startsAt).getTime()
-    const end = new Date(event.endsAt).getTime()
-    let overlapCount = 1
-    for (const other of sorted) {
-      if (other.id === event.id) continue
-      const oStart = new Date(other.startsAt).getTime()
-      const oEnd = new Date(other.endsAt).getTime()
-      if (oStart < end && oEnd > start) overlapCount += 1
+    const s = new Date(event.startsAt).getTime()
+    const e = new Date(event.endsAt).getTime()
+    let overlaps = 1
+    for (const o of sorted) {
+      if (o.id === event.id) continue
+      const os = new Date(o.startsAt).getTime()
+      const oe = new Date(o.endsAt).getTime()
+      if (os < e && oe > s) overlaps++
     }
-    return { event, column: placement.get(event.id) ?? 0, columnCount: overlapCount }
+    return { event, column: placement.get(event.id) ?? 0, columnCount: overlaps }
   })
 }
 
-function minutesFromMidnight(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes()
+function mfm(d: Date) { return d.getHours() * 60 + d.getMinutes() }
+function snapTo(m: number) { return Math.round(m / SNAP_MIN) * SNAP_MIN }
+function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
+function fmt(d: Date) { return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
+
+// Cria um elemento ghost no body — posicionamento fixed, sem interagir com React
+function spawnGhost(rect: DOMRect, color: string, title: string, time: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.style.cssText = [
+    'position:fixed',
+    `top:${rect.top}px`,
+    `left:${rect.left}px`,
+    `width:${rect.width}px`,
+    `height:${rect.height}px`,
+    `background:${color}`,
+    'border-radius:8px',
+    'border:2px solid rgba(255,255,255,0.6)',
+    `box-shadow:0 12px 40px rgba(0,0,0,0.55),0 0 24px ${color}50`,
+    'pointer-events:none',
+    'z-index:9999',
+    'padding:6px 10px',
+    'overflow:hidden',
+    'will-change:transform',
+    'transition:none',
+  ].join(';')
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;">${title}</div>
+    <div data-ghost-time style="font-size:9px;color:rgba(255,255,255,0.72);font-weight:600;margin-top:2px;line-height:1;">${time}</div>
+  `
+  document.body.appendChild(el)
+  return el
 }
 
-export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGridProps) {
+type MoveSnap = { dayIdx: number; startMin: number; endMin: number } | null
+
+export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateEvent, onOpenLeadInCrm }: WeekGridProps) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const today = new Date()
 
+  const scrollRef  = useRef<HTMLDivElement>(null)
+  const headerRef  = useRef<HTMLDivElement>(null)
+  const eventRefs  = useRef<Map<string, HTMLDivElement>>(new Map())
+  const weekStartRef = useRef(weekStart)
+  weekStartRef.current = weekStart
+
+  // Única state React durante o drag: indica qual slot está sendo alvo (move)
+  const [moveSnap, setMoveSnap] = useState<MoveSnap>(null)
+
+  const getMetrics = useCallback(() => {
+    const s = scrollRef.current
+    const h = headerRef.current
+    if (!s || !h) return null
+    return {
+      rect:      s.getBoundingClientRect(),
+      headerH:   h.offsetHeight,
+      colW:      (s.offsetWidth - 65) / 7,
+      scrollTop: s.scrollTop,
+    }
+  }, [])
+
+  // ─── DRAG: mover ────────────────────────────────────────────────────────────
+  const handleMoveDown = useCallback((e: React.PointerEvent, event: AgendaEvent, color: string) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const eventEl = eventRefs.current.get(event.id)
+    if (!eventEl) return
+
+    const rect = eventEl.getBoundingClientRect()
+    const clickOffsetY = e.clientY - rect.top
+    const durationMin  = (new Date(event.endsAt).getTime() - new Date(event.startsAt).getTime()) / 60000
+    const startClientX = e.clientX
+    const startClientY = e.clientY
+
+    // Ghost segue o mouse; original fica opaco
+    const ghost = spawnGhost(rect, color, event.title,
+      `${fmt(new Date(event.startsAt))} - ${fmt(new Date(event.endsAt))}`)
+    eventEl.style.opacity    = '0.2'
+    eventEl.style.transition = 'none'
+
+    let lastDayIdx  = -1
+    let lastStartMin = -1
+
+    function onMove(ev: PointerEvent) {
+      const m = getMetrics()
+      if (!m) return
+
+      // Mover ghost via transform — GPU, zero React
+      ghost.style.transform = `translate(${ev.clientX - startClientX}px,${ev.clientY - startClientY}px)`
+
+      // Calcular snap: Y → minutos, X → coluna do dia
+      const gridY  = ev.clientY - m.rect.top - m.headerH + m.scrollTop - clickOffsetY
+      const rawMin = (gridY / HOUR_HEIGHT) * 60 + GRID_START_HOUR * 60
+      const startMin = clamp(snapTo(rawMin), GRID_OFFSET_MIN, 23 * 60 - durationMin)
+      const endMin   = startMin + durationMin
+
+      const rawX   = ev.clientX - m.rect.left - 65
+      const dayIdx = clamp(Math.floor(rawX / m.colW), 0, 6)
+
+      // Atualizar label de horário no ghost diretamente no DOM
+      const targetDay = addDays(weekStartRef.current, dayIdx)
+      const ns = new Date(targetDay)
+      ns.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
+      const ne = new Date(ns.getTime() + durationMin * 60000);
+      (ghost.querySelector('[data-ghost-time]') as HTMLElement).textContent = `${fmt(ns)} - ${fmt(ne)}`
+
+      // State React só muda ao cruzar boundary de snap (não por pixel)
+      if (dayIdx !== lastDayIdx || startMin !== lastStartMin) {
+        lastDayIdx   = dayIdx
+        lastStartMin = startMin
+        setMoveSnap({ dayIdx, startMin, endMin })
+      }
+    }
+
+    function onUp(ev: PointerEvent) {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup',   onUp)
+
+      ghost.remove()
+      eventEl.style.transition = ''
+      setMoveSnap(null)
+
+      const moved = Math.abs(ev.clientX - startClientX) > MIN_DRAG_PX
+                 || Math.abs(ev.clientY - startClientY) > MIN_DRAG_PX
+
+      if (!moved) {
+        eventEl.style.opacity = ''
+        onEditEvent(event)
+        return
+      }
+
+      if (lastDayIdx >= 0 && lastStartMin >= 0) {
+        eventEl.style.opacity = '0'
+        const targetDay = addDays(weekStartRef.current, lastDayIdx)
+        const ns = new Date(targetDay)
+        ns.setHours(Math.floor(lastStartMin / 60), lastStartMin % 60, 0, 0)
+        const ne = new Date(ns.getTime() + durationMin * 60000)
+        onUpdateEvent(event.id, ns.toISOString(), ne.toISOString())
+        // Para movimentos no mesmo dia, React compara vdom opacity:1→1 e não atualiza
+        // o DOM — o elemento fica preso em opacity:0. O rAF garante a limpeza.
+        requestAnimationFrame(() => { eventEl.style.opacity = '' })
+      } else {
+        eventEl.style.opacity = ''
+      }
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup',   onUp)
+  }, [getMetrics, onEditEvent, onUpdateEvent])
+
+  // ─── DRAG: redimensionar ────────────────────────────────────────────────────
+  const handleResizeDown = useCallback((e: React.PointerEvent, event: AgendaEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const eventEl = eventRefs.current.get(event.id)
+    if (!eventEl) return
+
+    const start    = new Date(event.startsAt)
+    const startMin = mfm(start)
+    let lastEndMin = mfm(new Date(event.endsAt))
+
+    // Capturar métricas uma vez no início — evita getBoundingClientRect a cada frame
+    const m0 = getMetrics()
+    if (!m0) return
+    let cachedRect      = m0.rect
+    let cachedHeaderH   = m0.headerH
+    let cachedScrollTop = m0.scrollTop
+
+    const timeEl = eventEl.querySelector('[data-event-time]') as HTMLElement | null
+
+    function onMove(ev: PointerEvent) {
+      // Atualiza scrollTop se o usuário rolou; rect e headerH não mudam durante drag
+      cachedScrollTop = scrollRef.current?.scrollTop ?? cachedScrollTop
+
+      const gridY  = ev.clientY - cachedRect.top - cachedHeaderH + cachedScrollTop
+      const endMin = Math.max(startMin + SNAP_MIN, snapTo((gridY / HOUR_HEIGHT) * 60 + GRID_START_HOUR * 60))
+      if (endMin === lastEndMin) return
+      lastEndMin = endMin
+
+      const newH = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT) - 4
+      eventEl.style.height = `${newH}px`
+      if (timeEl) {
+        const ne = new Date(start)
+        ne.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0)
+        timeEl.textContent = `${fmt(start)} - ${fmt(ne)}`
+      }
+    }
+
+    function onUp() {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup',   onUp)
+
+      if (lastEndMin !== mfm(new Date(event.endsAt))) {
+        const ne = new Date(start)
+        ne.setHours(Math.floor(lastEndMin / 60), lastEndMin % 60, 0, 0)
+        onUpdateEvent(event.id, start.toISOString(), ne.toISOString())
+        // Limpa o style inline após React re-renderizar com a nova altura (via onMutate).
+        // Não limpar antes — causaria snap-back visual por 1 frame.
+        requestAnimationFrame(() => { eventEl.style.height = '' })
+      } else {
+        eventEl.style.height = ''
+      }
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup',   onUp)
+  }, [getMetrics, onUpdateEvent])
+
+  // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto select-none bg-[#07080c]">
-      {/* Cabeçalho dos dias */}
-      <div className="grid grid-cols-[65px_repeat(7,1fr)] sticky top-0 bg-[#07080c]/90 backdrop-blur-md z-10 border-b border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto select-none bg-[#07080c]">
+
+      {/* Cabeçalho sticky */}
+      <div
+        ref={headerRef}
+        className="grid grid-cols-[65px_repeat(7,1fr)] sticky top-0 bg-[#07080c]/90 backdrop-blur-md z-10 border-b border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
+      >
         <div className="border-r border-white/[0.04]" />
         {days.map((day, i) => {
           const isToday = isSameDay(day, today)
@@ -85,13 +294,11 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                 {WEEKDAY_LABELS[day.getDay()]}
               </div>
               <div className="flex-1 flex flex-col items-center justify-center mt-1">
-                <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-200 ${
-                    isToday 
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] border border-blue-400/20' 
-                      : 'text-slate-300 hover:bg-white/[0.06] hover:text-white border border-transparent'
-                  }`}
-                >
+                <div className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-200 ${
+                  isToday
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] border border-blue-400/20'
+                    : 'text-slate-300 hover:bg-white/[0.06] hover:text-white border border-transparent'
+                }`}>
                   {day.getDate()}
                 </div>
                 {isToday && (
@@ -103,35 +310,36 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
         })}
       </div>
 
-      {/* Grade de horas */}
+      {/* Grade */}
       <div className="grid grid-cols-[65px_repeat(7,1fr)]">
+
         {/* Coluna de horários */}
         <div className="border-r border-white/[0.04] bg-[#07080c]/30">
           {HOURS.map((hour) => (
-            <div key={hour} style={{ height: HOUR_HEIGHT }} className="relative text-right pr-3 flex items-start justify-end">
-              {hour > 0 && (
-                <span className="absolute top-0 right-3 -translate-y-1/2 text-[10px] font-bold text-slate-500/80 tracking-wider">
-                  {formatHourLabel(hour)}
-                </span>
-              )}
+            <div key={hour} style={{ height: HOUR_HEIGHT }} className="relative pr-3">
+              <span className="absolute top-0 right-3 -translate-y-1/2 text-[10px] font-bold text-slate-500/80 tracking-wider">
+                {formatHourLabel(hour)}
+              </span>
             </div>
           ))}
         </div>
 
         {/* Colunas dos dias */}
         {days.map((day, dayIndex) => {
-          const dayEvents = events.filter((e) => isSameDay(new Date(e.startsAt), day))
+          const dayEvents = events.filter(e => isSameDay(new Date(e.startsAt), day))
           const positioned = layoutDayEvents(dayEvents)
-          const isDayToday = isSameDay(day, today)
+          const isToday = isSameDay(day, today)
+
+          // Snap indicator para este dia durante move drag
+          const snap = moveSnap?.dayIdx === dayIndex ? moveSnap : null
 
           return (
-            <div 
-              key={dayIndex} 
-              className={`relative border-r border-white/[0.03] last:border-r-0 ${
-                isDayToday ? 'bg-gradient-to-b from-blue-500/[0.015] to-transparent' : ''
-              }`}
+            <div
+              key={dayIndex}
+              className={`relative border-r border-white/[0.03] last:border-r-0 ${isToday ? 'bg-gradient-to-b from-blue-500/[0.015] to-transparent' : ''}`}
             >
-              {HOURS.map((hour) => (
+              {/* Células clicáveis (criar evento) */}
+              {HOURS.map(hour => (
                 <div
                   key={hour}
                   style={{ height: HOUR_HEIGHT }}
@@ -140,52 +348,97 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent }: WeekGri
                 />
               ))}
 
+              {/* Indicador de destino do drag (slot alvo) */}
+              {snap && (
+                <div
+                  style={{
+                    position:  'absolute',
+                    top:       ((snap.startMin - GRID_OFFSET_MIN) / 60) * HOUR_HEIGHT + 2,
+                    height:    Math.max(((snap.endMin - snap.startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT) - 4,
+                    left:      2,
+                    right:     4,
+                    borderRadius: 8,
+                    border:    '2px dashed rgba(255,255,255,0.28)',
+                    background: 'rgba(255,255,255,0.04)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+
+              {/* Eventos */}
               {positioned.map(({ event, column, columnCount }) => {
-                const start = new Date(event.startsAt)
-                const end = new Date(event.endsAt)
-                const top = (minutesFromMidnight(start) / 60) * HOUR_HEIGHT
-                const height = Math.max(
-                  ((minutesFromMidnight(end) - minutesFromMidnight(start)) / 60) * HOUR_HEIGHT,
-                  MIN_EVENT_HEIGHT
-                )
+                const start    = new Date(event.startsAt)
+                const end      = new Date(event.endsAt)
+                const startMin = mfm(start)
+                const endMin   = mfm(end)
+                const top    = ((startMin - GRID_OFFSET_MIN) / 60) * HOUR_HEIGHT
+                const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT)
                 const widthPct = 100 / columnCount
-                const leftPct = column * widthPct
-                const color = event.category?.color ?? '#64748b'
-                
-                const timeStr = `${start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                const leftPct  = column * widthPct
+                const color    = event.category?.color ?? '#64748b'
 
                 return (
-                  <button
+                  <div
                     key={event.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEditEvent(event)
-                    }}
-                    title={event.description || undefined}
+                    ref={el => el
+                      ? eventRefs.current.set(event.id, el)
+                      : eventRefs.current.delete(event.id)}
                     style={{
-                      top: top + 2,
-                      height: height - 4,
-                      width: `calc(${widthPct}% - 4px)`,
-                      left: `calc(${leftPct}% + 2px)`,
+                      position:        'absolute',
+                      top:             top + 2,
+                      height:          height - 4,
+                      width:           `calc(${widthPct}% - 4px)`,
+                      left:            `calc(${leftPct}% + 2px)`,
                       backgroundColor: color,
+                      opacity:         1,
+                      cursor:          'grab',
                     }}
-                    className="absolute rounded-lg px-2.5 py-1.5 text-left overflow-hidden cursor-pointer shadow-md hover:opacity-90 hover:-translate-y-[0.5px] hover:shadow-lg active:scale-[0.98] transition-all duration-150 flex flex-col justify-start"
+                    className="rounded-lg overflow-hidden group/event shadow-md flex flex-col"
+                    onPointerDown={ev => handleMoveDown(ev, event, color)}
                   >
-                    <span className="flex items-center gap-1 min-w-0">
-                      {event.lead?.temperature && (
-                        <span className="text-[11px] shrink-0 select-none">{event.lead.temperature}</span>
+                    {/* Conteúdo */}
+                    <div className="px-2.5 py-1.5 flex-1 select-none pointer-events-none overflow-hidden flex flex-col">
+                      <span className="flex items-center gap-1 min-w-0">
+                        {event.lead?.temperature && (
+                          <span className="text-[11px] shrink-0">{event.lead.temperature}</span>
+                        )}
+                        <span className="text-[11px] font-bold text-white truncate leading-tight tracking-tight">
+                          {event.title}
+                        </span>
+                      </span>
+                      {height >= 38 && (
+                        <span
+                          data-event-time
+                          className="text-[9px] text-white/75 font-semibold truncate block mt-0.5 leading-none"
+                        >
+                          {fmt(start)} - {fmt(end)}
+                        </span>
                       )}
-                      <span className="text-[11px] font-bold text-white truncate leading-tight tracking-tight">
-                        {event.title}
-                      </span>
-                    </span>
-                    {height >= 38 && (
-                      <span className="text-[9px] text-white/75 font-semibold truncate block mt-0.5 select-none leading-none">
-                        {timeStr}
-                      </span>
+                    </div>
+
+                    {/* Botão WhatsApp (só se tiver lead vinculado) */}
+                    {event.leadId && onOpenLeadInCrm && (
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 p-0.5 rounded cursor-pointer"
+                        onPointerDown={ev => { ev.stopPropagation(); ev.preventDefault() }}
+                        onClick={ev => { ev.stopPropagation(); onOpenLeadInCrm(event.leadId!) }}
+                        title="Abrir conversa no CRM"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
+                          <path fill="white" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                      </button>
                     )}
-                  </button>
+
+                    {/* Handle de resize (borda inferior) */}
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize opacity-0 group-hover/event:opacity-100 transition-opacity duration-150 flex items-end justify-center pb-0.5"
+                      onPointerDown={ev => handleResizeDown(ev, event)}
+                    >
+                      <div className="w-8 h-[3px] rounded-full bg-white/55" />
+                    </div>
+                  </div>
                 )
               })}
             </div>

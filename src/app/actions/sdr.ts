@@ -21,8 +21,10 @@ export async function upsertSdrLog(date: Date, data: SdrLogData) {
 }
 
 export async function getSdrLogs(startDate: Date, endDate: Date) {
+  // Logs are stored at UTC midnight; normalize start to avoid off-by-3h exclusion in Brazil (UTC-3)
+  const utcStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()))
   return prisma.sdrDailyLog.findMany({
-    where: { date: { gte: new Date(startDate), lte: new Date(endDate) } },
+    where: { date: { gte: utcStart, lte: new Date(endDate) } },
     orderBy: { date: 'asc' },
     select: {
       date: true,

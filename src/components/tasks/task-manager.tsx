@@ -28,11 +28,9 @@ import {
   Calendar,
   Star,
   Trash2,
-  ArrowUpDown,
   Loader2,
   ClipboardList,
   Flame,
-  FileText,
   CheckCircle2,
   History,
   ChevronDown,
@@ -65,9 +63,9 @@ const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor'
 
 function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass }: any) {
   const { isOver, setNodeRef } = useDroppable({ id })
-  
+
   return (
-    <div 
+    <div
       ref={setNodeRef}
       className={`rounded-2xl border flex flex-col overflow-hidden transition-colors
         ${isOver ? 'ring-2 ring-blue-500/50' : ''}
@@ -103,7 +101,7 @@ function DraggableTask({ task, children }: { task: Task, children: React.ReactNo
     id: task.id,
     data: { task }
   })
-  
+
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.4 : 1,
@@ -135,7 +133,7 @@ export function TaskManager() {
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
-  
+
   const [completeModal, setCompleteModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
   const [completedBy, setCompletedBy] = useState('')
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null })
@@ -215,8 +213,8 @@ export function TaskManager() {
 
   const confirmComplete = () => {
     if (completeModal.task) {
-      updateTask.mutate({ 
-        id: completeModal.task.id, 
+      updateTask.mutate({
+        id: completeModal.task.id,
         completedAt: new Date().toISOString(),
         completedBy: completedBy.trim() || undefined
       })
@@ -242,7 +240,7 @@ export function TaskManager() {
     if (!activeTask) return
 
     const overId = over.id.toString()
-    
+
     let updates: Partial<Task> = {}
     if (overId === 'col-queue') {
       updates = { isDoing: false, isPriorityToday: false }
@@ -337,11 +335,10 @@ export function TaskManager() {
                   <button
                     type="button"
                     onClick={() => setAssignee('')}
-                    className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
-                      assignee === ''
+                    className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${assignee === ''
                         ? 'bg-slate-600 border-slate-500 text-white'
                         : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:border-white/[0.2] hover:text-slate-300'
-                    }`}
+                      }`}
                   >
                     Nenhum
                   </button>
@@ -350,11 +347,10 @@ export function TaskManager() {
                       key={name}
                       type="button"
                       onClick={() => setAssignee(name)}
-                      className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
-                        assignee === name
+                      className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${assignee === name
                           ? 'bg-blue-600 border-blue-500 text-white'
                           : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-blue-500/40 hover:text-white'
-                      }`}
+                        }`}
                     >
                       {name}
                     </button>
@@ -481,11 +477,11 @@ export function TaskManager() {
                 task={activeTask}
                 isPriorityView={activeTask.isPriorityToday}
                 isDoingView={activeTask.isDoing}
-                onTogglePriority={() => {}}
-                onToggleWaiting={() => {}}
-                onDelete={() => {}}
-                onComplete={() => {}}
-                onEdit={() => {}}
+                onTogglePriority={() => { }}
+                onToggleWaiting={() => { }}
+                onDelete={() => { }}
+                onComplete={() => { }}
+                onEdit={() => { }}
               />
             </div>
           ) : null}
@@ -573,7 +569,7 @@ export function TaskManager() {
           <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-2">Concluir Tarefa</h3>
             <p className="text-sm text-slate-400 mb-4">Tem certeza que deseja marcar esta tarefa como concluída?</p>
-            
+
             <div className="mb-6 space-y-2">
               <label className="text-xs font-medium text-slate-300 block">Quem está confirmando?</label>
               <Input
@@ -661,14 +657,13 @@ function TaskQueueItem({
 
   if (editing) {
     return (
-      <div className={`p-3.5 rounded-xl border space-y-3 cursor-default ${
-        isPriorityView
+      <div className={`p-3.5 rounded-xl border space-y-3 cursor-default ${isPriorityView
           ? 'bg-amber-500/[0.07] border-amber-500/20'
           : isDoingView
-          ? 'bg-blue-500/[0.07] border-blue-500/20'
-          : 'bg-white/[0.05] border-white/[0.2]'
-      }`}
-      onPointerDown={(e) => e.stopPropagation()} // Impede o drag enquanto edita
+            ? 'bg-blue-500/[0.07] border-blue-500/20'
+            : 'bg-white/[0.05] border-white/[0.2]'
+        }`}
+        onPointerDown={(e) => e.stopPropagation()} // Impede o drag enquanto edita
       >
         {/* Título */}
         <Input
@@ -733,8 +728,8 @@ function TaskQueueItem({
       ${isPriorityView
         ? 'border-amber-500/20 hover:border-amber-500/40 shadow-[0_4px_12px_rgba(245,158,11,0.05)]'
         : isDoingView
-        ? 'border-blue-500/20 hover:border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.05)]'
-        : 'border-white/[0.07] hover:border-white/[0.14] shadow-sm'
+          ? 'border-blue-500/20 hover:border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.05)]'
+          : 'border-white/[0.07] hover:border-white/[0.14] shadow-sm'
       }
     `}>
       <div className="flex items-start gap-3">
@@ -745,9 +740,8 @@ function TaskQueueItem({
           )}
           <div className="flex items-center gap-2 mt-2">
             {dueDate && (
-              <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'
-              }`}>
+              <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'
+                }`}>
                 <Calendar className="w-3 h-3" />
                 {dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
               </span>
@@ -765,11 +759,10 @@ function TaskQueueItem({
             <button
               onClick={(e) => { e.stopPropagation(); onToggleWaiting() }}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer ${
-                task.isWaiting
+              className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer ${task.isWaiting
                   ? 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25'
                   : 'bg-white/[0.04] text-slate-600 hover:bg-orange-500/10 hover:text-orange-400'
-              }`}
+                }`}
               title={task.isWaiting ? 'Remover aguardando' : 'Marcar como aguardando'}
             >
               <Clock className="w-3 h-3" />
@@ -802,11 +795,10 @@ function TaskQueueItem({
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onTogglePriority() }}
-            className={`p-1.5 rounded-lg cursor-pointer ${
-              task.isPriorityToday
+            className={`p-1.5 rounded-lg cursor-pointer ${task.isPriorityToday
                 ? 'text-amber-400 hover:bg-amber-500/10'
                 : 'text-slate-600 hover:text-amber-400 hover:bg-amber-500/10'
-            }`}
+              }`}
             title={task.isPriorityToday ? 'Remover prioridade' : 'Marcar como prioridade'}
             onPointerDown={(e) => e.stopPropagation()}
           >

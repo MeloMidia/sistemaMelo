@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, Target } from 'lucide-react'
-import { type DateRange, type PeriodKey } from '@/lib/date-range'
+import { getDateRange, type DateRange, type PeriodKey } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
@@ -13,6 +13,7 @@ import { DailyLineChart } from './daily-line-chart'
 import { AddMetricModal } from './add-metric-modal'
 import { EditMetricModal } from './edit-metric-modal'
 import { TriGoalBar } from './tri-goal-bar'
+import { MeetingsStatusCard } from './meetings-status-card'
 
 type SdrLog = DashboardData['logs'][number]
 
@@ -51,6 +52,8 @@ function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTot
     ...manual,
     agendadas: agenda?.totalAgendadas ?? 0,
     realizadas: agenda?.totalRealizadas ?? 0,
+    // Não realizada: soma manual + agenda (evita perda de dados históricos lançados antes)
+    naoRealizada: manual.naoRealizada + (agenda?.totalNaoRealizadas ?? 0),
   }
 }
 
@@ -317,6 +320,12 @@ export function DashboardView() {
             />
           </div>
         </section>
+
+        {/* Reuniões — status rápido */}
+        {(() => {
+          const range = getDateRange(period, customRange)
+          return <MeetingsStatusCard start={range.start} end={range.end} />
+        })()}
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4">

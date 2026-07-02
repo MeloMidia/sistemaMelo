@@ -62,7 +62,40 @@ export function useUpdateAgendaEvent() {
       if (!res.ok) throw new Error(result.error || 'Failed to update event')
       return result
     },
-    onSuccess: () => {
+    // Atualiza o cache imediatamente (antes da resposta da API) para eliminar o delay visual
+    onMutate: async ({ id, startsAt, endsAt, status, categoryId, leadId, title, description }) => {
+      const previousData = qc.getQueriesData<AgendaEvent[]>({ queryKey: ['agenda-events'] })
+
+      qc.setQueriesData<AgendaEvent[]>({ queryKey: ['agenda-events'] }, (old) => {
+        if (!old) return old
+        return old.map((ev) =>
+          ev.id !== id ? ev : {
+            ...ev,
+            ...(title       !== undefined && { title }),
+            ...(description !== undefined && { description }),
+            ...(startsAt    !== undefined && { startsAt }),
+            ...(endsAt      !== undefined && { endsAt }),
+            ...(categoryId  !== undefined && { categoryId }),
+            ...(leadId      !== undefined && { leadId }),
+            ...(status      !== undefined && { status }),
+          }
+        )
+      })
+
+      // Cancela refetches em voo para não sobrescrever o optimistic update
+      await qc.cancelQueries({ queryKey: ['agenda-events'] })
+
+      return { previousData }
+    },
+    onError: (_err, _vars, context) => {
+      // Reverte em caso de erro
+      if (context?.previousData) {
+        for (const [key, data] of context.previousData) {
+          qc.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['agenda-events'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
     },

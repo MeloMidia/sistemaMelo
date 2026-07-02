@@ -1,4 +1,3 @@
-// src/components/crm/lead-panel.tsx
 'use client'
 
 import { useState } from 'react'
@@ -6,7 +5,6 @@ import { X, Info as InfoIcon, MessageCircle } from 'lucide-react'
 import { useStages } from '@/hooks/crm-api'
 import { LeadInfoTab } from './lead-info-tab'
 import { LeadConversaTab } from './lead-conversa-tab'
-
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 
 interface LeadPanelProps {
@@ -34,7 +32,7 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   const avatarColor = getAvatarColor(displayName)
 
   return (
-    <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-[#0a0b10] border-l border-white/[0.08] shadow-2xl shadow-black/40 flex flex-col z-40">
+    <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-black/50 backdrop-blur-xl border-l border-white/[0.12] shadow-2xl shadow-black/60 flex flex-col z-40">
       <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
           {lead.profilePicUrl ? (

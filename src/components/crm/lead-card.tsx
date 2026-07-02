@@ -1,14 +1,31 @@
-// src/components/crm/lead-card.tsx
 'use client'
 
+import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import type { Lead } from '@/types/crm'
-import { MessageCircle } from 'lucide-react'
 import { getLeadDisplayName } from '@/lib/phone'
 
 const AVATAR_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
 function getAvatarColor(seed: string): string {
   return AVATAR_COLORS[Math.abs(seed.charCodeAt(0)) % AVATAR_COLORS.length]
+}
+
+const TEMP_COLOR: Record<string, string> = {
+  '🟢': '#10b981',
+  '🟡': '#f59e0b',
+  '🔴': '#ef4444',
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'agora'
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d`
+  return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
 interface LeadCardProps {
@@ -18,6 +35,8 @@ interface LeadCardProps {
 }
 
 export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
+  const [imgError, setImgError] = useState(false)
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -28,6 +47,8 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
   const displayName = getLeadDisplayName(lead)
   const initial = displayName.charAt(0).toUpperCase()
   const avatarColor = getAvatarColor(displayName)
+  const tempColor = lead.temperature ? TEMP_COLOR[lead.temperature] : null
+  const interactionLevel = Math.min(5, Math.ceil(lead._count.messages / 15))
 
   return (
     <div
@@ -36,63 +57,102 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
       {...listeners}
       onClick={isOverlay ? undefined : onSelect}
       className={`
-        p-3 rounded-xl border select-none transition-all duration-150
+        rounded-xl border select-none transition-all duration-150
         ${isOverlay
-          ? 'bg-white/[0.06] border-white/[0.15] shadow-2xl shadow-black/50 scale-[1.02] cursor-grabbing'
+          ? 'bg-[#1c1f2e] border-white/20 shadow-2xl shadow-black/70 scale-[1.02] cursor-grabbing'
           : isDragging
-            ? 'opacity-25 border-dashed border-white/[0.1] bg-transparent cursor-grabbing'
-            : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.15] hover:bg-white/[0.05] cursor-pointer'
+            ? 'opacity-20 border-dashed border-white/10 bg-transparent cursor-grabbing'
+            : 'bg-[#12141c] border-white/[0.07] hover:border-white/[0.18] hover:bg-[#141720] cursor-pointer shadow-sm hover:shadow-md hover:shadow-black/30'
         }
       `}
     >
-      <div className="flex items-start gap-2.5">
-        {/* Avatar: foto real quando disponível, inicial colorida como fallback */}
-        {lead.profilePicUrl ? (
-          <img
-            src={lead.profilePicUrl}
-            alt={displayName}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-              const sibling = e.currentTarget.nextElementSibling as HTMLElement | null
-              if (sibling) sibling.style.display = 'flex'
+      <div className="p-3">
+        <div className="flex items-start gap-2.5">
+          {/* Avatar com anel de temperatura */}
+          <div
+            className="w-9 h-9 rounded-full shrink-0 p-[2px] mt-0.5"
+            style={{
+              background: tempColor
+                ? `linear-gradient(135deg, ${tempColor}CC, ${tempColor}44)`
+                : 'rgba(255,255,255,0.05)',
             }}
-            className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5"
-          />
-        ) : null}
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 mt-0.5"
-          style={{ backgroundColor: avatarColor, display: lead.profilePicUrl ? 'none' : undefined }}
-        >
-          {initial}
+          >
+            <div className="w-full h-full rounded-full overflow-hidden bg-[#1a1d2a]">
+              {lead.profilePicUrl && !imgError ? (
+                <img
+                  src={lead.profilePicUrl}
+                  alt={displayName}
+                  onError={() => setImgError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center text-[13px] font-bold text-white"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  {initial}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Conteúdo principal */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[13px] font-semibold text-white leading-tight truncate">
+                {displayName}
+              </span>
+              {lastMessage?.createdAt && (
+                <span className="text-[10px] text-slate-500 shrink-0 tabular-nums">
+                  {timeAgo(lastMessage.createdAt)}
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11.5px] text-slate-500 truncate mt-0.5 leading-snug">
+              {lastMessage?.content ?? 'Sem mensagens'}
+            </p>
+          </div>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="text-sm font-medium text-white truncate">{displayName}</span>
-            {lead.temperature && <span className="text-[11px] shrink-0 select-none">{lead.temperature}</span>}
-          </div>
-
-          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
-            <MessageCircle className="w-3 h-3 shrink-0" />
-            <span className="truncate">{lastMessage?.content ?? 'Sem mensagens'}</span>
-          </div>
-
-          {lead.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {lead.tags.map((lt) => (
+        {/* Rodapé: tags + dots de interação */}
+        {(lead.tags.length > 0 || interactionLevel > 0) && (
+          <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/[0.04]">
+            <div className="flex flex-wrap gap-1">
+              {lead.tags.slice(0, 2).map((lt) => (
                 <span
                   key={lt.tagId}
-                  className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: `${lt.tag.color}26`, color: lt.tag.color }}
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                  style={{
+                    backgroundColor: `${lt.tag.color}18`,
+                    color: lt.tag.color,
+                    border: `1px solid ${lt.tag.color}30`,
+                  }}
                 >
                   {lt.tag.name}
                 </span>
               ))}
+              {lead.tags.length > 2 && (
+                <span className="text-[10px] text-slate-600 px-0.5">+{lead.tags.length - 2}</span>
+              )}
             </div>
-          )}
 
-          {lead.assignedTo && <div className="mt-1 text-[11px] text-slate-500">{lead.assignedTo.name}</div>}
-        </div>
+            {/* Dots de nível de interação */}
+            <div className="flex items-center gap-[3px] shrink-0">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full transition-colors"
+                  style={{
+                    backgroundColor: i < interactionLevel
+                      ? (tempColor ?? '#6366f1')
+                      : 'rgba(255,255,255,0.07)',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

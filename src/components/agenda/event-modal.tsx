@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Trash2, Repeat, Search } from 'lucide-react'
 import {
   useCreateAgendaEvent,
@@ -97,6 +97,7 @@ export function EventModal({
   const [leadSearch, setLeadSearch] = useState('')
   const [leadDropdownOpen, setLeadDropdownOpen] = useState(false)
   const leadInputRef = useRef<HTMLInputElement>(null)
+  const [autoFilledNote, setAutoFilledNote] = useState('')
 
   const selectedLead = (leads ?? []).find((l) => l.id === leadId)
   const filteredLeads = leadSearch.trim()
@@ -133,10 +134,36 @@ export function EventModal({
     })
   }
 
+  // Copia nota interna do lead para a descrição ao criar evento
+  useEffect(() => {
+    if (mode !== 'create' || !leadId || !leads) return
+    const lead = leads.find((l) => l.id === leadId)
+    const note = lead?.notes ?? ''
+    if (note && (description === '' || description === autoFilledNote)) {
+      setDescription(note)
+      setAutoFilledNote(note)
+    }
+  }, [leadId, leads]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincroniza o status com o nome da categoria selecionada
+  useEffect(() => {
+    if (!categoryId || !categories) return
+    const cat = categories.find((c) => c.id === categoryId)
+    if (!cat) return
+    const n = cat.name.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    if (n.includes('nao realizada') || n.includes('nao-realizada')) {
+      setStatus('NAO_REALIZADA')
+    } else if (n.includes('realizada')) {
+      setStatus('REALIZADA')
+    } else if (n.includes('cancelada')) {
+      setStatus('CANCELADA')
+    } else {
+      setStatus('AGENDADA')
+    }
+  }, [categoryId, categories])
+
   function handleLeadIdChange(value: string) {
     setLeadId(value)
-    // Sem lead vinculado o seletor de status fica oculto; reseta para o
-    // padrão para não salvar um status "fantasma" que o usuário não vê mais.
     if (!value) setStatus('AGENDADA')
   }
 
@@ -448,22 +475,6 @@ export function EventModal({
             </div>
           </div>
 
-          {mode === 'edit' && leadId && (
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Status da reunião</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as AgendaEventStatus)}
-                className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-[#0c0e17]">
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className="space-y-1">
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Descrição / Anotações</label>

@@ -50,7 +50,7 @@ function capitalize(s: string): string {
 }
 
 export const WEEKDAY_LABELS = ['DOM.', 'SEG.', 'TER.', 'QUA.', 'QUI.', 'SEX.', 'SÁB.']
-export const HOURS = Array.from({ length: 24 }, (_, i) => i)
+export const HOURS = Array.from({ length: 17 }, (_, i) => i + 7)
 
 export function formatHourLabel(hour: number): string {
   return `${String(hour).padStart(2, '0')}:00`

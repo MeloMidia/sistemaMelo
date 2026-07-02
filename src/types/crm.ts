@@ -47,6 +47,7 @@ export interface LeadLite {
   name: string | null
   phone: string
   temperature: string | null
+  notes: string | null
 }
 
 export interface LeadStage {

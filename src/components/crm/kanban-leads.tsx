@@ -27,14 +27,14 @@ import { getLeadDisplayName } from '@/lib/phone'
 
 const STAGE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
 
-export function KanbanLeads() {
+export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   const { data: stages, isLoading } = useStages()
   const createStage = useCreateStage()
   const updateLead = useUpdateLead()
   useCrmStream()
   const queryClient = useQueryClient()
 
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(openLeadId ?? null)
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
@@ -190,18 +190,68 @@ export function KanbanLeads() {
       }))
     : (stages || [])
 
+  const allLeads = (stages || []).flatMap((s) => s.leads)
+  const stats = {
+    total: allLeads.length,
+    hot: allLeads.filter((l) => l.temperature === '🟢').length,
+    warm: allLeads.filter((l) => l.temperature === '🟡').length,
+    cold: allLeads.filter((l) => l.temperature === '🔴').length,
+    value: allLeads.reduce((sum, l) => sum + (l.value ?? 0), 0),
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Barra de busca */}
-      <div className="px-6 py-3 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
-        <div className="relative max-w-xs">
+      {/* Header: stats + busca */}
+      <div className="px-6 h-14 border-b border-white/[0.05] bg-[#07080c]/80 backdrop-blur-md shrink-0 flex items-center justify-between gap-6">
+        {/* Stats */}
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xl font-bold text-white tabular-nums">{stats.total}</span>
+            <span className="text-xs text-slate-500 font-medium">leads</span>
+          </div>
+          {(stats.hot > 0 || stats.warm > 0 || stats.cold > 0) && (
+            <div className="w-px h-4 bg-white/[0.07]" />
+          )}
+          {stats.hot > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b98180]" />
+              <span className="text-sm font-semibold text-white tabular-nums">{stats.hot}</span>
+              <span className="text-xs text-slate-500">quentes</span>
+            </div>
+          )}
+          {stats.warm > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_#f59e0b80]" />
+              <span className="text-sm font-semibold text-white tabular-nums">{stats.warm}</span>
+              <span className="text-xs text-slate-500">mornos</span>
+            </div>
+          )}
+          {stats.cold > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_#ef444480]" />
+              <span className="text-sm font-semibold text-white tabular-nums">{stats.cold}</span>
+              <span className="text-xs text-slate-500">frios</span>
+            </div>
+          )}
+          {stats.value > 0 && (
+            <>
+              <div className="w-px h-4 bg-white/[0.07]" />
+              <span className="text-sm font-semibold text-emerald-400 tabular-nums">
+                R$ {stats.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Busca */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
           <input
             type="text"
-            placeholder="Buscar lead por nome ou telefone..."
+            placeholder="Buscar lead..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-7 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500/40 focus:bg-white/[0.06] transition-all"
+            className="pl-9 pr-7 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg text-sm text-white placeholder:text-slate-600 outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all w-52"
           />
           {searchQuery && (
             <button
@@ -209,7 +259,7 @@ export function KanbanLeads() {
               onClick={() => setSearchQuery('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -222,14 +272,14 @@ export function KanbanLeads() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 overflow-x-auto p-6">
-        <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
+      <div className="flex-1 overflow-x-auto p-5">
+        <div className="flex gap-4 items-start min-h-[calc(100vh-170px)]">
           {visibleStages.map((stage) => (
             <LeadColumn key={stage.id} stage={stage} onSelectLead={setSelectedLeadId} />
           ))}
 
           {isAddingStage ? (
-            <div className="w-[330px] shrink-0 p-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] space-y-3">
+            <div className="w-[290px] shrink-0 p-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] space-y-3">
               <Input
                 value={newStageName}
                 onChange={(e) => setNewStageName(e.target.value)}
@@ -268,7 +318,7 @@ export function KanbanLeads() {
           ) : (
             <button
               onClick={() => setIsAddingStage(true)}
-              className="w-[330px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-white/[0.06] text-slate-500 hover:text-white hover:border-blue-500/30 hover:bg-blue-500/[0.03] cursor-pointer flex items-center justify-center gap-2 text-sm font-medium"
+              className="w-[290px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-white/[0.06] text-slate-500 hover:text-white hover:border-blue-500/30 hover:bg-blue-500/[0.03] cursor-pointer flex items-center justify-center gap-2 text-sm font-medium"
             >
               <Plus className="w-5 h-5" />
               Nova etapa
@@ -279,7 +329,7 @@ export function KanbanLeads() {
 
       <DragOverlay>
         {activeLead ? (
-          <div className="w-[304px] rotate-2 opacity-95 shadow-2xl">
+          <div className="w-[290px] rotate-2 opacity-95 shadow-2xl">
             <LeadCard lead={activeLead} isOverlay={true} />
           </div>
         ) : null}
