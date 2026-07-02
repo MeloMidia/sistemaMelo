@@ -111,6 +111,7 @@ model Lead {
   assignedTo   User?      @relation(fields: [assignedToId], references: [id])
   value         Float?
   temperature   String?
+  notes         String?
   profilePicUrl String?
   messages      Message[]
   tags         LeadTag[]
