@@ -131,7 +131,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
     e.preventDefault()
     e.stopPropagation()
 
-    const eventEl = eventRefs.current.get(event.id)
+    const eventEl = eventRefs.current.get(event.id) as HTMLDivElement
     if (!eventEl) return
 
     const rect = eventEl.getBoundingClientRect()
@@ -222,7 +222,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
     e.preventDefault()
     e.stopPropagation()
 
-    const eventEl = eventRefs.current.get(event.id)
+    const eventEl = eventRefs.current.get(event.id) as HTMLDivElement
     if (!eventEl) return
 
     const start    = new Date(event.startsAt)
@@ -380,9 +380,10 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                 return (
                   <div
                     key={event.id}
-                    ref={el => el
-                      ? eventRefs.current.set(event.id, el)
-                      : eventRefs.current.delete(event.id)}
+                    ref={el => {
+                      if (el) eventRefs.current.set(event.id, el)
+                      else eventRefs.current.delete(event.id)
+                    }}
                     style={{
                       position:        'absolute',
                       top:             top + 2,
