@@ -3,16 +3,14 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { upsertSdrLog, getSdrLogByDate } from '@/app/actions/sdr'
+import { addDashboardMetric } from '@/app/actions/metrics'
 import { Loader2, Target } from 'lucide-react'
 import { getDateRange, type DateRange, type PeriodKey } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
-import { SdrLaunchModal } from './sdr-launch-modal'
 import { FunnelChart } from './funnel-chart'
 import { DailyLineChart } from './daily-line-chart'
-import { AddMetricModal } from './add-metric-modal'
-import { EditMetricModal } from './edit-metric-modal'
 import { TriGoalBar } from './tri-goal-bar'
 import { MeetingsStatusCard } from './meetings-status-card'
 
@@ -126,6 +124,34 @@ export function DashboardView() {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   }, [queryClient])
 
+  async function handleSaveMetric(field: 'vendasQtd' | 'faturamento', newTotal: number) {
+    const current = currentMetrics[field]
+    const delta = newTotal - current
+    await addDashboardMetric({
+      leadsTrafego: 0,
+      leadsIndicacao: 0,
+      reunioesAgendadas: 0,
+      reunioesRealizadas: 0,
+      vendasQtd: field === 'vendasQtd' ? delta : 0,
+      faturamento: field === 'faturamento' ? delta : 0,
+      investimentoTrafego: 0,
+    })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }
+
+  async function handleSaveLeadsWhatsapp(value: number) {
+    const today = new Date()
+    const existing = await getSdrLogByDate(today)
+    await upsertSdrLog(today, {
+      leadsWhatsapp: value,
+      agendadas: existing?.agendadas ?? 0,
+      realizadas: existing?.realizadas ?? 0,
+      faltaLead: existing?.faltaLead ?? 0,
+      naoRealizada: existing?.naoRealizada ?? 0,
+    })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }
+
   async function handleSaveAgendadas(value: number) {
     const today = new Date()
     const existing = await getSdrLogByDate(today)
@@ -198,11 +224,7 @@ export function DashboardView() {
             onComparisonChange={setShowComparison}
             onCustomRangeChange={setCustomRange}
           />
-          <div className="flex items-center gap-3 flex-wrap">
-            <SdrLaunchModal onSuccess={onSuccess} />
-            <EditMetricModal onSuccess={onSuccess} initialData={currentMetrics} />
-            <AddMetricModal onSuccess={onSuccess} />
-          </div>
+          <div />
         </div>
 
         {/* Goals */}
@@ -269,8 +291,8 @@ export function DashboardView() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TriGoalBar title="Total de Vendas" currentValue={currentMetrics.vendasQtd} goal1={19} goal2={25} goal3={31} formatValue={formatNum} />
-            <TriGoalBar title="Leads WhatsApp" currentValue={sdr.leadsWhatsapp} goal1={225} goal2={295} goal3={368} formatValue={formatNum} />
+            <TriGoalBar title="Total de Vendas" currentValue={currentMetrics.vendasQtd} goal1={19} goal2={25} goal3={31} formatValue={formatNum} onSave={(v) => handleSaveMetric('vendasQtd', v)} editLabel="Definir novo total de vendas" />
+            <TriGoalBar title="Leads WhatsApp" currentValue={sdr.leadsWhatsapp} goal1={225} goal2={295} goal3={368} formatValue={formatNum} onSave={handleSaveLeadsWhatsapp} editLabel="Adicionar ao total de hoje" />
             <TriGoalBar title="Reuniões Agendadas" currentValue={sdr.agendadas} goal1={90} goal2={118} goal3={147} formatValue={formatNum} onSave={handleSaveAgendadas} editLabel="Adicionar ao total de hoje" />
             <TriGoalBar title="Reuniões Realizadas" currentValue={sdr.realizadas} goal1={63} goal2={83} goal3={103} formatValue={formatNum} onSave={handleSaveRealizadas} editLabel="Adicionar ao total de hoje" />
           </div>
@@ -285,14 +307,19 @@ export function DashboardView() {
             <KpiCard
               title="Faturamento"
               value={formatMoney(currentMetrics.faturamento)}
+              rawValue={currentMetrics.faturamento}
               colorVariant="amber"
               delta={calcDelta(currentMetrics.faturamento, prevMetrics?.faturamento ?? null)}
+              onSave={(v) => handleSaveMetric('faturamento', v)}
+              editStep={0.01}
             />
             <KpiCard
               title="Vendas fechadas"
               value={formatNum(currentMetrics.vendasQtd)}
+              rawValue={currentMetrics.vendasQtd}
               colorVariant="amber"
               delta={calcDelta(currentMetrics.vendasQtd, prevMetrics?.vendasQtd ?? null)}
+              onSave={(v) => handleSaveMetric('vendasQtd', v)}
             />
             <KpiCard
               title="Taxa lead→venda"
