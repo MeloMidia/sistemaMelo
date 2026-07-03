@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { emitCrmEvent } from '@/lib/crm-events'
 import {
   applyWhatsappMessageStatus,
+  applyLabelAssociation,
   extractPayloadList,
   importWhatsappMessage,
   normalizeEvolutionEvent,
@@ -76,6 +77,9 @@ export async function POST(request: Request) {
       }
     } else if (event === 'connection.update') {
       await handleConnectionUpdate((data ?? {}) as Record<string, unknown>)
+    } else if (event === 'labels.association') {
+      await applyLabelAssociation(data)
+      emitCrmEvent({ type: 'connection-update', status: 'label-sync' })
     }
   } catch (error) {
     console.error('Erro ao processar webhook da Evolution API:', error)

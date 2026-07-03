@@ -257,6 +257,27 @@ export function useUpdateInternalNote(leadId: string | null) {
   })
 }
 
+export function useWaImport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/crm/import/whatsapp', { method: 'POST' })
+      let data: Record<string, unknown>
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(`Erro ${res.status}: resposta inválida do servidor`)
+      }
+      if (!res.ok) throw new Error((data.error as string) || 'Falha na importação')
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-tags'] })
+    },
+  })
+}
+
 export function useSyncLeadMessages() {
   const qc = useQueryClient()
   return useMutation({

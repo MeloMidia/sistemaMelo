@@ -19,11 +19,12 @@ import { LeadColumn } from './lead-column'
 import { LeadPanel } from './lead-panel'
 import { LeadCard } from './lead-card'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2, Search, X } from 'lucide-react'
+import { Plus, Loader2, Search, X, Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 import { getLeadDisplayName } from '@/lib/phone'
+import { WhatsappImportModal } from './whatsapp-import-modal'
 
 const STAGE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
 
@@ -39,6 +40,7 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   // Snapshot do estado REAL antes de qualquer reordenação otimista do
   // dragOver — handleDragOver já escreve no cache ['crm-stages'] durante o
@@ -243,25 +245,35 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
           )}
         </div>
 
-        {/* Busca */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Buscar lead..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-7 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg text-sm text-white placeholder:text-slate-600 outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all w-52"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
+        {/* Busca + importar */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar lead..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-7 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg text-sm text-white placeholder:text-slate-600 outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all w-52"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setShowImport(true)}
+            title="Importar leads do WhatsApp"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/[0.08] border border-green-500/20 text-green-400 hover:bg-green-500/[0.15] hover:text-green-300 text-xs font-medium transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Importar WA
+          </button>
         </div>
       </div>
 
@@ -337,6 +349,8 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
 
       {selectedLeadId && <LeadPanel leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}
     </DndContext>
+
+    {showImport && <WhatsappImportModal onClose={() => setShowImport(false)} />}
     </div>
   )
 }

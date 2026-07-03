@@ -2,6 +2,7 @@ import type { MessageStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
 import { fetchProfilePictureUrl } from '@/lib/evolution-client'
+import { LABEL_TO_STAGE, LABEL_ID_TO_STAGE, STAGE_PRIORITY } from '@/lib/wa-label-map'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -11,6 +12,7 @@ export type NormalizedEvolutionEvent =
   | 'messages.set'
   | 'connection.update'
   | 'qrcode.updated'
+  | 'labels.association'
 
 const ACK_STATUS_MAP: Record<string, MessageStatus> = {
   '0': 'SENT',
@@ -82,6 +84,9 @@ export function normalizeEvolutionEvent(event: unknown): NormalizedEvolutionEven
       return 'connection.update'
     case 'QRCODE_UPDATED':
       return 'qrcode.updated'
+    case 'LABELS_ASSOCIATION':
+    case 'LABELS_EDIT':
+      return 'labels.association'
     default:
       return null
   }
@@ -275,6 +280,74 @@ export async function importWhatsappMessage(raw: UnknownRecord, options?: { lead
   })
 
   return { lead, message, created: !existing }
+}
+
+export async function applyLabelAssociation(data: unknown) {
+  const d = asRecord(data)
+  if (!d) return
+
+  // Extract chatId — Evolution API / Baileys may use different field names
+  const assoc = asRecord(d.association) ?? d
+  const chatId =
+    asString(assoc.chatId) ??
+    asString(assoc.id) ??
+    asString(d.chatId) ??
+    asString(d.id) ??
+    asString(d.remoteJid)
+
+  const eventType = asString(assoc.type) ?? asString(d.type) ?? 'add'
+  if (eventType === 'remove') return // only handle add events
+  if (!chatId || chatId.endsWith('@g.us') || chatId.endsWith('@newsletter')) return
+
+  // Extract label info
+  const labelObj = asRecord(assoc.label) ?? asRecord(d.label) ?? asRecord(d)
+  const labelId = asString(labelObj?.id) ?? asString(assoc.labelId) ?? asString(d.labelId)
+  const labelName = asString(labelObj?.name) ?? asString(d.labelName)
+
+  // Find lead by waLid first (handles @lid format), then by phone
+  let lead = await prisma.lead.findFirst({ where: { waLid: chatId } })
+
+  if (!lead && chatId.endsWith('@s.whatsapp.net')) {
+    const phone = normalizePhone(chatId)
+    lead = await prisma.lead.findUnique({ where: { phone } })
+  }
+
+  if (!lead) return
+
+  // Find the CRM tag — prefer lookup by waLabelId, fall back to name
+  let tag = labelId
+    ? await prisma.crmTag.findUnique({ where: { waLabelId: labelId } })
+    : null
+  if (!tag && labelName) {
+    tag = await prisma.crmTag.findFirst({ where: { name: labelName } })
+  }
+
+  // Determine stage — prefer ID lookup (immune to encoding issues), fall back to name
+  const resolvedLabelName = labelName ?? tag?.name ?? null
+  const targetStageName =
+    (labelId ? LABEL_ID_TO_STAGE[labelId] : null) ??
+    (resolvedLabelName ? LABEL_TO_STAGE[resolvedLabelName] : null)
+  if (targetStageName) {
+    const targetStage = await prisma.leadStage.findFirst({ where: { name: targetStageName } })
+    if (targetStage) {
+      // Only move the lead "forward" in priority — don't downgrade
+      const currentStage = await prisma.leadStage.findUnique({ where: { id: lead.stageId } })
+      const currentPriority = STAGE_PRIORITY[currentStage?.name ?? ''] ?? 0
+      const newPriority = STAGE_PRIORITY[targetStageName] ?? 0
+      if (newPriority > currentPriority) {
+        await prisma.lead.update({ where: { id: lead.id }, data: { stageId: targetStage.id } })
+      }
+    }
+  }
+
+  // Attach tag if found
+  if (tag) {
+    await prisma.leadTag.upsert({
+      where: { leadId_tagId: { leadId: lead.id, tagId: tag.id } },
+      create: { leadId: lead.id, tagId: tag.id },
+      update: {},
+    })
+  }
 }
 
 export async function applyWhatsappMessageStatus(raw: UnknownRecord) {

@@ -105,6 +105,7 @@ model Lead {
   id           String     @id @default(cuid())
   name         String?
   phone        String     @unique
+  waLid        String?    @unique
   stageId      String
   stage        LeadStage  @relation(fields: [stageId], references: [id])
   assignedToId String?
@@ -140,10 +141,11 @@ model Message {
 }
 
 model CrmTag {
-  id    String    @id @default(cuid())
-  name  String
-  color String
-  leads LeadTag[]
+  id          String    @id @default(cuid())
+  name        String
+  color       String
+  waLabelId   String?   @unique
+  leads       LeadTag[]
 }
 
 model LeadTag {

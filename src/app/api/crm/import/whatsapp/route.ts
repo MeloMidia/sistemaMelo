@@ -1,0 +1,261 @@
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { findLabels, WhatsappLabel } from '@/lib/evolution-client'
+import { WA_COLORS, STAGE_PRIORITY, LABEL_TO_STAGE, LABEL_ID_TO_STAGE, LABEL_ID_TO_NAME } from '@/lib/wa-label-map'
+
+const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
+const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
+const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
+
+async function evo(path: string, init?: RequestInit) {
+  return fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', apikey: API_KEY, ...(init?.headers ?? {}) },
+  })
+}
+
+async function fetchAllChats(): Promise<unknown[]> {
+  const all: unknown[] = []
+  const PAGE = 500
+  for (let page = 0; page < 20; page++) {
+    const res = await evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ count: PAGE, pageIndex: page }),
+    })
+    if (!res.ok) break
+    const data = await res.json()
+    const items: unknown[] = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.chats as unknown[] ?? [])
+    all.push(...items)
+    if (items.length < PAGE) break
+  }
+  return all
+}
+
+async function fetchChatsForLabel(labelId: string): Promise<string[]> {
+  const jids: string[] = []
+  const PAGE = 500
+  for (let page = 0; page < 20; page++) {
+    const res = await evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ where: { labels: { array_contains: labelId } }, count: PAGE, pageIndex: page }),
+    })
+    if (!res.ok) break
+    const data = await res.json()
+    const items = Array.isArray(data) ? data as Record<string, unknown>[] : []
+    jids.push(...items.map((i) => String(i.remoteJid ?? '')).filter(Boolean))
+    if (items.length < PAGE) break
+  }
+  return jids
+}
+
+async function updateWebhook(existingUrl: string, existingEvents: string[]) {
+  const events = [...new Set([...existingEvents, 'LABELS_ASSOCIATION'])]
+  const res = await evo(`/webhook/set/${INSTANCE}`, {
+    method: 'POST',
+    body: JSON.stringify({ url: existingUrl, events, webhookByEvents: false, webhookBase64: false, enabled: true }),
+  })
+  return res.ok
+}
+
+export async function POST() {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    return await runImport()
+  } catch (err) {
+    console.error('[WA Import] erro:', err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Erro desconhecido' },
+      { status: 500 }
+    )
+  }
+}
+
+async function runImport() {
+  // ── Phase 1: Import chats as leads ──────────────────────────────────────
+
+  const [waLabels, chats, dbStages, existingTags] = await Promise.all([
+    findLabels(),
+    fetchAllChats(),
+    prisma.leadStage.findMany({ orderBy: { order: 'asc' } }),
+    prisma.crmTag.findMany(),
+  ])
+
+  const stageByName = new Map(dbStages.map((s) => [s.name, s]))
+  const defaultStage = dbStages[0]
+
+  // Create "Perdido" stage if missing
+  if (!stageByName.has('Perdido')) {
+    const lastOrder = Math.max(...dbStages.map((s) => s.order))
+    const perdido = await prisma.leadStage.create({
+      data: { name: 'Perdido', color: '#ef4444', order: lastOrder + 1000 },
+    })
+    stageByName.set('Perdido', perdido)
+  }
+
+  // Ensure CRM tags exist for all WA labels (with waLabelId stored)
+  const tagByName = new Map(existingTags.map((t) => [t.name, t]))
+  for (const l of waLabels) {
+    if (!tagByName.has(l.name)) {
+      const color =
+        typeof l.color === 'number' ? (WA_COLORS[l.color] ?? '#8e8e93')
+        : typeof l.color === 'string' ? l.color
+        : '#8e8e93'
+      const tag = await prisma.crmTag.upsert({
+        where: { waLabelId: String(l.id) },
+        create: { name: l.name, color, waLabelId: String(l.id) },
+        update: { name: l.name, color },
+      })
+      tagByName.set(tag.name, tag)
+    }
+  }
+  // Back-fill waLabelId on existing tags that match by name
+  for (const label of waLabels) {
+    const tag = tagByName.get(label.name)
+    if (tag && !tag.waLabelId) {
+      await prisma.crmTag.update({ where: { id: tag.id }, data: { waLabelId: String(label.id) } })
+    }
+  }
+
+  // Fix garbled tag names caused by Evolution API encoding issues
+  const allTagsForFix = await prisma.crmTag.findMany({ where: { waLabelId: { not: null } }, select: { id: true, waLabelId: true, name: true } })
+  for (const tag of allTagsForFix) {
+    const canonical = LABEL_ID_TO_NAME[tag.waLabelId!]
+    if (canonical && tag.name !== canonical) {
+      await prisma.crmTag.update({ where: { id: tag.id }, data: { name: canonical } })
+    }
+  }
+
+  // Build phone/waLid entries from chats
+  type ChatEntry = { phone: string; waLid: string; name: string | null }
+  const toImport = new Map<string, ChatEntry>()
+
+  for (const raw of chats) {
+    const chat = raw as Record<string, unknown>
+    const jid = String(chat.remoteJid ?? chat.id ?? '')
+    if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) continue
+
+    let phone: string | null = null
+    if (jid.endsWith('@s.whatsapp.net')) {
+      phone = jid.split('@')[0]
+    } else if (jid.endsWith('@lid')) {
+      const lastMsg = chat.lastMessage as Record<string, unknown> | undefined
+      const key = lastMsg?.key as Record<string, unknown> | undefined
+      const alt = key?.remoteJidAlt as string | undefined
+      if (alt?.endsWith('@s.whatsapp.net')) phone = alt.split('@')[0]
+    }
+
+    if (!phone || phone.length < 8) continue
+    toImport.set(phone, { phone, waLid: jid, name: typeof chat.pushName === 'string' ? chat.pushName : null })
+  }
+
+  const phones = [...toImport.keys()]
+  const existingLeads = await prisma.lead.findMany({
+    where: { phone: { in: phones } },
+    select: { id: true, phone: true, waLid: true },
+  })
+  const existingByPhone = new Map(existingLeads.map((l) => [l.phone, l]))
+
+  const newLeads = phones
+    .filter((p) => !existingByPhone.has(p))
+    .map((p) => {
+      const e = toImport.get(p)!
+      return { phone: p, name: e.name, waLid: e.waLid, stageId: defaultStage.id }
+    })
+
+  if (newLeads.length > 0) {
+    await prisma.lead.createMany({ data: newLeads, skipDuplicates: true })
+  }
+
+  // Back-fill waLid on existing leads that don't have it
+  for (const existing of existingLeads) {
+    if (!existing.waLid) {
+      const entry = toImport.get(existing.phone)
+      if (entry) {
+        await prisma.lead.update({ where: { id: existing.id }, data: { waLid: entry.waLid } }).catch(() => {})
+      }
+    }
+  }
+
+  // ── Phase 2: Label sweep — assign stages from WA label data ─────────────
+
+  // Reload fresh tags (names may have been fixed above)
+  const freshTags = await prisma.crmTag.findMany()
+  const tagById = new Map(freshTags.map((t) => [t.waLabelId ?? '', t]))
+
+  // Pre-load all stages for priority comparisons
+  const allStages = await prisma.leadStage.findMany({ select: { id: true, name: true } })
+  const stageByIdFresh = new Map(allStages.map((s) => [s.id, s]))
+
+  let stagesAssigned = 0
+  let tagsApplied = 0
+
+  for (const label of waLabels) {
+    const labelId = String(label.id)
+    const stageName = LABEL_ID_TO_STAGE[labelId]
+    const targetStage = stageName ? stageByName.get(stageName) ?? allStages.find(s => s.name === stageName) : null
+    const crmTag = tagById.get(labelId) ?? null
+
+    const jids = await fetchChatsForLabel(labelId)
+    if (jids.length === 0) continue
+
+    // Batch-find leads by waLid
+    const leads = await prisma.lead.findMany({
+      where: { waLid: { in: jids } },
+      select: { id: true, stageId: true },
+    })
+    if (leads.length === 0) continue
+
+    // Stage update: group leads that should move to this stage
+    if (targetStage) {
+      const newPriority = STAGE_PRIORITY[stageName!] ?? 0
+      const toUpdate = leads
+        .filter((l) => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
+        .map((l) => l.id)
+      if (toUpdate.length > 0) {
+        await prisma.lead.updateMany({ where: { id: { in: toUpdate } }, data: { stageId: targetStage.id } })
+        stagesAssigned += toUpdate.length
+        // Update local cache so later labels respect the updated priority
+        for (const id of toUpdate) {
+          const lead = leads.find(l => l.id === id)
+          if (lead) lead.stageId = targetStage.id
+        }
+      }
+    }
+
+    // Tag: batch upsert
+    if (crmTag) {
+      await prisma.leadTag.createMany({
+        data: leads.map((l) => ({ leadId: l.id, tagId: crmTag.id })),
+        skipDuplicates: true,
+      })
+      tagsApplied += leads.length
+    }
+  }
+
+  // ── Phase 3: Update webhook to capture future label changes ──────────────
+
+  let webhookUpdated = false
+  const webhookRes = await evo(`/webhook/find/${INSTANCE}`, { method: 'GET' })
+  if (webhookRes.ok) {
+    const wh = await webhookRes.json() as Record<string, unknown>
+    const url = String(wh.url ?? '')
+    const events = Array.isArray(wh.events) ? wh.events as string[] : []
+    webhookUpdated = await updateWebhook(url, events)
+  }
+
+  return NextResponse.json({
+    chatsImported: newLeads.length,
+    chatsAlreadyExisted: existingLeads.length,
+    totalChats: phones.length,
+    stagesAssigned,
+    tagsApplied,
+    webhookUpdated,
+    labels: waLabels.length,
+  })
+}
+
+export { LABEL_TO_STAGE, STAGE_PRIORITY }
