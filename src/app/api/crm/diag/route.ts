@@ -75,12 +75,24 @@ export async function GET(request: Request) {
          WHERE key->>'remoteJid' LIKE '%@lid' AND key->>'remoteJidAlt' LIKE '%@s.whatsapp.net'`
       )
 
+      // Fetch findLabels raw response to see all fields (may include chats)
+      let findLabelsRaw: unknown = null
+      try {
+        const lRes = await fetch(`${process.env.EVOLUTION_API_URL?.replace(/\/$/, '')}/label/findLabels/${process.env.EVOLUTION_INSTANCE_NAME}`, {
+          headers: { apikey: process.env.EVOLUTION_API_KEY ?? '' },
+        })
+        const lData = await lRes.json()
+        // Return first 2 labels with ALL fields so we can see what's available
+        findLabelsRaw = Array.isArray(lData) ? lData.slice(0, 2) : lData
+      } catch { /* ignore */ }
+
       return NextResponse.json({
         tables: tableNames,
         contactCols, contactSample,
         lidChatsWithLabels: lidCount.rows[0]?.count,
         resolvedLidsViaMessages: resolvedCount.rows[0]?.count,
         isOnWa: { cols: isOnWaCols, count: isOnWaCount, withLid: isOnWaWithLid, sample: isOnWaSample },
+        findLabelsRaw,
       })
     } finally {
       await client.end().catch(() => {})
