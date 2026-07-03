@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause, Square, Trash2 } from 'lucide-react'
+import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause, Square, Trash2, Pencil, X as XIcon } from 'lucide-react'
 import {
   useLeadMessages,
   useSendAudioMessage,
   useSendMediaMessage,
   useSendMessage,
   useSyncLeadMessages,
+  useUpdateInternalNote,
 } from '@/hooks/crm-api'
 
 interface LeadConversaTabProps {
@@ -225,6 +226,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
   const sendAudio = useSendAudioMessage(leadId)
   const sendMedia = useSendMediaMessage(leadId)
+  const updateNote = useUpdateInternalNote(leadId)
 
   const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'preview'>('idle')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -237,6 +239,9 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const MAX_RECORDING_SECONDS = 300
+
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editNoteContent, setEditNoteContent] = useState('')
 
   const [draft, setDraft] = useState('')
   const [activeMode, setActiveMode] = useState<'responder' | 'nota'>('responder')
@@ -578,18 +583,83 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
                 // If it is an internal note, render it inside a yellow-ish note block
                 if (m.content.startsWith('[Nota Interna]')) {
                   const noteText = m.content.replace('[Nota Interna]', '').trim()
+                  const isEditing = editingNoteId === m.id
+
+                  function startEdit() {
+                    setEditingNoteId(m.id)
+                    setEditNoteContent(noteText)
+                  }
+
+                  function cancelEdit() {
+                    setEditingNoteId(null)
+                    setEditNoteContent('')
+                  }
+
+                  function saveEdit() {
+                    if (!editNoteContent.trim() || updateNote.isPending) return
+                    updateNote.mutate(
+                      { messageId: m.id, content: editNoteContent },
+                      { onSuccess: () => { setEditingNoteId(null); setEditNoteContent('') } }
+                    )
+                  }
+
                   return (
-                    <div key={m.id} className="flex justify-center my-2 w-full px-2">
+                    <div key={m.id} className="flex justify-center my-2 w-full px-2 group/note">
                       <div className="bg-[#241e12] border border-[#d6a132]/25 rounded-lg p-3 max-w-[95%] w-full flex items-start gap-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.2)] text-[13px] animate-in fade-in slide-in-from-bottom-1 duration-150">
-                        <div className="w-6 h-6 rounded bg-[#d6a132]/15 flex items-center justify-center text-[#d6a132] shrink-0">
+                        <div className="w-6 h-6 rounded bg-[#d6a132]/15 flex items-center justify-center text-[#d6a132] shrink-0 mt-0.5">
                           <Lock className="w-3.5 h-3.5" />
                         </div>
-                        <div className="flex-1 flex flex-col">
+                        <div className="flex-1 flex flex-col min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-[#d6a132] font-semibold text-xs tracking-wider uppercase">Nota Interna</span>
-                            <span className="text-[9px] text-[#d6a132]/60">{formatTime(m.createdAt)}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] text-[#d6a132]/60">{formatTime(m.createdAt)}</span>
+                              {!isEditing && (
+                                <button
+                                  onClick={startEdit}
+                                  className="opacity-0 group-hover/note:opacity-100 transition-opacity p-0.5 rounded hover:bg-[#d6a132]/10 text-[#d6a132]/50 hover:text-[#d6a132] cursor-pointer"
+                                  title="Editar nota"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[#f1d28c] leading-relaxed text-[13px] text-left">{noteText}</span>
+
+                          {isEditing ? (
+                            <div className="flex flex-col gap-2">
+                              <textarea
+                                autoFocus
+                                value={editNoteContent}
+                                onChange={(e) => setEditNoteContent(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
+                                  if (e.key === 'Escape') cancelEdit()
+                                }}
+                                className="w-full bg-[#1a1609] border border-[#d6a132]/30 rounded-lg px-2.5 py-2 text-[#f1d28c] text-[13px] leading-relaxed resize-none outline-none focus:border-[#d6a132]/60 transition-colors"
+                                rows={3}
+                              />
+                              <div className="flex items-center gap-2 justify-end">
+                                <button
+                                  onClick={cancelEdit}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+                                >
+                                  <XIcon className="w-3 h-3" />
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={saveEdit}
+                                  disabled={updateNote.isPending || !editNoteContent.trim()}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#d6a132]/15 text-[#d6a132] hover:bg-[#d6a132]/25 disabled:opacity-40 transition-all cursor-pointer"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[#f1d28c] leading-relaxed text-[13px] text-left whitespace-pre-wrap">{noteText}</span>
+                          )}
                         </div>
                       </div>
                     </div>

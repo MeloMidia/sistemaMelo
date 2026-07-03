@@ -75,6 +75,7 @@ export function useUpdateLead() {
       assignedToId?: string | null
       value?: number | null
       temperature?: string | null
+      notes?: string | null
     }) => {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: 'PUT',
@@ -234,6 +235,24 @@ export function useSendMediaMessage(leadId: string | null) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
+    },
+  })
+}
+
+export function useUpdateInternalNote(leadId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ messageId, content }: { messageId: string; content: string }) => {
+      const res = await fetch(`/api/crm/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+      if (!res.ok) throw new Error('Failed to update note')
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
     },
   })
 }

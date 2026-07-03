@@ -52,3 +52,5 @@ next-env.d.ts
 # AI tools and IDE settings
 .claude/
 .superpowers/
+
+.vercel

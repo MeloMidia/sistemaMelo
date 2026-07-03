@@ -34,6 +34,7 @@ export interface Lead {
   assignedTo: CrmUser | null
   value: number | null
   temperature: string | null
+  notes: string | null
   profilePicUrl: string | null
   tags: LeadTagWithTag[]
   messages: Message[]

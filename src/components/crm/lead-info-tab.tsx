@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tag as TagIcon, Plus, Copy, Check, X, Calendar } from 'lucide-react'
+import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, FileText } from 'lucide-react'
 import {
   useCrmTags,
   useCreateCrmTag,
@@ -40,12 +40,17 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
   const [newTagColor, setNewTagColor] = useState('#3b82f6')
   const [valueDraft, setValueDraft] = useState(lead.value?.toString() ?? '')
   const [copied, setCopied] = useState(false)
+  const [notesDraft, setNotesDraft] = useState(lead.notes ?? '')
 
   const attachedTagIds = new Set(lead.tags.map((lt) => lt.tagId))
 
   useEffect(() => {
     setValueDraft(lead.value?.toString() ?? '')
   }, [lead.value])
+
+  useEffect(() => {
+    setNotesDraft(lead.notes ?? '')
+  }, [lead.notes])
 
   function handleCreateTag() {
     if (!newTagName.trim()) return
@@ -59,6 +64,14 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
         },
       }
     )
+  }
+
+  function handleNotesBlur() {
+    const trimmed = notesDraft.trim()
+    const current = lead.notes ?? ''
+    if (trimmed !== current) {
+      updateLead.mutate({ id: lead.id, notes: trimmed || null })
+    }
   }
 
   function handleValueBlur() {
@@ -164,6 +177,22 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           onClose={() => setIsScheduling(false)}
         />
       )}
+
+      {/* Nota interna */}
+      <div>
+        <label className="text-[11px] text-slate-500 font-medium mb-1.5 flex items-center gap-1.5">
+          <FileText className="w-3 h-3 text-[#d6a132]" />
+          <span>Nota interna</span>
+        </label>
+        <textarea
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          onBlur={handleNotesBlur}
+          placeholder="Observações sobre este lead..."
+          rows={3}
+          className="w-full bg-[#241e12]/60 border border-[#d6a132]/20 rounded-xl px-3 py-2.5 text-sm text-[#f1d28c] placeholder:text-slate-600 resize-none outline-none focus:border-[#d6a132]/50 focus:bg-[#241e12]/80 transition-all leading-relaxed"
+        />
+      </div>
 
       <div>
         <label className="text-[11px] text-slate-500 font-medium mb-1 block">Tags</label>

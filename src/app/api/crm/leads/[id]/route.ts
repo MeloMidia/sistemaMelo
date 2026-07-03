@@ -28,7 +28,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { name, stageId, assignedToId, value, temperature } = await request.json()
+  const { name, stageId, assignedToId, value, temperature, notes } = await request.json()
 
   try {
     const lead = await prisma.lead.update({
@@ -39,6 +39,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(assignedToId !== undefined && { assignedToId }),
         ...(value !== undefined && { value }),
         ...(temperature !== undefined && { temperature }),
+        ...(notes !== undefined && { notes }),
       },
       include: {
         assignedTo: { select: { id: true, name: true } },
