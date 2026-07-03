@@ -48,7 +48,6 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
   const initial = displayName.charAt(0).toUpperCase()
   const avatarColor = getAvatarColor(displayName)
   const tempColor = lead.temperature ? TEMP_COLOR[lead.temperature] : null
-  const interactionLevel = Math.min(5, Math.ceil(lead._count.messages / 15))
 
   return (
     <div
@@ -115,42 +114,25 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
           </div>
         </div>
 
-        {/* Rodapé: tags + dots de interação */}
-        {(lead.tags.length > 0 || interactionLevel > 0) && (
-          <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/[0.04]">
-            <div className="flex flex-wrap gap-1">
-              {lead.tags.slice(0, 2).map((lt) => (
-                <span
-                  key={lt.tagId}
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                  style={{
-                    backgroundColor: `${lt.tag.color}18`,
-                    color: lt.tag.color,
-                    border: `1px solid ${lt.tag.color}30`,
-                  }}
-                >
-                  {lt.tag.name}
-                </span>
-              ))}
-              {lead.tags.length > 2 && (
-                <span className="text-[10px] text-slate-600 px-0.5">+{lead.tags.length - 2}</span>
-              )}
-            </div>
-
-            {/* Dots de nível de interação */}
-            <div className="flex items-center gap-[3px] shrink-0">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full transition-colors"
-                  style={{
-                    backgroundColor: i < interactionLevel
-                      ? (tempColor ?? '#6366f1')
-                      : 'rgba(255,255,255,0.07)',
-                  }}
-                />
-              ))}
-            </div>
+        {/* Rodapé: tags */}
+        {lead.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-white/[0.04]">
+            {lead.tags.slice(0, 2).map((lt) => (
+              <span
+                key={lt.tagId}
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                style={{
+                  backgroundColor: `${lt.tag.color}18`,
+                  color: lt.tag.color,
+                  border: `1px solid ${lt.tag.color}30`,
+                }}
+              >
+                {lt.tag.name}
+              </span>
+            ))}
+            {lead.tags.length > 2 && (
+              <span className="text-[10px] text-slate-600 px-0.5">+{lead.tags.length - 2}</span>
+            )}
           </div>
         )}
       </div>
