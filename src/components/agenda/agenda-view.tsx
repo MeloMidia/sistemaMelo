@@ -158,7 +158,7 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
         />
       )}
       {modalState?.mode === 'edit' && (
-        <EventModal mode="edit" event={modalState.event} onClose={() => setModalState(null)} />
+        <EventModal mode="edit" event={modalState.event} onClose={() => setModalState(null)} onOpenLeadInCrm={onOpenLeadInCrm} />
       )}
     </div>
   )
