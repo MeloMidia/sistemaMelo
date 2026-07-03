@@ -99,7 +99,7 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   }`}
                 >
                   <XCircle className="w-3 h-3" />
-                  Não realizada
+                  Falta
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
+import { Check, X } from 'lucide-react'
 import { addDays, isSameDay, WEEKDAY_LABELS, HOURS, formatHourLabel } from '@/lib/agenda-date'
 import type { AgendaEvent } from '@/types/agenda'
 
@@ -376,6 +377,8 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                 const widthPct = 100 / columnCount
                 const leftPct  = column * widthPct
                 const color    = event.category?.color ?? '#64748b'
+                const isRealizada    = event.status === 'REALIZADA'
+                const isNaoRealizada = event.status === 'NAO_REALIZADA'
 
                 return (
                   <div
@@ -391,19 +394,37 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                       width:           `calc(${widthPct}% - 4px)`,
                       left:            `calc(${leftPct}% + 2px)`,
                       backgroundColor: color,
-                      opacity:         1,
+                      opacity:         isNaoRealizada ? 0.55 : 1,
                       cursor:          'grab',
                     }}
                     className="rounded-lg overflow-hidden group/event shadow-md flex flex-col"
                     onPointerDown={ev => handleMoveDown(ev, event, color)}
                   >
+                    {/* Overlay de status */}
+                    {isRealizada && (
+                      <div className="absolute inset-0 bg-black/35 pointer-events-none rounded-lg" />
+                    )}
+                    {isNaoRealizada && (
+                      <div className="absolute inset-0 bg-red-900/40 pointer-events-none rounded-lg" />
+                    )}
+
+                    {/* Badge de status */}
+                    {(isRealizada || isNaoRealizada) && (
+                      <div className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center pointer-events-none z-10 ${isRealizada ? 'bg-emerald-500/90' : 'bg-rose-500/90'}`}>
+                        {isRealizada
+                          ? <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                          : <X className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        }
+                      </div>
+                    )}
+
                     {/* Conteúdo */}
-                    <div className="px-2.5 py-1.5 flex-1 select-none pointer-events-none overflow-hidden flex flex-col">
+                    <div className="px-2.5 py-1.5 flex-1 select-none pointer-events-none overflow-hidden flex flex-col relative z-[1]">
                       <span className="flex items-center gap-1 min-w-0">
                         {event.lead?.temperature && (
                           <span className="text-[11px] shrink-0">{event.lead.temperature}</span>
                         )}
-                        <span className="text-[11px] font-bold text-white truncate leading-tight tracking-tight">
+                        <span className={`text-[11px] font-bold text-white truncate leading-tight tracking-tight ${isRealizada ? 'line-through opacity-70' : ''}`}>
                           {event.title}
                         </span>
                       </span>

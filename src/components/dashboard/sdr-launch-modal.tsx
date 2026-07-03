@@ -19,7 +19,7 @@ const EMPTY_FORM = {
 const FIELDS: { name: keyof typeof EMPTY_FORM; label: string; color: 'blue' | 'red'; colSpan?: boolean }[] = [
   { name: 'leadsWhatsapp', label: 'Leads WhatsApp', color: 'blue', colSpan: true },
   { name: 'faltaLead', label: 'Falta — lead', color: 'red' },
-  { name: 'naoRealizada', label: 'Não realizada', color: 'red' },
+  { name: 'naoRealizada', label: 'Falta', color: 'red' },
 ]
 // Agendadas/Realizadas saíram daqui: agora vêm de eventos reais da Agenda
 // vinculados a um lead (ver getAgendaMeetingStats), não mais de lançamento manual.
