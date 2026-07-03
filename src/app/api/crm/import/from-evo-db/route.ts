@@ -53,8 +53,7 @@ export async function POST() {
     const lidToPhone = new Map<string, string>()
 
     if (lidSet.length > 0) {
-      // Get ALL LID→phone mappings from Message table in one query (no filter by specific LIDs)
-      // remoteJidAlt is present on messages sent by Baileys (fromMe=true) for LID contacts
+      // Primary: Message table — outbound messages have remoteJidAlt (real phone JID)
       const lidPhones = await client.query<{ lid: string; alt: string }>(
         `SELECT DISTINCT key->>'remoteJid' as lid, key->>'remoteJidAlt' as alt
          FROM "Message"
@@ -63,6 +62,17 @@ export async function POST() {
       )
       for (const row of lidPhones.rows) {
         if (row.lid && row.alt) lidToPhone.set(row.lid, row.alt.replace('@s.whatsapp.net', ''))
+      }
+
+      // Secondary: IsOnWhatsapp table — has phone→LID cache; invert to get LID→phone
+      const isOnWaRows = await client.query<{ phone_jid: string; lid: string }>(
+        `SELECT "remoteJid" as phone_jid, lid FROM "IsOnWhatsapp"
+         WHERE lid IS NOT NULL AND lid LIKE '%@lid'`
+      )
+      for (const row of isOnWaRows.rows) {
+        if (row.lid && row.phone_jid && !lidToPhone.has(row.lid)) {
+          lidToPhone.set(row.lid, row.phone_jid.replace('@s.whatsapp.net', ''))
+        }
       }
     }
 

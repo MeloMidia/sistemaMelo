@@ -55,15 +55,18 @@ export async function GET(request: Request) {
       let isOnWaCols: string[] = []
       let isOnWaSample: unknown[] = []
       let isOnWaCount = '0'
+      let isOnWaWithLid = '0'
       if (tableNames.includes('IsOnWhatsapp')) {
         const cols = await client.query<{ column_name: string }>(
           `SELECT column_name FROM information_schema.columns WHERE table_name = 'IsOnWhatsapp' ORDER BY ordinal_position`
         )
         isOnWaCols = cols.rows.map(r => r.column_name)
-        const sample = await client.query(`SELECT * FROM "IsOnWhatsapp" LIMIT 5`)
+        const sample = await client.query(`SELECT * FROM "IsOnWhatsapp" WHERE lid IS NOT NULL LIMIT 5`)
         isOnWaSample = sample.rows
         const cnt = await client.query<{ count: string }>(`SELECT COUNT(*) as count FROM "IsOnWhatsapp"`)
         isOnWaCount = cnt.rows[0]?.count ?? '0'
+        const cntLid = await client.query<{ count: string }>(`SELECT COUNT(*) as count FROM "IsOnWhatsapp" WHERE lid IS NOT NULL`)
+        isOnWaWithLid = cntLid.rows[0]?.count ?? '0'
       }
 
       // Count how many LID chats have phone via Message table
@@ -77,7 +80,7 @@ export async function GET(request: Request) {
         contactCols, contactSample,
         lidChatsWithLabels: lidCount.rows[0]?.count,
         resolvedLidsViaMessages: resolvedCount.rows[0]?.count,
-        isOnWa: { cols: isOnWaCols, count: isOnWaCount, sample: isOnWaSample },
+        isOnWa: { cols: isOnWaCols, count: isOnWaCount, withLid: isOnWaWithLid, sample: isOnWaSample },
       })
     } finally {
       await client.end().catch(() => {})
