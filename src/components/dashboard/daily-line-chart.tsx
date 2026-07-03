@@ -18,6 +18,7 @@ interface DayPoint {
   leadsWhatsapp: number
   agendadas: number
   realizadas: number
+  naoRealizada: number
 }
 
 interface DailyLineChartProps {
@@ -52,6 +53,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
     'Leads WA': d.leadsWhatsapp,
     Agendadas: d.agendadas,
     Realizadas: d.realizadas,
+    Faltas: d.naoRealizada,
   }))
 
   return (
@@ -112,6 +114,15 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
           strokeWidth={2.5}
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="Faltas"
+          stroke="#f43f5e"
+          strokeWidth={2.5}
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+          strokeDasharray="5 3"
         />
       </LineChart>
     </ResponsiveContainer>

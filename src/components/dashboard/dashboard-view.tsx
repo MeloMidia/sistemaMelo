@@ -58,22 +58,24 @@ function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTot
 }
 
 function buildDailyChartData(logs: SdrLog[], agenda: AgendaStats | undefined) {
-  const byDay = new Map<string, { date: Date; leadsWhatsapp: number; agendadas: number; realizadas: number }>()
+  const byDay = new Map<string, { date: Date; leadsWhatsapp: number; agendadas: number; realizadas: number; naoRealizada: number }>()
 
   for (const log of logs) {
     const date = new Date(log.date)
     const key = date.toISOString()
-    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0 }
+    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0, naoRealizada: 0 }
     entry.leadsWhatsapp += log.leadsWhatsapp
+    entry.naoRealizada += log.naoRealizada
     byDay.set(key, entry)
   }
 
   for (const day of agenda?.daily ?? []) {
     const date = new Date(day.date)
     const key = date.toISOString()
-    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0 }
+    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0, naoRealizada: 0 }
     entry.agendadas += day.agendadas
     entry.realizadas += day.realizadas
+    entry.naoRealizada += day.naoRealizadas
     byDay.set(key, entry)
   }
 
