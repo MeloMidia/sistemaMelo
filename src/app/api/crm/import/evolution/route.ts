@@ -42,10 +42,11 @@ interface ImportReport {
   chats_found: number
   leads_created: number
   leads_updated: number
+  leads_with_real_phone: number
+  leads_with_synthetic_lid: number
   labels_found: number
   labels_created: number
   lead_labels_created: number
-  skipped_unresolved_lid: number
   errors: Array<{ context: string; error: string }>
 }
 
@@ -180,10 +181,11 @@ export async function POST() {
     chats_found: 0,
     leads_created: 0,
     leads_updated: 0,
+    leads_with_real_phone: 0,
+    leads_with_synthetic_lid: 0,
     labels_found: 0,
     labels_created: 0,
     lead_labels_created: 0,
-    skipped_unresolved_lid: 0,
     errors: [],
   }
 
@@ -253,13 +255,11 @@ export async function POST() {
         phone = lidToPhone.get(chat.remoteJid) ?? null
       }
 
-      if (!phone || phone.length < 7) {
-        report.skipped_unresolved_lid++
-        continue
-      }
+      if (!phone || phone.length < 7) continue // tratado no bloco 5b
 
       const pushName = lidToPushName.get(chat.remoteJid) ?? chat.name ?? null
       toImport.push({ remoteJid: chat.remoteJid, phone, name: pushName })
+      report.leads_with_real_phone++
     }
 
     // Buscar leads existentes por phone
@@ -277,7 +277,6 @@ export async function POST() {
       const existing = existingByPhone.get(entry.phone)
       try {
         if (existing) {
-          // Atualizar waLid e nome se ausentes
           const updates: Record<string, string> = {}
           if (!existing.waLid) updates.waLid = entry.remoteJid
           if (!existing.name && entry.name) updates.name = entry.name
@@ -300,6 +299,62 @@ export async function POST() {
         }
       } catch (err) {
         report.errors.push({ context: `lead phone=${entry.phone}`, error: String(err) })
+      }
+    }
+
+    // ── 5b. Leads com @lid não resolvido → phone sintético "lid:NUMBER" ─────
+    // Garante que TODOS os 3840 contatos entrem no CRM com waLid correto.
+    // Quando o contato enviar mensagem, o webhook atualiza para o telefone real.
+    for (const chat of chats) {
+      if (!chat.remoteJid.endsWith('@lid')) continue
+
+      // Já foi resolvido no passo anterior
+      if (waLidToLeadId.has(chat.remoteJid)) continue
+
+      const lidNumber    = chat.remoteJid.replace('@lid', '')
+      const syntheticPhone = `lid:${lidNumber}`
+      const pushName     = lidToPushName.get(chat.remoteJid) ?? chat.name ?? null
+
+      try {
+        // Verificar se já existe por waLid (importação anterior)
+        const existingByWaLid = await prisma.lead.findUnique({
+          where: { waLid: chat.remoteJid },
+          select: { id: true },
+        })
+        if (existingByWaLid) {
+          waLidToLeadId.set(chat.remoteJid, existingByWaLid.id)
+          continue
+        }
+
+        // Verificar se já existe pelo phone sintético
+        const existingBySynth = await prisma.lead.findUnique({
+          where: { phone: syntheticPhone },
+          select: { id: true },
+        })
+        if (existingBySynth) {
+          // Garantir que waLid esteja correto
+          await prisma.lead.update({
+            where: { id: existingBySynth.id },
+            data: { waLid: chat.remoteJid },
+          }).catch(() => {})
+          waLidToLeadId.set(chat.remoteJid, existingBySynth.id)
+          report.leads_updated++
+          continue
+        }
+
+        const lead = await prisma.lead.create({
+          data: {
+            phone:   syntheticPhone,
+            waLid:   chat.remoteJid,
+            name:    pushName,
+            stageId: defaultStage.id,
+          },
+        })
+        waLidToLeadId.set(chat.remoteJid, lead.id)
+        report.leads_created++
+        report.leads_with_synthetic_lid++
+      } catch (err) {
+        report.errors.push({ context: `lid-lead ${chat.remoteJid}`, error: String(err) })
       }
     }
 
