@@ -364,13 +364,13 @@ export function DashboardView() {
               delta={calcDelta(sdr.realizadas, prevSdrTotals?.realizadas ?? null)}
             />
             <KpiCard
-              title="Falta — lead"
+              title="Falta"
               value={formatNum(sdr.faltaLead)}
               colorVariant="red"
               delta={calcDelta(sdr.faltaLead, prevSdrTotals?.faltaLead ?? null)}
             />
             <KpiCard
-              title="Falta"
+              title="Reuniões não realizadas"
               value={formatNum(sdr.naoRealizada)}
               colorVariant="red"
               delta={calcDelta(sdr.naoRealizada, prevSdrTotals?.naoRealizada ?? null)}
