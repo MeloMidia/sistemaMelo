@@ -34,7 +34,7 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
   const deleteColumn = useDeleteColumn()
   const updateColumn = useUpdateColumn()
 
-  const { setNodeRef: setDroppableRef } = useDroppable({
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `column-droppable-${column.id}`,
     data: { type: 'column', column },
   })
@@ -91,13 +91,14 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
 
   const taskIds = column.tasks.map((t) => t.id)
 
+  // Refined purple/fuchsia accent colors for Mentorship Board
   const accentColors = [
-    { header: 'from-purple-500/15 to-purple-500/[0.03]', dot: 'bg-purple-400', badge: 'bg-purple-500/15 text-purple-300' },
-    { header: 'from-fuchsia-500/15 to-fuchsia-500/[0.03]', dot: 'bg-fuchsia-400', badge: 'bg-fuchsia-500/15 text-fuchsia-300' },
-    { header: 'from-violet-500/15 to-violet-500/[0.03]', dot: 'bg-violet-400', badge: 'bg-violet-500/15 text-violet-300' },
-    { header: 'from-indigo-500/15 to-indigo-500/[0.03]', dot: 'bg-indigo-400', badge: 'bg-indigo-500/15 text-indigo-300' },
-    { header: 'from-pink-500/15 to-pink-500/[0.03]', dot: 'bg-pink-400', badge: 'bg-pink-500/15 text-pink-300' },
-    { header: 'from-rose-500/15 to-rose-500/[0.03]', dot: 'bg-rose-400', badge: 'bg-rose-500/15 text-rose-300' },
+    { text: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-500/20', bg: 'bg-purple-500/[0.07]', ring: 'ring-purple-500/10' },
+    { text: 'text-fuchsia-400', dot: 'bg-fuchsia-400', border: 'border-fuchsia-500/20', bg: 'bg-fuchsia-500/[0.07]', ring: 'ring-fuchsia-500/10' },
+    { text: 'text-violet-400', dot: 'bg-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/[0.07]', ring: 'ring-violet-500/10' },
+    { text: 'text-indigo-400', dot: 'bg-indigo-400', border: 'border-indigo-500/20', bg: 'bg-indigo-500/[0.07]', ring: 'ring-indigo-500/10' },
+    { text: 'text-pink-400', dot: 'bg-pink-400', border: 'border-pink-500/20', bg: 'bg-pink-500/[0.07]', ring: 'ring-pink-500/10' },
+    { text: 'text-rose-400', dot: 'bg-rose-400', border: 'border-rose-500/20', bg: 'bg-rose-500/[0.07]', ring: 'ring-rose-500/10' },
   ]
 
   const colorIdx = Math.abs(column.title.charCodeAt(0)) % accentColors.length
@@ -108,27 +109,27 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
       ref={setSortableRef}
       style={style}
       className={`
-        flex flex-col w-[330px] shrink-0 rounded-2xl border
+        flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-300 backdrop-blur-xl
         ${isDragging
-          ? 'opacity-60 scale-[0.98] shadow-2xl shadow-purple-500/10 border-purple-500/20'
-          : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
+          ? 'opacity-50 scale-[0.98] shadow-2xl shadow-purple-500/10 border-purple-500/20 bg-white/[0.01]'
+          : isOver
+            ? 'bg-[#a855f7]/[0.01] border-[#a855f7]/25 shadow-lg shadow-[#a855f7]/5'
+            : 'bg-white/[0.01] border-white/[0.05] hover:border-white/[0.09] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
         }
       `}
     >
       {/* Column header */}
-      <div className={`p-4 rounded-t-2xl bg-gradient-to-b ${accent.header}`}>
+      <div className="p-4 rounded-t-2xl border-b border-white/[0.03]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               {...attributes}
               {...listeners}
-              className="p-1 rounded-lg text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing hover:bg-white/[0.06]"
+              className="p-1 rounded-lg text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing hover:bg-white/[0.06] transition-colors shrink-0"
               aria-label="Arrastar coluna"
             >
               <GripVertical className="w-4 h-4" />
             </button>
-
-            <div className={`w-2.5 h-2.5 rounded-full ${accent.dot} ring-2 ring-white/5`} />
 
             {isEditingTitle ? (
               <div className="flex items-center gap-1">
@@ -140,32 +141,30 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
                     if (e.key === 'Escape') { setIsEditingTitle(false); setEditTitle(column.title) }
                   }}
                   autoFocus
-                  className="h-7 w-32 text-sm font-semibold bg-white/[0.06] border-white/[0.12] text-white rounded-lg"
+                  className="h-7 w-32 text-xs font-semibold bg-white/[0.06] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
                 <button onClick={handleSaveTitle} className="p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer"><Check className="w-3.5 h-3.5" /></button>
                 <button onClick={() => { setIsEditingTitle(false); setEditTitle(column.title) }} className="p-1 text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
-              <h3 className="text-sm font-semibold text-white tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
-                {column.title}
-              </h3>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${accent.border} ${accent.bg} ${accent.text} ring-1 ${accent.ring}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${accent.dot} animate-pulse`} />
+                <span>{column.title}</span>
+                <span className="opacity-60 text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">{column.tasks.length}</span>
+              </div>
             )}
-
-            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${accent.badge}`}>
-              {column.tasks.length}
-            </span>
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer outline-none">
+            <DropdownMenuTrigger className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer outline-none transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#12131a] border-white/[0.1] shadow-xl shadow-black/40">
-              <DropdownMenuItem onClick={() => setIsEditingTitle(true)} className="text-slate-300 focus:text-white focus:bg-white/[0.06] cursor-pointer">
-                <Pencil className="w-4 h-4 mr-2" /> Renomear
+            <DropdownMenuContent align="end" className="bg-[#0f111a] border-white/[0.08] shadow-xl shadow-black/60 rounded-xl">
+              <DropdownMenuItem onClick={() => setIsEditingTitle(true)} className="text-slate-300 focus:text-white focus:bg-white/[0.06] cursor-pointer text-xs rounded-lg m-1">
+                <Pencil className="w-3.5 h-3.5 mr-2 text-slate-400" /> Renomear
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => deleteColumn.mutate(column.id)} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer">
-                <Trash2 className="w-4 h-4 mr-2" /> Excluir
+              <DropdownMenuItem onClick={() => deleteColumn.mutate(column.id)} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer text-xs rounded-lg m-1">
+                <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400/80" /> Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -19,38 +19,34 @@ export function LeadColumn({ stage, onSelectLead }: LeadColumnProps) {
 
   return (
     <div
-      className="flex flex-col w-[290px] shrink-0 rounded-2xl overflow-hidden transition-all duration-200"
+      ref={setNodeRef}
+      className="flex flex-col w-[290px] shrink-0 rounded-2xl transition-all duration-300 backdrop-blur-xl"
       style={{
-        background: '#0d0f18',
-        border: `1px solid ${isOver ? `${stage.color}50` : 'rgba(255,255,255,0.06)'}`,
-        boxShadow: isOver ? `0 0 24px ${stage.color}12, inset 0 0 24px ${stage.color}06` : 'none',
+        backgroundColor: isOver ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.01)',
+        border: `1px solid ${isOver ? `${stage.color}40` : 'rgba(255,255,255,0.05)'}`,
+        boxShadow: isOver ? `0 0 24px ${stage.color}0a` : '0 8px 32px rgba(0,0,0,0.15)',
       }}
     >
-      {/* Linha colorida no topo */}
-      <div className="h-[3px] w-full shrink-0" style={{ backgroundColor: stage.color }} />
-
       {/* Cabeçalho */}
-      <div className="px-4 pt-3.5 pb-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-[13px] font-bold text-white tracking-tight">{stage.name}</h3>
-            <span
-              className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
-              style={{
-                backgroundColor: `${stage.color}18`,
-                color: stage.color,
-                border: `1px solid ${stage.color}25`,
-              }}
-            >
-              {stage.leads.length}
-            </span>
+      <div className="px-4 pt-4 pb-3 shrink-0 border-b border-white/[0.03] flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border"
+               style={{
+                 backgroundColor: `${stage.color}10`,
+                 borderColor: `${stage.color}25`,
+                 color: stage.color,
+               }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: stage.color }} />
+            <span>{stage.name}</span>
+            <span className="opacity-60 text-[10px] font-bold ml-1 bg-white/10 px-1 py-0.5 rounded-md leading-none">{stage.leads.length}</span>
           </div>
-          {totalValue > 0 && (
-            <span className="text-[11px] text-slate-400 font-semibold tabular-nums">
-              R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </span>
-          )}
         </div>
+        {totalValue > 0 && (
+          <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md tabular-nums">
+            R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </span>
+        )}
       </div>
 
       {/* Lista de leads */}

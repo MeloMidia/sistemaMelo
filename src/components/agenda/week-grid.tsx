@@ -378,6 +378,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                 const leftPct  = column * widthPct
                 const color    = event.category?.color ?? '#64748b'
                 const isRealizada    = event.status === 'REALIZADA'
+                const isFalta        = event.status === 'FALTA'
                 const isNaoRealizada = event.status === 'NAO_REALIZADA'
 
                 return (
@@ -394,7 +395,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                       width:           `calc(${widthPct}% - 4px)`,
                       left:            `calc(${leftPct}% + 2px)`,
                       backgroundColor: color,
-                      opacity:         isNaoRealizada ? 0.55 : 1,
+                      opacity:         (isNaoRealizada || isFalta) ? 0.55 : 1,
                       cursor:          'grab',
                     }}
                     className="rounded-lg overflow-hidden group/event shadow-md flex flex-col"
@@ -404,13 +405,16 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                     {isRealizada && (
                       <div className="absolute inset-0 bg-black/35 pointer-events-none rounded-lg" />
                     )}
+                    {isFalta && (
+                      <div className="absolute inset-0 bg-orange-900/40 pointer-events-none rounded-lg" />
+                    )}
                     {isNaoRealizada && (
                       <div className="absolute inset-0 bg-red-900/40 pointer-events-none rounded-lg" />
                     )}
 
                     {/* Badge de status */}
-                    {(isRealizada || isNaoRealizada) && (
-                      <div className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center pointer-events-none z-10 ${isRealizada ? 'bg-emerald-500/90' : 'bg-rose-500/90'}`}>
+                    {(isRealizada || isFalta || isNaoRealizada) && (
+                      <div className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center pointer-events-none z-10 ${isRealizada ? 'bg-emerald-500/90' : isFalta ? 'bg-orange-500/90' : 'bg-rose-500/90'}`}>
                         {isRealizada
                           ? <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                           : <X className="w-2.5 h-2.5 text-white" strokeWidth={3} />

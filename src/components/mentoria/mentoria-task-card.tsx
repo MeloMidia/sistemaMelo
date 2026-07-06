@@ -150,6 +150,18 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   const dueDate = task.dueDate ? new Date(task.dueDate) : null
   const isOverdue = dueDate && dueDate < new Date()
 
+  const initial = task.title.charAt(0).toUpperCase()
+  const monogramStyles = [
+    'from-purple-500/20 to-indigo-600/10 text-purple-300 ring-1 ring-purple-500/25',
+    'from-fuchsia-500/20 to-pink-600/10 text-fuchsia-300 ring-1 ring-fuchsia-500/25',
+    'from-violet-500/20 to-purple-600/10 text-violet-300 ring-1 ring-violet-500/25',
+    'from-pink-500/20 to-rose-600/10 text-pink-300 ring-1 ring-pink-500/25',
+    'from-rose-500/20 to-purple-600/10 text-rose-300 ring-1 ring-rose-500/25',
+    'from-indigo-500/20 to-blue-600/10 text-indigo-300 ring-1 ring-indigo-500/25',
+  ]
+  const colorIdx = Math.abs(task.title.charCodeAt(0)) % monogramStyles.length
+  const placeholderStyle = monogramStyles[colorIdx]
+
   return (
     <>
       {/* ── Card ─────────────────────────────────────── */}
@@ -158,24 +170,25 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
         style={style}
         onClick={handleOpenModal}
         className={`
-          group relative p-3.5 rounded-xl border
+          group relative p-3.5 rounded-xl border transition-all duration-300 backdrop-blur-sm
           ${isDragging
-            ? 'opacity-50 scale-[1.02] shadow-xl shadow-purple-500/10 border-purple-500/30 bg-purple-500/5'
-            : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.14] hover:bg-white/[0.05]'
+            ? 'opacity-40 scale-[1.01] shadow-2xl shadow-black/80 border-purple-500/30 bg-[#141120]'
+            : 'bg-[#0a0b10]/40 border-white/[0.04] hover:bg-[#100f1a]/70 hover:border-white/[0.1] hover:shadow-[0_8px_24px_rgba(168,85,247,0.12)] hover:-translate-y-0.5'
           }
+          ${task.isPriorityToday && !isDragging ? 'border-l-2 border-l-amber-500/80' : ''}
           ${!isEditing ? 'cursor-pointer' : ''}
         `}
       >
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2.5">
           {/* Drag handle */}
           <button
             {...attributes}
             {...listeners}
             onClick={(e) => e.stopPropagation()}
-            className="mt-0.5 p-0.5 rounded text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0"
-            aria-label="Arrastar tarefa"
+            className="mt-1 p-0.5 rounded text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0 hover:bg-white/[0.04] transition-colors"
+            aria-label="Arrastar mentoria"
           >
-            <GripVertical className="w-4 h-4" />
+            <GripVertical className="w-3.5 h-3.5" />
           </button>
 
           <div className="flex-1 min-w-0">
@@ -193,7 +206,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                   <button
                     type="button"
                     onClick={() => logoInputRef.current?.click()}
-                    className="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.2] cursor-pointer"
+                    className="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.2] cursor-pointer transition-colors"
                   >
                     {editLogo ? 'Trocar logo' : 'Adicionar logo'}
                   </button>
@@ -215,12 +228,12 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                   }}
                   placeholder="Nome do cliente..."
                   autoFocus
-                  className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg"
+                  className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
 
                 {/* Due date edit */}
                 <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1 block">Encerramento do contrato</label>
+                  <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">Encerramento do contrato</label>
                   <Input
                     type="date"
                     value={editDueDate}
@@ -231,7 +244,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
 
                 {/* Meetings count edit */}
                 <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1 block">Quantidade de reuniões feitas</label>
+                  <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">Quantidade de reuniões feitas</label>
                   <Input
                     type="number"
                     min="0"
@@ -245,13 +258,13 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                 <div className="flex gap-2 pt-0.5">
                   <button
                     onClick={handleSave}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Check className="w-3.5 h-3.5" /> Salvar
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white text-xs font-medium cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <X className="w-3.5 h-3.5" /> Cancelar
                   </button>
@@ -261,50 +274,54 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
               <>
                 {/* Logo + title */}
                 <div className="flex items-center gap-3 min-w-0">
-                  {task.logoUrl && (
+                  {task.logoUrl ? (
                     <img
                       src={task.logoUrl}
                       alt={`${task.title} logo`}
-                      className="w-10 h-10 rounded-xl object-cover border border-white/[0.1] shrink-0"
+                      className="w-9 h-9 rounded-xl object-cover border border-white/[0.08] shrink-0"
                     />
+                  ) : (
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 bg-gradient-to-br ${placeholderStyle}`}>
+                      {initial}
+                    </div>
                   )}
-                  <p className="text-base font-semibold text-white leading-snug">
+                  <p className="text-sm font-semibold text-white leading-snug tracking-tight">
                     {task.title}
                   </p>
                 </div>
 
                 {task.description && (
-                  <p className="text-xs text-slate-500 mt-1.5 line-clamp-2">{task.description}</p>
+                  <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
                 )}
 
-                {/* Notes indicator */}
-                {task.notes && (
-                  <p className="text-xs text-indigo-400/70 mt-1 flex items-center gap-1">
-                    <NotebookPen className="w-3 h-3" /> Tem anotações
-                  </p>
-                )}
-
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {/* Meta details / Badges row */}
+                <div className="flex items-center gap-1.5 mt-3 flex-wrap">
                   {dueDate && (
-                    <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
                       isOverdue
-                        ? 'bg-red-500/15 text-red-400'
-                        : 'bg-white/[0.06] text-slate-400'
+                        ? 'bg-red-500/10 text-red-400 border-red-500/15'
+                        : 'bg-white/[0.04] text-slate-400 border-white/[0.03]'
                     }`}>
-                      <Calendar className="w-3 h-3" />
+                      <Calendar className="w-3 h-3 shrink-0" />
                       Enc. {formatDateBR(dueDate)}
                     </span>
                   )}
                   {task.isPriorityToday && (
-                    <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
-                      <Star className="w-3 h-3 fill-current" />
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
+                      <Star className="w-3 h-3 fill-current shrink-0" />
                       Prioridade
                     </span>
                   )}
                   {(task.meetingsCount > 0) && (
-                    <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400">
-                      <Users className="w-3 h-3" />
-                      {task.meetingsCount} reuni{task.meetingsCount !== 1 ? 'ões' : 'ão'}
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/15">
+                      <Users className="w-3 h-3 shrink-0" />
+                      {task.meetingsCount} Reuni{task.meetingsCount !== 1 ? 'ões' : 'ão'}
+                    </span>
+                  )}
+                  {task.notes && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
+                      <NotebookPen className="w-3 h-3 shrink-0" />
+                      Notas
                     </span>
                   )}
                 </div>
@@ -314,10 +331,10 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
 
           {/* Action buttons */}
           {!isEditing && (
-            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={handleTogglePriority}
-                className={`p-1.5 rounded-lg cursor-pointer ${
+                className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
                   task.isPriorityToday
                     ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
                     : 'text-slate-600 hover:text-amber-400 hover:bg-amber-500/10'
@@ -328,7 +345,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
               </button>
               <button
                 onClick={() => setIsEditing(true)}
-                className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
                 title="Editar"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -338,7 +355,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                   e.stopPropagation()
                   setDeleteModalOpen(true)
                 }}
-                className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
                 title="Excluir"
               >
                 <Trash2 className="w-3.5 h-3.5" />

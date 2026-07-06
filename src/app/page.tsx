@@ -6,14 +6,15 @@ import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
-import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot, MessageSquare, Calendar } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart, GraduationCap, Bot, MessageSquare, Calendar, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { KanbanLeads } from '@/components/crm/kanban-leads'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
 import { AgendaView } from '@/components/agenda/agenda-view'
+import { ClientesView } from '@/components/clientes/clientes-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm' | 'agenda'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -46,6 +47,7 @@ export default function HomePage() {
               {([
                 { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#6366f1' },
                 { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#a855f7' },
+                { id: 'clientes',     icon: Building2,       label: 'Clientes',     color: '#f59e0b' },
                 { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#3b82f6' },
                 { id: 'dashboard',    icon: BarChart,        label: 'Dashboard',    color: '#0ea5e9' },
                 { id: 'automacao-ml', icon: Bot,             label: 'Automação ML', color: '#10b981' },
@@ -106,6 +108,7 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
+        {activeTab === 'clientes'     && <ClientesView />}
         {activeTab === 'tasks'        && <TaskManager />}
         {activeTab === 'dashboard'    && <DashboardView />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}

@@ -88,14 +88,14 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
 
   const taskIds = column.tasks.map((t) => t.id)
 
-  // Refined accent colors with better visibility
+  // Refined accent colors with better visibility and glassmorphism styling
   const accentColors = [
-    { header: 'from-blue-500/15 to-blue-500/[0.03]', dot: 'bg-blue-400', badge: 'bg-blue-500/15 text-blue-300' },
-    { header: 'from-violet-500/15 to-violet-500/[0.03]', dot: 'bg-violet-400', badge: 'bg-violet-500/15 text-violet-300' },
-    { header: 'from-emerald-500/15 to-emerald-500/[0.03]', dot: 'bg-emerald-400', badge: 'bg-emerald-500/15 text-emerald-300' },
-    { header: 'from-amber-500/15 to-amber-500/[0.03]', dot: 'bg-amber-400', badge: 'bg-amber-500/15 text-amber-300' },
-    { header: 'from-rose-500/15 to-rose-500/[0.03]', dot: 'bg-rose-400', badge: 'bg-rose-500/15 text-rose-300' },
-    { header: 'from-cyan-500/15 to-cyan-500/[0.03]', dot: 'bg-cyan-400', badge: 'bg-cyan-500/15 text-cyan-300' },
+    { text: 'text-blue-400', dot: 'bg-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/[0.07]', ring: 'ring-blue-500/10' },
+    { text: 'text-violet-400', dot: 'bg-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/[0.07]', ring: 'ring-violet-500/10' },
+    { text: 'text-emerald-400', dot: 'bg-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/[0.07]', ring: 'ring-emerald-500/10' },
+    { text: 'text-amber-400', dot: 'bg-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/[0.07]', ring: 'ring-amber-500/10' },
+    { text: 'text-rose-400', dot: 'bg-rose-400', border: 'border-rose-500/20', bg: 'bg-rose-500/[0.07]', ring: 'ring-rose-500/10' },
+    { text: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-500/20', bg: 'bg-cyan-500/[0.07]', ring: 'ring-cyan-500/10' },
   ]
 
   const colorIdx = Math.abs(column.title.charCodeAt(0)) % accentColors.length
@@ -106,29 +106,27 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
       ref={setSortableRef}
       style={style}
       className={`
-        flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-200
+        flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-300 backdrop-blur-xl
         ${isDragging
-          ? 'opacity-60 scale-[0.98] shadow-2xl shadow-blue-500/10 border-blue-500/20'
+          ? 'opacity-50 scale-[0.98] shadow-2xl shadow-blue-500/10 border-blue-500/20 bg-white/[0.01]'
           : isOver
-            ? 'bg-blue-500/[0.02] border-blue-500/25 shadow-lg shadow-blue-500/5'
-            : 'bg-white/[0.02] border-white/[0.07] hover:border-white/[0.1]'
+            ? 'bg-blue-500/[0.01] border-blue-500/25 shadow-lg shadow-blue-500/5'
+            : 'bg-white/[0.01] border-white/[0.05] hover:border-white/[0.09] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
         }
       `}
     >
       {/* Column header */}
-      <div className={`p-4 rounded-t-2xl bg-gradient-to-b ${accent.header}`}>
+      <div className="p-4 rounded-t-2xl border-b border-white/[0.03]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               {...attributes}
               {...listeners}
-              className="p-1 rounded-lg text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing hover:bg-white/[0.06]"
+              className="p-1 rounded-lg text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing hover:bg-white/[0.06] transition-colors shrink-0"
               aria-label="Arrastar coluna"
             >
               <GripVertical className="w-4 h-4" />
             </button>
-
-            <div className={`w-2.5 h-2.5 rounded-full ${accent.dot} ring-2 ring-white/5`} />
 
             {isEditingTitle ? (
               <div className="flex items-center gap-1">
@@ -140,32 +138,30 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
                     if (e.key === 'Escape') { setIsEditingTitle(false); setEditTitle(column.title) }
                   }}
                   autoFocus
-                  className="h-7 w-32 text-sm font-semibold bg-white/[0.06] border-white/[0.12] text-white rounded-lg"
+                  className="h-7 w-32 text-xs font-semibold bg-white/[0.06] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
                 <button onClick={handleSaveTitle} className="p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer"><Check className="w-3.5 h-3.5" /></button>
                 <button onClick={() => { setIsEditingTitle(false); setEditTitle(column.title) }} className="p-1 text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
-              <h3 className="text-sm font-semibold text-white tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
-                {column.title}
-              </h3>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${accent.border} ${accent.bg} ${accent.text} ring-1 ${accent.ring}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${accent.dot} animate-pulse`} />
+                <span>{column.title}</span>
+                <span className="opacity-60 text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">{column.tasks.length}</span>
+              </div>
             )}
-
-            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${accent.badge}`}>
-              {column.tasks.length}
-            </span>
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer outline-none">
+            <DropdownMenuTrigger className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer outline-none transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#12131a] border-white/[0.1] shadow-xl shadow-black/40">
-              <DropdownMenuItem onClick={() => setIsEditingTitle(true)} className="text-slate-300 focus:text-white focus:bg-white/[0.06] cursor-pointer">
-                <Pencil className="w-4 h-4 mr-2" /> Renomear
+            <DropdownMenuContent align="end" className="bg-[#0f111a] border-white/[0.08] shadow-xl shadow-black/60 rounded-xl">
+              <DropdownMenuItem onClick={() => setIsEditingTitle(true)} className="text-slate-300 focus:text-white focus:bg-white/[0.06] cursor-pointer text-xs rounded-lg m-1">
+                <Pencil className="w-3.5 h-3.5 mr-2 text-slate-400" /> Renomear
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => deleteColumn.mutate(column.id)} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer">
-                <Trash2 className="w-4 h-4 mr-2" /> Excluir
+              <DropdownMenuItem onClick={() => deleteColumn.mutate(column.id)} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer text-xs rounded-lg m-1">
+                <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400/80" /> Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

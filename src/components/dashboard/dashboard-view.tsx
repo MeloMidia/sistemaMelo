@@ -50,7 +50,7 @@ function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTot
   )
   return {
     leadsWhatsapp: manual.leadsWhatsapp,
-    faltaLead: manual.faltaLead,
+    faltaLead: manual.faltaLead + (agenda?.totalFaltas ?? 0),
     agendadas: (agenda?.totalAgendadas ?? 0) + manual.agendadas,
     realizadas: (agenda?.totalRealizadas ?? 0) + manual.realizadas,
     naoRealizada: manual.naoRealizada + (agenda?.totalNaoRealizadas ?? 0),
@@ -364,13 +364,13 @@ export function DashboardView() {
               delta={calcDelta(sdr.realizadas, prevSdrTotals?.realizadas ?? null)}
             />
             <KpiCard
-              title="Falta"
+              title="Faltas"
               value={formatNum(sdr.faltaLead)}
               colorVariant="red"
               delta={calcDelta(sdr.faltaLead, prevSdrTotals?.faltaLead ?? null)}
             />
             <KpiCard
-              title="Reuniões não realizadas"
+              title="Não realizadas"
               value={formatNum(sdr.naoRealizada)}
               colorVariant="red"
               delta={calcDelta(sdr.naoRealizada, prevSdrTotals?.naoRealizada ?? null)}

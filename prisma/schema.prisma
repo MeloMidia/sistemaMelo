@@ -185,6 +185,7 @@ model EventCategory {
 enum AgendaEventStatus {
   AGENDADA
   REALIZADA
+  FALTA
   NAO_REALIZADA
   CANCELADA
 }

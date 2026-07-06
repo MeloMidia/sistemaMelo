@@ -21,6 +21,7 @@ import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 const STATUS_OPTIONS: { value: AgendaEventStatus; label: string }[] = [
   { value: 'AGENDADA', label: 'Agendada' },
   { value: 'REALIZADA', label: 'Realizada' },
+  { value: 'FALTA', label: 'Falta' },
   { value: 'NAO_REALIZADA', label: 'Não realizada' },
   { value: 'CANCELADA', label: 'Cancelada' },
 ]
@@ -161,6 +162,8 @@ export function EventModal({
     const n = cat.name.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
     if (n.includes('nao realizada') || n.includes('nao-realizada')) {
       setStatus('NAO_REALIZADA')
+    } else if (n.includes('falta')) {
+      setStatus('FALTA')
     } else if (n.includes('realizada')) {
       setStatus('REALIZADA')
     } else if (n.includes('cancelada')) {

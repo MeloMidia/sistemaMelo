@@ -4,7 +4,7 @@ export interface EventCategory {
   color: string
 }
 
-export type AgendaEventStatus = 'AGENDADA' | 'REALIZADA' | 'NAO_REALIZADA' | 'CANCELADA'
+export type AgendaEventStatus = 'AGENDADA' | 'REALIZADA' | 'FALTA' | 'NAO_REALIZADA' | 'CANCELADA'
 
 export interface AgendaEvent {
   id: string
