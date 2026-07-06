@@ -13,6 +13,9 @@ export interface Task {
   logoUrl: string | null
   notes: string | null
   meetingsCount: number
+  adsAtivo: boolean
+  promocaoAtiva: boolean
+  promocaoAte: string | null
   createdAt: string
   completedAt: string | null
   completedBy: string | null

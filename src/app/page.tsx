@@ -47,7 +47,7 @@ export default function HomePage() {
               {([
                 { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#6366f1' },
                 { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#a855f7' },
-                { id: 'clientes',     icon: Building2,       label: 'Clientes',     color: '#f59e0b' },
+                { id: 'clientes',     icon: Building2,       label: 'PromoADS',     color: '#f59e0b' },
                 { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#3b82f6' },
                 { id: 'dashboard',    icon: BarChart,        label: 'Dashboard',    color: '#0ea5e9' },
                 { id: 'automacao-ml', icon: Bot,             label: 'Automação ML', color: '#10b981' },

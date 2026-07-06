@@ -42,6 +42,9 @@ model Task {
   logoUrl         String?
   notes           String?
   meetingsCount   Int       @default(0)
+  adsAtivo        Boolean   @default(false)
+  promocaoAtiva   Boolean   @default(false)
+  promocaoAte     DateTime?
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
   completedBy     String?

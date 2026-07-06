@@ -132,16 +132,31 @@ export function useUpdateTask() {
     },
     onMutate: async ({ id, ...data }) => {
       await qc.cancelQueries({ queryKey: ['tasks'], exact: true })
+      await qc.cancelQueries({ queryKey: ['columns'] })
+
       const previousTasks = qc.getQueryData<Task[]>(['tasks'])
       qc.setQueryData<Task[]>(['tasks'], old =>
         old?.map(t => t.id === id ? { ...t, ...data } as Task : t)
       )
-      return { previousTasks }
+
+      const previousColumns = qc.getQueriesData<Column[]>({ queryKey: ['columns'] })
+      previousColumns.forEach(([key, old]) => {
+        if (!old) return
+        qc.setQueryData<Column[]>(key, old.map(col => ({
+          ...col,
+          tasks: col.tasks.map(t => t.id === id ? { ...t, ...data } as Task : t),
+        })))
+      })
+
+      return { previousTasks, previousColumns }
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previousTasks !== undefined) {
         qc.setQueryData(['tasks'], ctx.previousTasks)
       }
+      ctx?.previousColumns?.forEach(([key, old]) => {
+        qc.setQueryData(key, old)
+      })
     },
     onSettled: (_data, _err, variables) => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
