@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, FileText } from 'lucide-react'
+import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, FileText, Lock } from 'lucide-react'
 import {
   useCrmTags,
   useCreateCrmTag,
   useAttachTag,
   useDetachTag,
-
   useUpdateLead,
+  useLeadMessages,
 } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,11 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
   const detachTag = useDetachTag(lead.id)
   const updateLead = useUpdateLead()
   const { data: eventCategories } = useEventCategories()
+  const { data: allMessages = [] } = useLeadMessages(lead.id)
+
+  const conversationNotes = allMessages
+    .filter((m) => m.content.startsWith('[Nota Interna]'))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const [isAddingTag, setIsAddingTag] = useState(false)
   const [isScheduling, setIsScheduling] = useState(false)
@@ -178,7 +183,7 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
         />
       )}
 
-      {/* Nota interna */}
+      {/* Nota interna do lead (campo livre) */}
       <div>
         <label className="text-[11px] text-slate-500 font-medium mb-1.5 flex items-center gap-1.5">
           <FileText className="w-3 h-3 text-[#d6a132]" />
@@ -193,6 +198,40 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           className="w-full bg-[#241e12]/60 border border-[#d6a132]/20 rounded-xl px-3 py-2.5 text-sm text-[#f1d28c] placeholder:text-slate-600 resize-none outline-none focus:border-[#d6a132]/50 focus:bg-[#241e12]/80 transition-all leading-relaxed"
         />
       </div>
+
+      {/* Notas internas da conversa */}
+      {conversationNotes.length > 0 && (
+        <div>
+          <label className="text-[11px] text-slate-500 font-medium mb-2 flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-[#d6a132]" />
+            <span>Notas da conversa</span>
+            <span className="ml-auto text-[10px] text-slate-600 font-normal tabular-nums">{conversationNotes.length}</span>
+          </label>
+          <div className="space-y-2">
+            {conversationNotes.map((note) => (
+              <div
+                key={note.id}
+                className="bg-[#241e12]/60 border border-[#d6a132]/15 rounded-xl px-3 py-2.5 flex items-start gap-2"
+              >
+                <Lock className="w-3 h-3 text-[#d6a132]/60 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12.5px] text-[#f1d28c] leading-relaxed whitespace-pre-wrap break-words">
+                    {note.content.replace('[Nota Interna]', '').trim()}
+                  </p>
+                  <p className="text-[10px] text-[#d6a132]/40 mt-1">
+                    {new Date(note.createdAt).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="text-[11px] text-slate-500 font-medium mb-1 block">Tags</label>

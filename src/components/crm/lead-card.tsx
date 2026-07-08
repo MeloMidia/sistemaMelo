@@ -32,15 +32,16 @@ interface LeadCardProps {
   lead: Lead
   onSelect?: () => void
   isOverlay?: boolean
+  disableDrag?: boolean
 }
 
-export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
+export function LeadCard({ lead, onSelect, isOverlay = false, disableDrag = false }: LeadCardProps) {
   const [imgError, setImgError] = useState(false)
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
-    disabled: isOverlay,
+    disabled: isOverlay || disableDrag,
   })
 
   const lastMessage = lead.messages[0]
@@ -108,9 +109,20 @@ export function LeadCard({ lead, onSelect, isOverlay = false }: LeadCardProps) {
               )}
             </div>
 
-            <p className="text-[11.5px] text-slate-400 truncate mt-1.5 leading-snug">
-              {lastMessage?.content ?? 'Sem mensagens'}
-            </p>
+            <div className="flex items-center gap-1 mt-1.5">
+              {lastMessage ? (
+                lastMessage.direction === 'OUTBOUND' ? (
+                  <svg viewBox="0 0 18 11" width="13" height="9" className="fill-current text-[#53bdeb] shrink-0 opacity-70">
+                    <path d="M12.5 1.2l-9.5 9.5-4.5-4.5 1.4-1.4 3.1 3.1 8.1-8.1 1.4 1.4zm2.5 1.4L9.5 8.1 8.1 6.7l-1.4 1.4 2.8 2.8 6.9-6.9-1.4-1.4z"/>
+                  </svg>
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#10b981] shrink-0 opacity-80" />
+                )
+              ) : null}
+              <p className="text-[11.5px] text-slate-400 truncate leading-snug">
+                {lastMessage?.content ?? 'Sem mensagens'}
+              </p>
+            </div>
           </div>
         </div>
 

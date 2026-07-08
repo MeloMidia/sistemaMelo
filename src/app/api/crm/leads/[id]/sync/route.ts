@@ -15,7 +15,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!lead) return NextResponse.json({ error: 'Lead nao encontrado' }, { status: 404 })
 
   try {
-    const rawMessages = await findMessages(lead.phone)
+    // Para contatos @lid, o JID real é o waLid (ex: "12345@lid"), não o phone sintético
+    const explicitJid = lead.waLid?.endsWith('@lid') ? lead.waLid : undefined
+    const rawMessages = await findMessages(lead.phone, explicitJid)
     let importedCount = 0
     let updatedCount = 0
 

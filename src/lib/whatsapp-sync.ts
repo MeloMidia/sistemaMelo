@@ -42,7 +42,11 @@ function asString(value: unknown): string | null {
 }
 
 function asBoolean(value: unknown): boolean | null {
-  return typeof value === 'boolean' ? value : null
+  if (typeof value === 'boolean') return value
+  // Evolution DB pode armazenar fromMe como número 0/1 em JSONB
+  if (value === 1 || value === '1' || value === 'true') return true
+  if (value === 0 || value === '0' || value === 'false') return false
+  return null
 }
 
 function child(record: UnknownRecord | null, key: string): UnknownRecord | null {
@@ -206,19 +210,33 @@ function buildMessageContent(raw: UnknownRecord, fromMe: boolean): string {
 }
 
 async function findOrCreateLead(raw: UnknownRecord, remoteJid: string, fromMe: boolean) {
-  const phone = normalizePhone(remoteJid)
-  let lead = await prisma.lead.findUnique({ where: { phone } })
-
   const pushName = !fromMe ? asString(raw.pushName) : null
+
+  // Para contatos @lid: buscar pelo waLid primeiro (evita duplicata com phone sintético)
+  let lead = remoteJid.endsWith('@lid')
+    ? await prisma.lead.findFirst({ where: { waLid: remoteJid } })
+    : null
+
+  if (!lead) {
+    const phone = normalizePhone(remoteJid)
+    lead = await prisma.lead.findUnique({ where: { phone } })
+  }
+
   if (lead) {
-    if (pushName && (!lead.name || lead.name === 'Contato WhatsApp')) {
-      lead = await prisma.lead.update({
-        where: { id: lead.id },
-        data: { name: pushName },
-      })
+    const updates: Record<string, string> = {}
+    if (pushName && (!lead.name || lead.name === 'Contato WhatsApp')) updates.name = pushName
+    // Aproveita para gravar o waLid real se ainda não estava
+    if (!lead.waLid && remoteJid.endsWith('@lid')) updates.waLid = remoteJid
+    if (Object.keys(updates).length > 0) {
+      lead = await prisma.lead.update({ where: { id: lead.id }, data: updates })
     }
     return lead
   }
+
+  // Novo contato: determinar phone a armazenar
+  const phone = remoteJid.endsWith('@lid')
+    ? `lid:${remoteJid.replace('@lid', '')}`
+    : normalizePhone(remoteJid)
 
   const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
   if (!firstStage) return null
@@ -226,6 +244,7 @@ async function findOrCreateLead(raw: UnknownRecord, remoteJid: string, fromMe: b
   const newLead = await prisma.lead.create({
     data: {
       phone,
+      waLid: remoteJid.endsWith('@lid') ? remoteJid : undefined,
       stageId: firstStage.id,
       name: pushName ?? 'Contato WhatsApp',
     },

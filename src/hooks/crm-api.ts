@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { LeadStage, LeadLite, CrmTag, CrmUser, Message, WhatsappConnection } from '@/types/crm'
+import type { LeadStage, LeadLite, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn } from '@/types/crm'
 
 // ——— Stages (board) ———
 export function useStages() {
@@ -302,6 +302,18 @@ export function useCrmTags() {
     queryFn: async () => {
       const res = await fetch('/api/crm/tags')
       if (!res.ok) throw new Error('Failed to fetch tags')
+      return res.json()
+    },
+    staleTime: 30_000,
+  })
+}
+
+export function useLeadsByLabel() {
+  return useQuery<LabelColumn[]>({
+    queryKey: ['crm-by-label'],
+    queryFn: async () => {
+      const res = await fetch('/api/crm/by-label')
+      if (!res.ok) throw new Error('Failed to fetch leads by label')
       return res.json()
     },
     staleTime: 30_000,

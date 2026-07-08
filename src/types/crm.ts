@@ -57,6 +57,14 @@ export interface LeadStage {
   order: number
   color: string
   leads: Lead[]
+  _count: { leads: number }
+}
+
+export interface LabelColumn {
+  id: string
+  name: string
+  color: string
+  leads: Lead[]
 }
 
 export interface WhatsappConnection {

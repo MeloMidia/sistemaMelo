@@ -39,7 +39,11 @@ export function LeadColumn({ stage, onSelectLead }: LeadColumnProps) {
           >
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: stage.color }} />
             <span>{stage.name}</span>
-            <span className="opacity-60 text-[10px] font-bold ml-1 bg-white/10 px-1 py-0.5 rounded-md leading-none">{stage.leads.length}</span>
+            <span className="opacity-60 text-[10px] font-bold ml-1 bg-white/10 px-1 py-0.5 rounded-md leading-none">
+              {stage._count.leads > stage.leads.length
+                ? `${stage.leads.length} de ${stage._count.leads}`
+                : stage._count.leads}
+            </span>
           </div>
         </div>
         {totalValue > 0 && (

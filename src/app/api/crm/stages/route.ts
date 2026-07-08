@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+const LEADS_PER_STAGE = 100
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -10,34 +12,31 @@ export async function GET() {
   const stages = await prisma.leadStage.findMany({
     orderBy: { order: 'asc' },
     include: {
+      _count: { select: { leads: true } },
       leads: {
+        take: LEADS_PER_STAGE,
+        orderBy: { updatedAt: 'desc' },
         include: {
           tags: { include: { tag: true } },
           assignedTo: { select: { id: true, name: true } },
-          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-          _count: { select: { messages: true } },
+          messages: {
+            where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+          _count: {
+            select: {
+              messages: {
+                where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
+              },
+            },
+          },
         },
       },
     },
   })
 
-  // Ordena como lista de conversas do WhatsApp: sem mensagem ainda → topo
-  // (ordenados por criação desc), com mensagem → por data da última mensagem desc.
-  const sorted = stages.map((stage) => ({
-    ...stage,
-    leads: [...stage.leads].sort((a, b) => {
-      const aLast = a.messages[0]?.createdAt?.getTime() ?? null
-      const bLast = b.messages[0]?.createdAt?.getTime() ?? null
-      if (aLast === null && bLast === null) {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      }
-      if (aLast === null) return -1
-      if (bLast === null) return 1
-      return bLast - aLast
-    }),
-  }))
-
-  return NextResponse.json(sorted)
+  return NextResponse.json(stages)
 }
 
 export async function POST(request: Request) {

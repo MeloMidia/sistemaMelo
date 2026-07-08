@@ -54,8 +54,10 @@ export async function getQrCode(): Promise<QrCodeResult> {
   return res.json()
 }
 
-export async function findMessages(phone: string): Promise<Record<string, unknown>[]> {
-  const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
+export async function findMessages(phone: string, explicitJid?: string): Promise<Record<string, unknown>[]> {
+  // explicitJid é usado para contatos @lid (ex: "12345@lid") onde o phone
+  // sintético ("lid:12345") geraria um JID inválido
+  const jid = explicitJid ?? (phone.includes('@') ? phone : `${phone}@s.whatsapp.net`)
   const PAGE_SIZE = 150
   const MAX_PAGES = 20 // teto de segurança: até 3000 mensagens por sync
   const all: Record<string, unknown>[] = []

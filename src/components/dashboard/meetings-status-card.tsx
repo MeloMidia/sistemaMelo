@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, CheckCircle2, XCircle } from 'lucide-react'
+import { Calendar, CheckCircle2, UserX, XCircle } from 'lucide-react'
 import { useAgendaEvents, useUpdateAgendaEvent } from '@/hooks/agenda-api'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 
@@ -45,6 +45,7 @@ export function MeetingsStatusCard({ start, end }: Props) {
           const dateStr = new Date(event.startsAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
           const timeStr = new Date(event.startsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
           const isRealizada = event.status === 'REALIZADA'
+          const isFalta = event.status === 'FALTA'
           const isNaoRealizada = event.status === 'NAO_REALIZADA'
 
           return (
@@ -53,9 +54,11 @@ export function MeetingsStatusCard({ start, end }: Props) {
               className={`flex items-center justify-between gap-3 border rounded-xl px-4 py-3 transition-all ${
                 isRealizada
                   ? 'bg-emerald-500/[0.04] border-emerald-500/20'
-                  : isNaoRealizada
-                    ? 'bg-rose-500/[0.04] border-rose-500/20'
-                    : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]'
+                  : isFalta
+                    ? 'bg-amber-500/[0.04] border-amber-500/20'
+                    : isNaoRealizada
+                      ? 'bg-rose-500/[0.04] border-rose-500/20'
+                      : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]'
               }`}
             >
               {/* Info */}
@@ -80,6 +83,7 @@ export function MeetingsStatusCard({ start, end }: Props) {
                 <button
                   onClick={() => toggle(event, 'REALIZADA')}
                   disabled={updateEvent.isPending}
+                  title="Marcar como realizada"
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isRealizada
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -90,8 +94,22 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   Realizada
                 </button>
                 <button
+                  onClick={() => toggle(event, 'FALTA')}
+                  disabled={updateEvent.isPending}
+                  title="Lead não compareceu (falta)"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                    isFalta
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent'
+                  }`}
+                >
+                  <UserX className="w-3 h-3" />
+                  Falta
+                </button>
+                <button
                   onClick={() => toggle(event, 'NAO_REALIZADA')}
                   disabled={updateEvent.isPending}
+                  title="Reunião não foi realizada"
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isNaoRealizada
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -99,7 +117,7 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   }`}
                 >
                   <XCircle className="w-3 h-3" />
-                  Falta
+                  Não realizada
                 </button>
               </div>
             </div>
