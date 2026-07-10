@@ -10,10 +10,12 @@ import { useConnection, useQrCode } from '@/hooks/crm-api'
 function WebhookConfig() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [detail, setDetail] = useState<string | null>(null)
   const [webhookUrl, setWebhookUrl] = useState('')
 
   async function configure() {
     setStatus('loading')
+    setDetail(null)
     try {
       const res = await fetch('/api/crm/webhook/configure', {
         method: 'POST',
@@ -24,10 +26,12 @@ function WebhookConfig() {
       if (!res.ok) {
         setStatus('error')
         setMessage(data.error ?? `Erro ${res.status}`)
+        if (data.detail) setDetail(JSON.stringify(data.detail, null, 2))
+        if (data.webhookUrl) setWebhookUrl(data.webhookUrl)
       } else {
         setStatus('ok')
         setWebhookUrl(data.webhookUrl ?? '')
-        setMessage('Webhook configurado com sucesso!')
+        setMessage(`Webhook configurado! (formato ${data.format ?? 'ok'})`)
       }
     } catch (err) {
       setStatus('error')
@@ -57,12 +61,23 @@ function WebhookConfig() {
       {webhookUrl && (
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-lg px-2.5 py-1.5 mb-3 flex items-center gap-1.5">
           <ExternalLink className="w-3 h-3 text-slate-500 shrink-0" />
-          <span className="text-[10px] text-slate-400 truncate font-mono">{webhookUrl}</span>
+          <span className="text-[10px] text-slate-400 break-all font-mono">{webhookUrl}</span>
         </div>
       )}
 
       {status === 'error' && (
-        <p className="text-[11px] text-red-400 mb-2 break-words">{message}</p>
+        <div className="mb-2 space-y-1">
+          <p className="text-[11px] text-red-400 break-words">{message}</p>
+          {detail && (
+            <pre className="text-[10px] text-slate-500 bg-white/[0.03] border border-white/[0.06] rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
+              {detail}
+            </pre>
+          )}
+        </div>
+      )}
+
+      {status === 'ok' && message && (
+        <p className="text-[11px] text-emerald-400 mb-2">{message}</p>
       )}
 
       <Button
@@ -79,7 +94,7 @@ function WebhookConfig() {
         ) : (
           <Webhook className="w-3.5 h-3.5" />
         )}
-        {status === 'ok' ? 'Configurado!' : 'Configurar Webhook Automático'}
+        {status === 'ok' ? 'Configurado!' : status === 'error' ? 'Tentar novamente' : 'Configurar Webhook Automático'}
       </Button>
     </div>
   )
