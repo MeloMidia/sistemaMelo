@@ -327,50 +327,6 @@ export function TaskManager() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="taskAssignee" className="text-slate-300 text-sm font-medium">
-                  Responsável
-                </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAssignee('')}
-                    className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${assignee === ''
-                        ? 'bg-slate-600 border-slate-500 text-white'
-                        : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:border-white/[0.2] hover:text-slate-300'
-                      }`}
-                  >
-                    Nenhum
-                  </button>
-                  {ASSIGNEES.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => setAssignee(name)}
-                      className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${assignee === name
-                          ? 'bg-blue-600 border-blue-500 text-white'
-                          : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-blue-500/40 hover:text-white'
-                        }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
-                <Checkbox
-                  id="taskPriority"
-                  checked={isPriority}
-                  onCheckedChange={(checked) => setIsPriority(checked === true)}
-                  className="border-amber-500/40 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 cursor-pointer"
-                />
-                <Label htmlFor="taskPriority" className="text-amber-300 text-sm font-medium cursor-pointer flex items-center gap-2">
-                  <Flame className="w-4 h-4" />
-                  Prioridade
-                </Label>
-              </div>
-
               <Button
                 type="submit"
                 disabled={createTask.isPending || !title.trim()}
@@ -444,7 +400,7 @@ export function TaskManager() {
           {/* Column 4: Priority */}
           <DroppableColumn
             id="col-priority"
-            title="Prioridade do Dia"
+            title="Tarefa do Dia"
             icon={Star}
             count={priorityTasks.length}
             tasks={priorityTasks}
