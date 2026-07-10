@@ -30,6 +30,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { name, stageId, assignedToId, value, temperature, notes, followUpColumn } = await request.json()
 
+  const followUpChanged = followUpColumn !== undefined
+
   try {
     const lead = await prisma.lead.update({
       where: { id },
@@ -40,12 +42,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(value !== undefined && { value }),
         ...(temperature !== undefined && { temperature }),
         ...(notes !== undefined && { notes }),
-        ...(followUpColumn !== undefined && { followUpColumn }),
+        ...(followUpChanged && {
+          followUpColumn,
+          followUpMovedAt: new Date(),
+        }),
       },
       include: {
         assignedTo: { select: { id: true, name: true } },
       },
     })
+
+    // Registra histórico de follow up quando a coluna muda
+    if (followUpChanged) {
+      await prisma.followUpLog.create({
+        data: { leadId: id, column: followUpColumn ?? null },
+      })
+    }
+
     return NextResponse.json(lead)
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code

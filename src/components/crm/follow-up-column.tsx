@@ -4,6 +4,17 @@ import { useDroppable } from '@dnd-kit/core'
 import type { Lead } from '@/types/crm'
 import { LeadCard } from './lead-card'
 
+function sinceLabel(dateStr: string | null): string | null {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins || 1}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h`
+  const days = Math.floor(hrs / 24)
+  return `${days}d`
+}
+
 export const FOLLOW_UP_COLORS = [
   '#ef4444', // 1 - vermelho
   '#f97316', // 2 - laranja
@@ -76,9 +87,22 @@ export function FollowUpColumn({ column, leads, totalCount, onSelectLead }: Foll
         ref={setNodeRef}
         className="flex-1 px-3 pb-3 space-y-2 min-h-[60px] overflow-y-auto max-h-[calc(100vh-300px)]"
       >
-        {leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} onSelect={() => onSelectLead(lead.id)} />
-        ))}
+        {leads.map((lead) => {
+          const since = sinceLabel(lead.followUpMovedAt)
+          return (
+            <div key={lead.id} className="relative">
+              <LeadCard lead={lead} onSelect={() => onSelectLead(lead.id)} />
+              {since && (
+                <span
+                  className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full pointer-events-none"
+                  style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}30` }}
+                >
+                  {since}
+                </span>
+              )}
+            </div>
+          )
+        })}
 
         {leads.length === 0 && (
           <div className="flex items-center justify-center h-16 text-slate-700 text-xs font-medium">

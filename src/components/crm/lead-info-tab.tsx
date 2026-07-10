@@ -13,6 +13,7 @@ import {
   useMoveFromFollowUp,
   useLeadEvents,
   useUpdateLeadEventStatus,
+  useFollowUpLogs,
 } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
@@ -183,6 +184,7 @@ export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
   const moveFromFollowUp = useMoveFromFollowUp()
   const { data: eventCategories } = useEventCategories()
   const { data: allMessages = [] } = useLeadMessages(lead.id)
+  const { data: followUpLogs = [] } = useFollowUpLogs(lead.followUpColumn !== null || lead.id ? lead.id : null)
 
   const conversationNotes = allMessages
     .filter((m) => m.content.startsWith('[Nota Interna]'))
@@ -264,9 +266,9 @@ export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
         </span>
 
         <span className="text-slate-500">Follow Up</span>
-        <div className="flex items-center gap-2 min-h-[22px]">
+        <div className="flex flex-col gap-1.5">
           {lead.followUpColumn ? (
-            <>
+            <div className="flex items-center gap-2">
               <span
                 className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
                 style={{
@@ -277,23 +279,26 @@ export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
               >
                 Coluna {lead.followUpColumn}
               </span>
+              {lead.followUpMovedAt && (
+                <span className="text-[10px] text-slate-600 tabular-nums">
+                  {new Date(lead.followUpMovedAt).toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                  })}
+                </span>
+              )}
               <button
-                onClick={() =>
-                  moveFromFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })
-                }
+                onClick={() => moveFromFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })}
                 disabled={moveFromFollowUp.isPending}
                 title="Remover do Follow Up"
-                className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] px-1.5 py-0.5 rounded-md transition-colors cursor-pointer disabled:opacity-40"
+                className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] px-1.5 py-0.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 ml-auto"
               >
                 <ArrowLeft className="w-3 h-3" />
                 remover
               </button>
-            </>
+            </div>
           ) : (
             <button
-              onClick={() =>
-                moveToFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })
-              }
+              onClick={() => moveToFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })}
               disabled={moveToFollowUp.isPending}
               className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 transition-colors cursor-pointer disabled:opacity-40"
             >
@@ -304,6 +309,27 @@ export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
               )}
               Enviar para Follow Up
             </button>
+          )}
+
+          {/* Histórico de movimentações */}
+          {followUpLogs.length > 0 && (
+            <div className="space-y-0.5 mt-0.5">
+              {followUpLogs.map((log, i) => (
+                <div key={log.id} className="flex items-center gap-2 text-[10px]">
+                  <div className="w-1 h-1 rounded-full shrink-0" style={{
+                    backgroundColor: log.column ? FOLLOW_UP_COLORS[log.column - 1] : '#475569',
+                  }} />
+                  <span style={{ color: log.column ? FOLLOW_UP_COLORS[log.column - 1] : '#475569' }}>
+                    {log.column ? `Coluna ${log.column}` : 'Removido'}
+                  </span>
+                  <span className="text-slate-700 tabular-nums ml-auto">
+                    {new Date(log.createdAt).toLocaleString('pt-BR', {
+                      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

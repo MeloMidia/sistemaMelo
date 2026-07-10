@@ -589,6 +589,27 @@ export function useQrCode(enabled: boolean) {
   })
 }
 
+// ——— Follow Up Logs ———
+export interface FollowUpLogEntry {
+  id: string
+  leadId: string
+  column: number | null
+  createdAt: string
+}
+
+export function useFollowUpLogs(leadId: string | null) {
+  return useQuery<FollowUpLogEntry[]>({
+    queryKey: ['crm-follow-up-logs', leadId],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/leads/${leadId}/follow-up-logs`)
+      if (!res.ok) throw new Error('Falha ao buscar histórico de follow up')
+      return res.json()
+    },
+    enabled: !!leadId,
+    staleTime: 30_000,
+  })
+}
+
 // ——— Lead Events (reuniões vinculadas) ———
 export function useLeadEvents(leadId: string | null) {
   return useQuery({

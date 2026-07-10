@@ -37,6 +37,7 @@ export interface Lead {
   notes: string | null
   profilePicUrl: string | null
   followUpColumn: number | null
+  followUpMovedAt: string | null
   tags: LeadTagWithTag[]
   messages: Message[]
   _count: { messages: number }
