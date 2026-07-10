@@ -2,6 +2,8 @@ import { EventEmitter } from 'events'
 
 export type CrmEvent =
   | { type: 'new-message'; leadId: string; message: unknown }
+  | { type: 'message-status'; leadId: string; messageId: string; status: string }
+  | { type: 'board-update' }
   | { type: 'connection-update'; status: string }
 
 const globalForEvents = globalThis as typeof globalThis & { crmEventEmitter?: EventEmitter }

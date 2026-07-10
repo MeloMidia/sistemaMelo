@@ -15,6 +15,7 @@ export function useStages() {
       return res.json()
     },
     staleTime: 10_000,
+    refetchInterval: 20_000,
   })
 }
 
@@ -221,6 +222,7 @@ export function useLeadMessages(leadId: string | null) {
       return res.json()
     },
     enabled: !!leadId,
+    refetchInterval: 10_000,
   })
 }
 
@@ -364,7 +366,8 @@ export function useLeadsByLabel() {
       if (!res.ok) throw new Error('Failed to fetch leads by label')
       return res.json()
     },
-    staleTime: 30_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
   })
 }
 
@@ -435,6 +438,7 @@ export function useFollowUp() {
       return res.json()
     },
     staleTime: 10_000,
+    refetchInterval: 20_000,
   })
 }
 
@@ -592,10 +596,32 @@ export function useCrmStream() {
   useEffect(() => {
     const es = new EventSource('/api/crm/stream')
 
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: ['crm-stages'] })
-      qc.invalidateQueries({ queryKey: ['crm-messages'] })
-      qc.invalidateQueries({ queryKey: ['crm-connection'] })
+    es.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data) as { type: string; leadId?: string; messageId?: string }
+
+        if (event.type === 'new-message') {
+          qc.invalidateQueries({ queryKey: ['crm-stages'] })
+          qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+          qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+          if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
+        } else if (event.type === 'message-status') {
+          if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
+        } else if (event.type === 'board-update') {
+          qc.invalidateQueries({ queryKey: ['crm-stages'] })
+          qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+          qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+        } else if (event.type === 'connection-update') {
+          qc.invalidateQueries({ queryKey: ['crm-connection'] })
+        }
+      } catch {
+        // fallback: invalida tudo
+        qc.invalidateQueries({ queryKey: ['crm-stages'] })
+        qc.invalidateQueries({ queryKey: ['crm-messages'] })
+        qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+        qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+        qc.invalidateQueries({ queryKey: ['crm-connection'] })
+      }
     }
 
     return () => es.close()

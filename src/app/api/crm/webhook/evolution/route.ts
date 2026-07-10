@@ -58,7 +58,10 @@ export async function POST(request: Request) {
         const items = extractPayloadList(data)
         for (const item of items) {
           try {
-            await applyWhatsappMessageStatus(item)
+            const updated = await applyWhatsappMessageStatus(item)
+            if (updated) {
+              emitCrmEvent({ type: 'message-status', leadId: updated.leadId, messageId: updated.id, status: updated.status ?? '' })
+            }
           } catch (err) {
             console.error('[webhook] Erro ao atualizar status de mensagem:', err)
           }
@@ -71,11 +74,11 @@ export async function POST(request: Request) {
         for (const item of items) {
           try {
             await applyLabelAssociation(item)
-            emitCrmEvent({ type: 'new-message', leadId: '', message: { type: 'label' } })
           } catch (err) {
             console.error('[webhook] Erro ao aplicar etiqueta:', err)
           }
         }
+        emitCrmEvent({ type: 'board-update' })
         break
       }
 
