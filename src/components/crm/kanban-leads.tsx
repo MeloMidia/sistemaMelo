@@ -19,8 +19,9 @@ import { LeadColumn } from './lead-column'
 import { LeadPanel } from './lead-panel'
 import { LeadCard } from './lead-card'
 import { FollowUpBoard } from './follow-up-board'
+import { CampaignsView } from './campaigns-view'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock } from 'lucide-react'
+import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock, Megaphone } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
@@ -150,7 +151,7 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   const [newStageName, setNewStageName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [viewMode, setViewMode] = useState<'stages' | 'etiquetas' | 'follow-up'>('stages')
+  const [viewMode, setViewMode] = useState<'stages' | 'etiquetas' | 'follow-up' | 'campanhas'>('stages')
   // Ordem local das colunas durante o drag — evita mutação do cache do react-query
   // que causava loop infinito (setQueryData → re-render → onDragOver → setQueryData…)
   const [dragColOrder, setDragColOrder] = useState<string[] | null>(null)
@@ -486,6 +487,17 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
               <Clock className="w-3.5 h-3.5" />
               Follow Up
             </button>
+            <button
+              onClick={() => setViewMode('campanhas')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                viewMode === 'campanhas'
+                  ? 'bg-blue-600/80 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              Campanhas
+            </button>
           </div>
 
           <button
@@ -601,8 +613,10 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
       </DndContext>
     ) : viewMode === 'etiquetas' ? (
       <TagsView searchQuery={searchQuery} onSelectLead={setSelectedLeadId} />
-    ) : (
+    ) : viewMode === 'follow-up' ? (
       <FollowUpBoard searchQuery={searchQuery} onSelectLead={setSelectedLeadId} />
+    ) : (
+      <CampaignsView />
     )}
 
     {selectedLeadId && <LeadPanel leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}

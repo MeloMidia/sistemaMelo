@@ -105,14 +105,14 @@ model SdrDailyLog {
 }
 
 model Lead {
-  id             String        @id @default(cuid())
+  id             String             @id @default(cuid())
   name           String?
-  phone          String        @unique
-  waLid          String?       @unique
+  phone          String             @unique
+  waLid          String?            @unique
   stageId        String
-  stage          LeadStage     @relation(fields: [stageId], references: [id])
+  stage          LeadStage          @relation(fields: [stageId], references: [id])
   assignedToId   String?
-  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  assignedTo     User?              @relation(fields: [assignedToId], references: [id])
   value          Float?
   temperature    String?
   notes          String?
@@ -121,8 +121,9 @@ model Lead {
   messages       Message[]
   tags           LeadTag[]
   events         AgendaEvent[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  campaignLeads  BulkCampaignLead[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 }
 
 model LeadStage {
@@ -211,4 +212,59 @@ model AgendaEvent {
 
   @@index([startsAt, endsAt])
   @@index([seriesId])
+}
+
+// ——— Campanhas de disparo em massa ———
+
+enum BulkCampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  DONE
+  CANCELLED
+}
+
+enum BulkLeadStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model BulkCampaign {
+  id            String             @id @default(cuid())
+  title         String
+  message       String?
+  mediaBase64   String?
+  mediaType     String?
+  mimeType      String?
+  fileName      String?
+  mediaCaption  String?
+  status        BulkCampaignStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  totalLeads    Int                @default(0)
+  sentCount     Int                @default(0)
+  failedCount   Int                @default(0)
+  delaySeconds  Int                @default(7)
+  leads         BulkCampaignLead[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status, scheduledAt])
+}
+
+model BulkCampaignLead {
+  id          String         @id @default(cuid())
+  campaign    BulkCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId      String
+  status      BulkLeadStatus @default(PENDING)
+  sentAt      DateTime?
+  error       String?
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId, status])
 }
