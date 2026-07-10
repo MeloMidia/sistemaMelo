@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, Lock, Clock, ArrowLeft } from 'lucide-react'
+import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, Lock, Clock, ArrowLeft, UserX, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   useCrmTags,
   useCreateCrmTag,
@@ -11,14 +11,157 @@ import {
   useLeadMessages,
   useMoveToFollowUp,
   useMoveFromFollowUp,
+  useLeadEvents,
+  useUpdateLeadEventStatus,
 } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
+import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
 import { FOLLOW_UP_COLORS } from './follow-up-column'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 import { useEventCategories } from '@/hooks/agenda-api'
 import { EventModal } from '@/components/agenda/event-modal'
+
+const STATUS_LABEL: Record<AgendaEventStatus, string> = {
+  AGENDADA: 'Agendada',
+  REALIZADA: 'Realizada',
+  FALTA: 'Falta',
+  NAO_REALIZADA: 'Não realizada',
+  CANCELADA: 'Cancelada',
+}
+
+const STATUS_STYLE: Record<AgendaEventStatus, { bg: string; text: string; border: string }> = {
+  AGENDADA:      { bg: '#1e3a5f26', text: '#60a5fa', border: '#3b82f630' },
+  REALIZADA:     { bg: '#14532d26', text: '#4ade80', border: '#22c55e30' },
+  FALTA:         { bg: '#7f1d1d40', text: '#f87171', border: '#ef444450' },
+  NAO_REALIZADA: { bg: '#78350f26', text: '#fb923c', border: '#f9731630' },
+  CANCELADA:     { bg: '#1e293b26', text: '#64748b', border: '#47556930' },
+}
+
+function MeetingHistory({ lead }: { lead: Lead }) {
+  const { data: events = [], isLoading } = useLeadEvents(lead.id)
+  const updateStatus = useUpdateLeadEventStatus()
+  const [expanded, setExpanded] = useState(true)
+  const [pendingId, setPendingId] = useState<string | null>(null)
+
+  const now = new Date()
+
+  if (isLoading) return null
+  if (events.length === 0) return null
+
+  function markStatus(event: AgendaEvent, status: AgendaEventStatus) {
+    setPendingId(event.id)
+    updateStatus.mutate(
+      { eventId: event.id, leadId: lead.id, status },
+      { onSettled: () => setPendingId(null) }
+    )
+  }
+
+  const noShows = events.filter((e) => e.status === 'FALTA')
+  const pastPending = events.filter((e) => e.status === 'AGENDADA' && new Date(e.startsAt) < now)
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between text-[11px] text-slate-500 font-medium mb-2 hover:text-slate-300 transition-colors cursor-pointer"
+      >
+        <span className="flex items-center gap-1.5">
+          <Calendar className="w-3 h-3" />
+          Reuniões
+          <span className="tabular-nums text-[10px] text-slate-600">({events.length})</span>
+          {noShows.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-semibold border border-red-500/30 flex items-center gap-0.5">
+              <UserX className="w-2.5 h-2.5" />
+              {noShows.length} falta{noShows.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </span>
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+
+      {expanded && (
+        <div className="space-y-2">
+          {/* Alerta: reuniões passadas ainda marcadas como Agendada */}
+          {pastPending.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 flex items-start gap-2">
+              <UserX className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-amber-300 font-medium">
+                  {pastPending.length === 1 ? 'Reunião sem status' : `${pastPending.length} reuniões sem status`}
+                </p>
+                <p className="text-[10px] text-amber-400/70">O lead compareceu ou faltou?</p>
+              </div>
+            </div>
+          )}
+
+          {events.map((event) => {
+            const style = STATUS_STYLE[event.status]
+            const isPast = new Date(event.startsAt) < now
+            const isPending = pendingId === event.id
+
+            return (
+              <div
+                key={event.id}
+                className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 space-y-1.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[12px] text-white font-medium truncate">{event.title}</p>
+                    <p className="text-[10px] text-slate-500 tabular-nums">
+                      {new Date(event.startsAt).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                  <span
+                    className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+                    style={{ backgroundColor: style.bg, color: style.text, borderColor: style.border }}
+                  >
+                    {STATUS_LABEL[event.status]}
+                  </span>
+                </div>
+
+                {/* Botões de ação para reuniões passadas sem status final */}
+                {isPast && event.status === 'AGENDADA' && (
+                  <div className="flex gap-1.5 pt-0.5">
+                    <button
+                      onClick={() => markStatus(event, 'REALIZADA')}
+                      disabled={isPending}
+                      className="flex-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer disabled:opacity-40"
+                    >
+                      {isPending ? '...' : 'Compareceu'}
+                    </button>
+                    <button
+                      onClick={() => markStatus(event, 'FALTA')}
+                      disabled={isPending}
+                      className="flex-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 transition-colors cursor-pointer disabled:opacity-40"
+                    >
+                      {isPending ? '...' : 'Faltou'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Para FALTA: destaque especial */}
+                {event.status === 'FALTA' && (
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <UserX className="w-3 h-3 text-red-400 shrink-0" />
+                    <span className="text-[10px] text-red-400/80">Lead não compareceu</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface LeadInfoTabProps {
   lead: Lead
@@ -233,6 +376,9 @@ export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
           onClose={() => setIsScheduling(false)}
         />
       )}
+
+      {/* Histórico de reuniões */}
+      <MeetingHistory lead={lead} />
 
       {/* Notas internas da conversa */}
       {conversationNotes.length > 0 && (

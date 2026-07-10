@@ -589,6 +589,39 @@ export function useQrCode(enabled: boolean) {
   })
 }
 
+// ——— Lead Events (reuniões vinculadas) ———
+export function useLeadEvents(leadId: string | null) {
+  return useQuery({
+    queryKey: ['crm-lead-events', leadId],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/leads/${leadId}/events`)
+      if (!res.ok) throw new Error('Failed to fetch lead events')
+      return res.json() as Promise<import('@/types/agenda').AgendaEvent[]>
+    },
+    enabled: !!leadId,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateLeadEventStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: string; leadId: string; status: import('@/types/agenda').AgendaEventStatus }) => {
+      const res = await fetch(`/api/agenda/events/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error('Failed to update event status')
+      return res.json()
+    },
+    onSuccess: (_data, { leadId }) => {
+      qc.invalidateQueries({ queryKey: ['crm-lead-events', leadId] })
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+    },
+  })
+}
+
 // ——— Realtime (SSE) ———
 export function useCrmStream() {
   const qc = useQueryClient()
