@@ -36,6 +36,7 @@ export interface Lead {
   temperature: string | null
   notes: string | null
   profilePicUrl: string | null
+  followUpColumn: number | null
   tags: LeadTagWithTag[]
   messages: Message[]
   _count: { messages: number }
@@ -65,6 +66,13 @@ export interface LabelColumn {
   name: string
   color: string
   leads: Lead[]
+  _count: { leads: number }
+}
+
+export interface FollowUpColumnData {
+  column: number
+  leads: Lead[]
+  _count: { leads: number }
 }
 
 export interface WhatsappConnection {

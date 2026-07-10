@@ -14,6 +14,7 @@ export async function GET() {
     include: {
       _count: { select: { leads: true } },
       leads: {
+        where: { followUpColumn: null },
         take: LEADS_PER_STAGE,
         orderBy: { updatedAt: 'desc' },
         include: {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, Info as InfoIcon, MessageCircle } from 'lucide-react'
-import { useStages } from '@/hooks/crm-api'
+import { useStages, useFollowUp } from '@/hooks/crm-api'
 import { LeadInfoTab } from './lead-info-tab'
 import { LeadConversaTab } from './lead-conversa-tab'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
@@ -21,9 +21,25 @@ function getAvatarColor(seed: string): string {
 
 export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   const { data: stages } = useStages()
-  const stage = stages?.find((s) => s.leads.some((l) => l.id === leadId))
-  const lead = stage?.leads.find((l) => l.id === leadId)
+  const { data: followUpColumns } = useFollowUp()
   const [activeTab, setActiveTab] = useState<'info' | 'conversa'>('info')
+
+  // Busca o lead nas stages primeiro
+  const stageWithLead = stages?.find((s) => s.leads.some((l) => l.id === leadId))
+  let lead = stageWithLead?.leads.find((l) => l.id === leadId)
+
+  // Se não encontrou, busca no follow-up
+  if (!lead && followUpColumns) {
+    for (const col of followUpColumns) {
+      const found = col.leads.find((l) => l.id === leadId)
+      if (found) { lead = found; break }
+    }
+  }
+
+  // Stage para exibição (nome/cor) — encontrado pelo stageId do lead
+  const stage = lead
+    ? (stageWithLead ?? stages?.find((s) => s.id === lead?.stageId))
+    : null
 
   if (!lead || !stage) return null
 
@@ -85,7 +101,11 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
         </button>
       </div>
 
-      {activeTab === 'info' ? <LeadInfoTab lead={lead} stage={stage} /> : <LeadConversaTab leadId={leadId} />}
+      {activeTab === 'info' ? (
+        <LeadInfoTab lead={lead} stage={stage} onClose={onClose} />
+      ) : (
+        <LeadConversaTab leadId={leadId} />
+      )}
     </div>
   )
 }

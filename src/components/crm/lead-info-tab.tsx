@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, FileText, Lock } from 'lucide-react'
+import { Tag as TagIcon, Plus, Copy, Check, X, Calendar, Lock, Clock, ArrowLeft } from 'lucide-react'
 import {
   useCrmTags,
   useCreateCrmTag,
@@ -9,8 +9,11 @@ import {
   useDetachTag,
   useUpdateLead,
   useLeadMessages,
+  useMoveToFollowUp,
+  useMoveFromFollowUp,
 } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
+import { FOLLOW_UP_COLORS } from './follow-up-column'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
@@ -20,18 +23,21 @@ import { EventModal } from '@/components/agenda/event-modal'
 interface LeadInfoTabProps {
   lead: Lead
   stage: Pick<LeadStage, 'name' | 'color'>
+  onClose?: () => void
 }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR')
 }
 
-export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
+export function LeadInfoTab({ lead, stage, onClose }: LeadInfoTabProps) {
   const { data: tags } = useCrmTags()
   const createTag = useCreateCrmTag()
   const attachTag = useAttachTag(lead.id)
   const detachTag = useDetachTag(lead.id)
   const updateLead = useUpdateLead()
+  const moveToFollowUp = useMoveToFollowUp()
+  const moveFromFollowUp = useMoveFromFollowUp()
   const { data: eventCategories } = useEventCategories()
   const { data: allMessages = [] } = useLeadMessages(lead.id)
 
@@ -114,6 +120,50 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           {stage.name}
         </span>
 
+        <span className="text-slate-500">Follow Up</span>
+        <div className="flex items-center gap-2 min-h-[22px]">
+          {lead.followUpColumn ? (
+            <>
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: `${FOLLOW_UP_COLORS[lead.followUpColumn - 1]}20`,
+                  color: FOLLOW_UP_COLORS[lead.followUpColumn - 1],
+                  border: `1px solid ${FOLLOW_UP_COLORS[lead.followUpColumn - 1]}30`,
+                }}
+              >
+                Coluna {lead.followUpColumn}
+              </span>
+              <button
+                onClick={() =>
+                  moveFromFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })
+                }
+                disabled={moveFromFollowUp.isPending}
+                title="Remover do Follow Up"
+                className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] px-1.5 py-0.5 rounded-md transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                remover
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() =>
+                moveToFollowUp.mutate(lead.id, { onSuccess: () => onClose?.() })
+              }
+              disabled={moveToFollowUp.isPending}
+              className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 transition-colors cursor-pointer disabled:opacity-40"
+            >
+              {moveToFollowUp.isPending ? (
+                <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Clock className="w-3 h-3" />
+              )}
+              Enviar para Follow Up
+            </button>
+          )}
+        </div>
+
         <span className="text-slate-500">Contato</span>
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-white truncate">{getLeadDisplayName(lead)}</span>
@@ -174,6 +224,7 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           initialDate={new Date()}
           initialHour={9}
           initialTitle={`Reunião: ${getLeadDisplayName(lead)}`}
+          initialDescription={lead.notes ?? ''}
           initialLeadId={lead.id}
           initialCategoryId={
             eventCategories?.find(c => c.name.toLowerCase().includes('agendada'))?.id
@@ -182,22 +233,6 @@ export function LeadInfoTab({ lead, stage }: LeadInfoTabProps) {
           onClose={() => setIsScheduling(false)}
         />
       )}
-
-      {/* Nota interna do lead (campo livre) */}
-      <div>
-        <label className="text-[11px] text-slate-500 font-medium mb-1.5 flex items-center gap-1.5">
-          <FileText className="w-3 h-3 text-[#d6a132]" />
-          <span>Nota interna</span>
-        </label>
-        <textarea
-          value={notesDraft}
-          onChange={(e) => setNotesDraft(e.target.value)}
-          onBlur={handleNotesBlur}
-          placeholder="Observações sobre este lead..."
-          rows={3}
-          className="w-full bg-[#241e12]/60 border border-[#d6a132]/20 rounded-xl px-3 py-2.5 text-sm text-[#f1d28c] placeholder:text-slate-600 resize-none outline-none focus:border-[#d6a132]/50 focus:bg-[#241e12]/80 transition-all leading-relaxed"
-        />
-      </div>
 
       {/* Notas internas da conversa */}
       {conversationNotes.length > 0 && (

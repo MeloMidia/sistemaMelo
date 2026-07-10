@@ -105,23 +105,24 @@ model SdrDailyLog {
 }
 
 model Lead {
-  id           String     @id @default(cuid())
-  name         String?
-  phone        String     @unique
-  waLid        String?    @unique
-  stageId      String
-  stage        LeadStage  @relation(fields: [stageId], references: [id])
-  assignedToId String?
-  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
-  value         Float?
-  temperature   String?
-  notes         String?
-  profilePicUrl String?
-  messages      Message[]
-  tags         LeadTag[]
-  events       AgendaEvent[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             String        @id @default(cuid())
+  name           String?
+  phone          String        @unique
+  waLid          String?       @unique
+  stageId        String
+  stage          LeadStage     @relation(fields: [stageId], references: [id])
+  assignedToId   String?
+  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  value          Float?
+  temperature    String?
+  notes          String?
+  profilePicUrl  String?
+  followUpColumn Int?
+  messages       Message[]
+  tags           LeadTag[]
+  events         AgendaEvent[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model LeadStage {

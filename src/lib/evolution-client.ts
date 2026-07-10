@@ -50,8 +50,14 @@ export interface QrCodeResult {
 
 export async function getQrCode(): Promise<QrCodeResult> {
   const res = await evolutionRequest(`/instance/connect/${INSTANCE}`)
-  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
-  return res.json()
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Evolution API retornou ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`)
+  }
+  const data = await res.json()
+  // Diferentes versões da Evolution API retornam {base64} ou {qrcode:{base64}}
+  const base64: string | undefined = data?.base64 ?? data?.qrcode?.base64 ?? undefined
+  return { base64 }
 }
 
 export async function findMessages(phone: string, explicitJid?: string): Promise<Record<string, unknown>[]> {

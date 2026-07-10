@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { LeadStage, LeadLite, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn } from '@/types/crm'
+import type { LeadStage, LeadLite, Lead, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn, FollowUpColumnData } from '@/types/crm'
 
 // ——— Stages (board) ———
 export function useStages() {
@@ -56,6 +56,54 @@ export function useDeleteStage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete stage')
       return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+  })
+}
+
+export function useUpdateStage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name, color }: { id: string; name?: string; color?: string }) => {
+      const res = await fetch(`/api/crm/stages/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color }),
+      })
+      if (!res.ok) throw new Error('Failed to update stage')
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+  })
+}
+
+export function useReorderStages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (stages: Array<{ id: string; order: number }>) => {
+      const res = await fetch('/api/crm/stages/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stages }),
+      })
+      if (!res.ok) throw new Error('Failed to reorder stages')
+      return res.json()
+    },
+    onError: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+  })
+}
+
+export function useMoveAllLeads() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ fromStageId, toStageId }: { fromStageId: string; toStageId: string }) => {
+      const res = await fetch(`/api/crm/stages/${fromStageId}/move-leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toStageId }),
+      })
+      if (!res.ok) throw new Error('Failed to move leads')
+      return res.json()
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
   })
@@ -377,6 +425,138 @@ export function useCrmUsers() {
   })
 }
 
+// ——— Follow Up ———
+export function useFollowUp() {
+  return useQuery<FollowUpColumnData[]>({
+    queryKey: ['crm-follow-up'],
+    queryFn: async () => {
+      const res = await fetch('/api/crm/follow-up')
+      if (!res.ok) throw new Error('Failed to fetch follow-up')
+      return res.json()
+    },
+    staleTime: 10_000,
+  })
+}
+
+export function useMoveToFollowUp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followUpColumn: 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to move lead to follow up')
+      return res.json()
+    },
+    onMutate: async (leadId) => {
+      await qc.cancelQueries({ queryKey: ['crm-stages'] })
+      const prevStages = qc.getQueryData<LeadStage[]>(['crm-stages'])
+      if (prevStages) {
+        qc.setQueryData<LeadStage[]>(['crm-stages'], prevStages.map((s) => ({
+          ...s,
+          leads: s.leads.filter((l) => l.id !== leadId),
+          _count: {
+            leads: s._count.leads - (s.leads.some((l) => l.id === leadId) ? 1 : 0),
+          },
+        })))
+      }
+      return { prevStages }
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prevStages) qc.setQueryData(['crm-stages'], ctx.prevStages)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+    },
+  })
+}
+
+export function useMoveFromFollowUp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followUpColumn: null }),
+      })
+      if (!res.ok) throw new Error('Failed to remove from follow up')
+      return res.json()
+    },
+    onMutate: async (leadId) => {
+      await qc.cancelQueries({ queryKey: ['crm-follow-up'] })
+      const prev = qc.getQueryData<FollowUpColumnData[]>(['crm-follow-up'])
+      if (prev) {
+        qc.setQueryData<FollowUpColumnData[]>(['crm-follow-up'], prev.map((col) => ({
+          ...col,
+          leads: col.leads.filter((l) => l.id !== leadId),
+          _count: { leads: col._count.leads - (col.leads.some((l) => l.id === leadId) ? 1 : 0) },
+        })))
+      }
+      return { prev }
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['crm-follow-up'], ctx.prev)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+    },
+  })
+}
+
+export function useFollowUpLeadMove() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ leadId, column }: { leadId: string; column: number }) => {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followUpColumn: column }),
+      })
+      if (!res.ok) throw new Error('Failed to move lead between follow-up columns')
+      return res.json()
+    },
+    onMutate: async ({ leadId, column }) => {
+      await qc.cancelQueries({ queryKey: ['crm-follow-up'] })
+      const prev = qc.getQueryData<FollowUpColumnData[]>(['crm-follow-up'])
+      if (prev) {
+        let movedLead: Lead | undefined
+        for (const col of prev) {
+          const found = col.leads.find((l) => l.id === leadId)
+          if (found) { movedLead = found; break }
+        }
+        if (movedLead) {
+          const updated = { ...movedLead, followUpColumn: column }
+          qc.setQueryData<FollowUpColumnData[]>(['crm-follow-up'], prev.map((col) => {
+            const hadLead = col.leads.some((l) => l.id === leadId)
+            const isTarget = col.column === column
+            if (hadLead && !isTarget) {
+              return { ...col, leads: col.leads.filter((l) => l.id !== leadId), _count: { leads: col._count.leads - 1 } }
+            }
+            if (isTarget && !hadLead) {
+              return { ...col, leads: [updated, ...col.leads], _count: { leads: col._count.leads + 1 } }
+            }
+            return col
+          }))
+        }
+      }
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['crm-follow-up'], ctx.prev)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+    },
+  })
+}
+
 // ——— WhatsApp connection ———
 export function useConnection() {
   return useQuery<WhatsappConnection>({
@@ -391,14 +571,16 @@ export function useConnection() {
 }
 
 export function useQrCode(enabled: boolean) {
-  return useQuery<{ base64?: string }>({
+  return useQuery<{ base64?: string }, Error>({
     queryKey: ['crm-qrcode'],
     queryFn: async () => {
       const res = await fetch('/api/crm/connection/qrcode')
-      if (!res.ok) throw new Error('Failed to fetch QR code')
-      return res.json()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error ?? 'Failed to fetch QR code')
+      return data
     },
     enabled,
+    retry: 1,
     refetchInterval: enabled ? 20_000 : false,
   })
 }

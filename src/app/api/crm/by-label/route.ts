@@ -7,11 +7,15 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const LEADS_PER_TAG = 50
+
   const tags = await prisma.crmTag.findMany({
     orderBy: { name: 'asc' },
     include: {
+      _count: { select: { leads: true } },
       leads: {
-        take: 200,
+        where: { lead: { followUpColumn: null } },
+        take: LEADS_PER_TAG,
         orderBy: { lead: { updatedAt: 'desc' } },
         include: {
           lead: {
@@ -56,6 +60,7 @@ export async function GET() {
       name: tag.name,
       color: tag.color,
       leads,
+      _count: { leads: tag._count.leads },
     }
   })
 

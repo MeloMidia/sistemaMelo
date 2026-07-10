@@ -14,12 +14,13 @@ import {
   type DragEndEvent,
   type DragOverEvent,
 } from '@dnd-kit/core'
-import { useStages, useCreateStage, useUpdateLead, useCrmStream, useLeadsByLabel } from '@/hooks/crm-api'
+import { useStages, useCreateStage, useUpdateLead, useCrmStream, useLeadsByLabel, useReorderStages, useMoveAllLeads } from '@/hooks/crm-api'
 import { LeadColumn } from './lead-column'
 import { LeadPanel } from './lead-panel'
 import { LeadCard } from './lead-card'
+import { FollowUpBoard } from './follow-up-board'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash } from 'lucide-react'
+import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
@@ -85,13 +86,13 @@ function TagsView({
         </span>
       </div>
 
-      <div className="flex-1 overflow-x-auto p-5">
-        <div className="flex gap-4 items-start min-h-[calc(100vh-210px)]">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-5">
+        <div className="flex gap-4 items-start h-full">
           {filtered.map((col) => (
-            <div key={col.id} className="w-[290px] shrink-0">
+            <div key={col.id} className="w-[290px] shrink-0 flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               {/* Header da coluna */}
               <div
-                className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border"
+                className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border shrink-0"
                 style={{
                   backgroundColor: `${col.color}10`,
                   borderColor: `${col.color}20`,
@@ -105,12 +106,14 @@ function TagsView({
                   className="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums shrink-0"
                   style={{ backgroundColor: `${col.color}18`, color: col.color }}
                 >
-                  {col.leads.length}
+                  {col._count.leads > col.leads.length
+                    ? `${col.leads.length} de ${col._count.leads}`
+                    : col._count.leads}
                 </span>
               </div>
 
-              {/* Cards */}
-              <div className="space-y-2">
+              {/* Cards com scroll vertical interno */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
                 {col.leads.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-white/[0.06] p-6 text-center text-xs text-slate-600">
                     Sem leads
@@ -136,20 +139,26 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   useCrmStream()
   const queryClient = useQueryClient()
 
+  const reorderStages = useReorderStages()
+  const moveAllLeads = useMoveAllLeads()
+
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(openLeadId ?? null)
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
+  const [activeColumn, setActiveColumn] = useState<LeadStage | null>(null)
+  const [movingStageId, setMovingStageId] = useState<string | null>(null)
   const [isAddingStage, setIsAddingStage] = useState(false)
   const [newStageName, setNewStageName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [viewMode, setViewMode] = useState<'stages' | 'etiquetas'>('stages')
+  const [viewMode, setViewMode] = useState<'stages' | 'etiquetas' | 'follow-up'>('stages')
+  // Ordem local das colunas durante o drag — evita mutação do cache do react-query
+  // que causava loop infinito (setQueryData → re-render → onDragOver → setQueryData…)
+  const [dragColOrder, setDragColOrder] = useState<string[] | null>(null)
 
-  // Snapshot do estado REAL antes de qualquer reordenação otimista do
-  // dragOver — handleDragOver já escreve no cache ['crm-stages'] durante o
-  // arraste, então o onMutate/onError do useUpdateLead captura um estado
-  // já alterado. Guardamos aqui o estado verdadeiro pra poder restaurar
-  // corretamente se o PUT falhar.
   const dragStartSnapshotRef = useRef<LeadStage[] | null>(null)
+  const activeTypeRef = useRef<'lead' | 'column' | null>(null)
+  // Último stageId "over" durante drag de coluna — evita oscillação A↔B
+  const lastColOverRef = useRef<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -158,19 +167,61 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
-    setActiveLead(active.data.current?.lead as Lead)
     dragStartSnapshotRef.current = queryClient.getQueryData<LeadStage[]>(['crm-stages']) ?? null
+
+    if (active.data.current?.type === 'column') {
+      activeTypeRef.current = 'column'
+      const stageId = active.data.current.stageId as string
+      const currentStages = queryClient.getQueryData<LeadStage[]>(['crm-stages'])
+      setActiveColumn(currentStages?.find((s) => s.id === stageId) ?? null)
+      setDragColOrder(currentStages?.map((s) => s.id) ?? null)
+      lastColOverRef.current = null
+    } else {
+      activeTypeRef.current = 'lead'
+      setActiveLead(active.data.current?.lead as Lead)
+    }
   }, [queryClient])
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
     if (!over) return
 
+    // ——— Coluna sendo arrastada: reordena via estado local (sem tocar o cache) ———
+    if (activeTypeRef.current === 'column') {
+      const activeStageId = active.data.current?.stageId as string
+      const overId = over.id.toString()
+
+      let overStageId: string | null = null
+      if (overId.startsWith('stage-droppable-')) {
+        overStageId = overId.replace('stage-droppable-', '')
+      } else if (over.data.current?.stageId) {
+        overStageId = over.data.current.stageId as string
+      } else if (over.data.current?.lead) {
+        overStageId = (over.data.current.lead as Lead).stageId
+      }
+
+      // Só reordena quando muda de coluna (evita oscillação A↔B)
+      if (overStageId && overStageId !== activeStageId && overStageId !== lastColOverRef.current) {
+        lastColOverRef.current = overStageId
+        setDragColOrder((prev) => {
+          const order = prev ?? (stages || []).map((s) => s.id)
+          const fromIdx = order.indexOf(activeStageId)
+          const toIdx = order.indexOf(overStageId!)
+          if (fromIdx === -1 || toIdx === -1) return prev
+          const result = [...order]
+          result.splice(fromIdx, 1)
+          result.splice(toIdx, 0, activeStageId)
+          return result
+        })
+      }
+      return
+    }
+
+    // ——— Lead sendo arrastado ———
     const activeLeadId = active.id as string
     const currentStages = queryClient.getQueryData<LeadStage[]>(['crm-stages'])
     if (!currentStages) return
 
-    // Find the lead and its current stage in the cache
     let activeStageId: string | null = null
     let activeLeadData: Lead | null = null
 
@@ -185,7 +236,6 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
 
     if (!activeStageId || !activeLeadData) return
 
-    // Find target stage ID
     const overData = over.data.current
     let targetStageId: string | null = null
 
@@ -198,30 +248,56 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
     }
 
     if (targetStageId && targetStageId !== activeStageId) {
-      // Optimistically update stages in cache
       queryClient.setQueryData<LeadStage[]>(['crm-stages'], (old) => {
         if (!old) return old
         return old.map((stage) => {
           if (stage.id === activeStageId) {
-            return {
-              ...stage,
-              leads: stage.leads.filter((l) => l.id !== activeLeadId),
-            }
+            return { ...stage, leads: stage.leads.filter((l) => l.id !== activeLeadId) }
           }
           if (stage.id === targetStageId) {
-            return {
-              ...stage,
-              leads: [...stage.leads, { ...activeLeadData!, stageId: targetStageId! }],
-            }
+            return { ...stage, leads: [...stage.leads, { ...activeLeadData!, stageId: targetStageId! }] }
           }
           return stage
         })
       })
     }
-  }, [queryClient])
+  }, [queryClient, stages])
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
+    const trueSnapshot = dragStartSnapshotRef.current
+
+    // ——— Fim do arraste de coluna ———
+    if (activeTypeRef.current === 'column') {
+      activeTypeRef.current = null
+      setActiveColumn(null)
+
+      const finalOrder = dragColOrder
+      setDragColOrder(null)
+      lastColOverRef.current = null
+
+      if (!over || !finalOrder) return
+
+      // Aplica a nova ordem no cache e salva no servidor
+      queryClient.setQueryData<LeadStage[]>(['crm-stages'], (old) => {
+        if (!old) return old
+        return finalOrder.map((id) => old.find((s) => s.id === id)).filter(Boolean) as LeadStage[]
+      })
+
+      reorderStages.mutate(
+        finalOrder.map((id, idx) => ({ id, order: (idx + 1) * 1000 })),
+        {
+          onError: () => {
+            if (trueSnapshot) queryClient.setQueryData(['crm-stages'], trueSnapshot)
+            queryClient.invalidateQueries({ queryKey: ['crm-stages'] })
+          },
+        }
+      )
+      return
+    }
+
+    // ——— Fim do arraste de lead ———
+    activeTypeRef.current = null
     setActiveLead(null)
     if (!over) return
 
@@ -242,25 +318,24 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
     const originalLead = active.data.current?.lead as Lead | undefined
     if (!originalLead || originalLead.stageId === targetStageId) return
 
-    const trueSnapshot = dragStartSnapshotRef.current
-
     updateLead.mutate(
       { id: activeLeadId, stageId: targetStageId },
       {
         onError: () => {
-          // useUpdateLead's próprio onError já restaurou um snapshot, mas
-          // esse snapshot foi tirado DEPOIS do handleDragOver já ter movido
-          // o lead no cache — ou seja, é o estado pós-drag, não o original.
-          // Restauramos aqui o snapshot verdadeiro (de antes do drag) e, por
-          // segurança, invalidamos para confirmar com o servidor.
-          if (trueSnapshot) {
-            queryClient.setQueryData(['crm-stages'], trueSnapshot)
-          }
+          if (trueSnapshot) queryClient.setQueryData(['crm-stages'], trueSnapshot)
           queryClient.invalidateQueries({ queryKey: ['crm-stages'] })
-        }
+        },
       }
     )
-  }, [queryClient, updateLead])
+  }, [queryClient, updateLead, reorderStages, dragColOrder])
+
+  const handleMoveAll = useCallback((fromStageId: string, toStageId: string) => {
+    setMovingStageId(fromStageId)
+    moveAllLeads.mutate(
+      { fromStageId, toStageId },
+      { onSettled: () => setMovingStageId(null) }
+    )
+  }, [moveAllLeads])
 
   const handleAddStage = useCallback(() => {
     if (newStageName.trim()) {
@@ -283,8 +358,14 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   }
 
   const q = searchQuery.trim().toLowerCase()
+
+  // Durante drag de coluna, usa a ordem local (dragColOrder) sem tocar no cache
+  const orderedStages = dragColOrder
+    ? dragColOrder.map((id) => (stages || []).find((s) => s.id === id)).filter(Boolean) as LeadStage[]
+    : (stages || [])
+
   const visibleStages = q
-    ? (stages || []).map((stage) => ({
+    ? orderedStages.map((stage) => ({
         ...stage,
         leads: stage.leads.filter((lead) => {
           const name = getLeadDisplayName(lead).toLowerCase()
@@ -292,7 +373,7 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
           return name.includes(q) || phone.includes(q.replace(/\D/g, ''))
         }),
       }))
-    : (stages || [])
+    : orderedStages
 
   const allLeads = (stages || []).flatMap((s) => s.leads)
   const stats = {
@@ -394,6 +475,17 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
               <Tag className="w-3.5 h-3.5" />
               Etiquetas
             </button>
+            <button
+              onClick={() => setViewMode('follow-up')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                viewMode === 'follow-up'
+                  ? 'bg-purple-600/80 text-white shadow-[0_0_10px_rgba(139,92,246,0.3)]'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Follow Up
+            </button>
           </div>
 
           <button
@@ -418,7 +510,16 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
         <div className="flex-1 overflow-x-auto p-5">
           <div className="flex gap-4 items-start min-h-[calc(100vh-170px)]">
             {visibleStages.map((stage) => (
-              <LeadColumn key={stage.id} stage={stage} onSelectLead={setSelectedLeadId} />
+              <LeadColumn
+                key={stage.id}
+                stage={stage}
+                onSelectLead={setSelectedLeadId}
+                otherStages={visibleStages
+                  .filter((s) => s.id !== stage.id)
+                  .map((s) => ({ id: s.id, name: s.name, color: s.color }))}
+                onMoveAll={(toStageId) => handleMoveAll(stage.id, toStageId)}
+                isMovingAll={movingStageId === stage.id}
+              />
             ))}
 
             {isAddingStage ? (
@@ -475,11 +576,33 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
             <div className="w-[290px] rotate-2 opacity-95 shadow-2xl">
               <LeadCard lead={activeLead} isOverlay={true} />
             </div>
+          ) : activeColumn ? (
+            <div className="w-[290px] rotate-1 opacity-80 shadow-2xl">
+              <div
+                className="px-4 py-3 rounded-2xl border backdrop-blur-xl"
+                style={{
+                  backgroundColor: `${activeColumn.color}15`,
+                  borderColor: `${activeColumn.color}40`,
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeColumn.color }} />
+                  <span className="text-sm font-bold" style={{ color: activeColumn.color }}>
+                    {activeColumn.name}
+                  </span>
+                  <span className="ml-auto text-[11px] opacity-60" style={{ color: activeColumn.color }}>
+                    {activeColumn._count.leads}
+                  </span>
+                </div>
+              </div>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
-    ) : (
+    ) : viewMode === 'etiquetas' ? (
       <TagsView searchQuery={searchQuery} onSelectLead={setSelectedLeadId} />
+    ) : (
+      <FollowUpBoard searchQuery={searchQuery} onSelectLead={setSelectedLeadId} />
     )}
 
     {selectedLeadId && <LeadPanel leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}
