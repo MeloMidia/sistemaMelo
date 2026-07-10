@@ -31,7 +31,7 @@ function WebhookConfig() {
       } else {
         setStatus('ok')
         setWebhookUrl(data.webhookUrl ?? '')
-        setMessage(`Webhook configurado! (formato ${data.format ?? 'ok'})`)
+        setMessage('Webhook configurado com sucesso!')
       }
     } catch (err) {
       setStatus('error')

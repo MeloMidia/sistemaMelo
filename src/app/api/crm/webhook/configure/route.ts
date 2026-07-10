@@ -12,9 +12,11 @@ const EVENTS = [
   'QRCODE_UPDATED',
   'MESSAGES_SET',
   'MESSAGES_UPSERT',
+  'MESSAGES_EDITED',
   'MESSAGES_UPDATE',
   'MESSAGES_DELETE',
   'SEND_MESSAGE',
+  'SEND_MESSAGE_UPDATE',
   'CONTACTS_SET',
   'CONTACTS_UPSERT',
   'CONTACTS_UPDATE',
@@ -30,12 +32,10 @@ const EVENTS = [
   'LABELS_EDIT',
   'LABELS_ASSOCIATION',
   'CALL',
-  'NEW_JWT_TOKEN',
 ]
 
 async function trySetWebhook(url: string, webhookUrl: string) {
-  // Tenta o formato v2 primeiro (campo "webhook" aninhado)
-  const payloadV2 = {
+  const payload = {
     webhook: {
       enabled: true,
       url: webhookUrl,
@@ -45,45 +45,19 @@ async function trySetWebhook(url: string, webhookUrl: string) {
     },
   }
 
-  const resV2 = await fetch(`${url}/webhook/set/${INSTANCE}`, {
+  const res = await fetch(`${url}/webhook/set/${INSTANCE}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: API_KEY },
-    body: JSON.stringify(payloadV2),
+    body: JSON.stringify(payload),
   })
 
-  if (resV2.ok) {
-    const data = await resV2.json().catch(() => ({}))
-    return { ok: true, format: 'v2', data }
+  if (res.ok) {
+    const data = await res.json().catch(() => ({}))
+    return { ok: true, data }
   }
 
-  const errV2 = await resV2.json().catch(() => ({}))
-
-  // Tenta o formato v1 (campos diretos)
-  const payloadV1 = {
-    url: webhookUrl,
-    webhook_by_events: false,
-    webhook_base64: false,
-    events: EVENTS,
-  }
-
-  const resV1 = await fetch(`${url}/webhook/set/${INSTANCE}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: API_KEY },
-    body: JSON.stringify(payloadV1),
-  })
-
-  if (resV1.ok) {
-    const data = await resV1.json().catch(() => ({}))
-    return { ok: true, format: 'v1', data }
-  }
-
-  const errV1 = await resV1.json().catch(() => ({}))
-
-  return {
-    ok: false,
-    errV2: { status: resV2.status, body: errV2 },
-    errV1: { status: resV1.status, body: errV1 },
-  }
+  const err = await res.json().catch(() => ({}))
+  return { ok: false, err: { status: res.status, body: err } }
 }
 
 export async function POST(request: Request) {
@@ -107,16 +81,12 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       return NextResponse.json(
-        {
-          error: 'Evolution API rejeitou os dois formatos de payload',
-          webhookUrl,
-          detail: { v2: result.errV2, v1: result.errV1 },
-        },
+        { error: 'Evolution API rejeitou a requisição', webhookUrl, detail: result.err },
         { status: 502 }
       )
     }
 
-    return NextResponse.json({ ok: true, webhookUrl, format: result.format, response: result.data })
+    return NextResponse.json({ ok: true, webhookUrl, response: result.data })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
     return NextResponse.json({ error: message }, { status: 500 })
