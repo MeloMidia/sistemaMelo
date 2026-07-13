@@ -339,8 +339,11 @@ export function useSyncLeadMessages() {
       if (!res.ok) throw new Error(data.error || 'Failed to sync messages')
       return data
     },
-    onSuccess: (data, leadId) => {
+    onSuccess: (data: { imported?: number }, leadId) => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
+      if (data?.imported && data.imported > 0) {
+        qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      }
     },
   })
 }

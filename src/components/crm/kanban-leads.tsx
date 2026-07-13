@@ -21,10 +21,10 @@ import { LeadCard } from './lead-card'
 import { FollowUpBoard } from './follow-up-board'
 import { CampaignsView } from './campaigns-view'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock, Megaphone } from 'lucide-react'
+import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock, Megaphone, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { getLeadDisplayName } from '@/lib/phone'
 import { WhatsappImportModal } from './whatsapp-import-modal'
 
@@ -142,6 +142,15 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
 
   const reorderStages = useReorderStages()
   const moveAllLeads = useMoveAllLeads()
+
+  const syncAll = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/cron/sync-messages')
+      if (!res.ok) throw new Error('Falha ao sincronizar')
+      return res.json()
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm-stages'] }),
+  })
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(openLeadId ?? null)
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
@@ -499,6 +508,20 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
               Campanhas
             </button>
           </div>
+
+          <button
+            onClick={() => syncAll.mutate()}
+            disabled={syncAll.isPending}
+            title="Sincronizar mensagens recentes do WhatsApp"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/[0.08] border border-blue-500/20 text-blue-400 hover:bg-blue-500/[0.15] hover:text-blue-300 text-xs font-medium transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {syncAll.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+            {syncAll.isPending ? 'Sincronizando...' : 'Sincronizar'}
+          </button>
 
           <button
             onClick={() => setShowImport(true)}
