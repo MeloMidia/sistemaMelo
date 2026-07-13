@@ -22,18 +22,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>
 
-    // Verificação de secret opcional
-    const secret = process.env.EVOLUTION_WEBHOOK_SECRET
-    if (secret) {
-      const apikey =
-        (request.headers.get('apikey') ??
-          request.headers.get('x-api-key') ??
-          body.apikey) as string | undefined
-      if (apikey !== secret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
-
     const event = normalizeEvolutionEvent(body.event ?? body.type)
     // O campo de dados pode vir em body.data ou direto em body
     const data = (body.data ?? body) as Record<string, unknown>
