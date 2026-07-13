@@ -1,20 +1,13 @@
-/**
- * GET /api/cron/sync-messages
- * Roda a cada 5 minutos via Vercel Cron.
- * Importa mensagens novas da Evolution API para os leads com atividade recente.
- */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { findMessages } from '@/lib/evolution-client'
 import { importWhatsappMessage } from '@/lib/whatsapp-sync'
 import { emitCrmEvent } from '@/lib/crm-events'
 
-const BATCH_SIZE = 30 // leads por execução
+const BATCH_SIZE = 30
 
 export async function GET() {
   try {
-    // Leads com phone válido, ordenados pelos que têm mensagens mais antigas no CRM
-    // (ou seja, os que mais precisam de sync)
     const leads = await prisma.lead.findMany({
       where: {
         phone: { not: { startsWith: 'lid:' } },
@@ -26,11 +19,15 @@ export async function GET() {
 
     let totalImported = 0
     let leadsWithNew = 0
+    let leadsWithError = 0
+    let totalFetched = 0
+    const errors: string[] = []
 
     for (const lead of leads) {
       try {
         const explicitJid = lead.waLid?.endsWith('@lid') ? lead.waLid : undefined
         const rawMessages = await findMessages(lead.phone, explicitJid)
+        totalFetched += rawMessages.length
         let importedCount = 0
 
         for (const item of rawMessages) {
@@ -43,12 +40,22 @@ export async function GET() {
           totalImported += importedCount
           emitCrmEvent({ type: 'new-message', leadId: lead.id, message: { importedCount } })
         }
-      } catch {
-        // ignora erros individuais, continua com o próximo lead
+      } catch (err) {
+        leadsWithError++
+        const msg = err instanceof Error ? err.message : String(err)
+        if (errors.length < 3) errors.push(msg)
       }
     }
 
-    return NextResponse.json({ ok: true, leadsChecked: leads.length, leadsWithNew, totalImported })
+    return NextResponse.json({
+      ok: true,
+      leadsChecked: leads.length,
+      totalFetched,
+      leadsWithNew,
+      totalImported,
+      leadsWithError,
+      errors: errors.length > 0 ? errors : undefined,
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
     return NextResponse.json({ ok: false, error: message }, { status: 500 })

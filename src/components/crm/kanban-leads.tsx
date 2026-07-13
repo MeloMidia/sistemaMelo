@@ -143,13 +143,25 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   const reorderStages = useReorderStages()
   const moveAllLeads = useMoveAllLeads()
 
+  const [syncResult, setSyncResult] = useState<{ leadsChecked: number; totalImported: number; totalFetched: number; leadsWithError: number; errors?: string[] } | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
   const syncAll = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/cron/sync-messages')
-      if (!res.ok) throw new Error('Falha ao sincronizar')
-      return res.json()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Falha ao sincronizar')
+      return data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: (data) => {
+      setSyncResult(data)
+      setSyncError(null)
+      queryClient.invalidateQueries({ queryKey: ['crm-stages'] })
+    },
+    onError: (err) => {
+      setSyncError(err instanceof Error ? err.message : 'Erro desconhecido')
+      setSyncResult(null)
+    },
   })
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(openLeadId ?? null)
@@ -509,19 +521,37 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
             </button>
           </div>
 
-          <button
-            onClick={() => syncAll.mutate()}
-            disabled={syncAll.isPending}
-            title="Sincronizar mensagens recentes do WhatsApp"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/[0.08] border border-blue-500/20 text-blue-400 hover:bg-blue-500/[0.15] hover:text-blue-300 text-xs font-medium transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {syncAll.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3.5 h-3.5" />
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              onClick={() => { setSyncResult(null); setSyncError(null); syncAll.mutate() }}
+              disabled={syncAll.isPending}
+              title="Sincronizar mensagens recentes do WhatsApp"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/[0.08] border border-blue-500/20 text-blue-400 hover:bg-blue-500/[0.15] hover:text-blue-300 text-xs font-medium transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncAll.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              {syncAll.isPending ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+            {syncResult && (
+              <span className={`text-[10px] tabular-nums ${syncResult.totalImported > 0 ? 'text-emerald-400' : syncResult.leadsWithError > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                {syncResult.leadsWithError > 0
+                  ? `Erro em ${syncResult.leadsWithError} leads — ${syncResult.errors?.[0] ?? 'falha na Evolution API'}`
+                  : syncResult.totalFetched === 0
+                    ? `${syncResult.leadsChecked} leads — Evolution API sem mensagens`
+                    : syncResult.totalImported > 0
+                      ? `+${syncResult.totalImported} novas de ${syncResult.totalFetched} buscadas`
+                      : `${syncResult.totalFetched} msgs buscadas — todas já estavam no CRM`}
+              </span>
             )}
-            {syncAll.isPending ? 'Sincronizando...' : 'Sincronizar'}
-          </button>
+            {syncError && (
+              <span className="text-[10px] text-red-400 max-w-[220px] truncate" title={syncError}>
+                Erro: {syncError}
+              </span>
+            )}
+          </div>
 
           <button
             onClick={() => setShowImport(true)}
