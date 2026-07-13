@@ -293,10 +293,14 @@ export async function importWhatsappMessage(raw: UnknownRecord, options?: { lead
     },
   })
 
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: { updatedAt: new Date() },
-  })
+  // Avança updatedAt apenas quando a mensagem é mais recente que o registro atual
+  // (evita que o cron sync de mensagens antigas desordenem o board)
+  if (createdAt > lead.updatedAt) {
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { updatedAt: createdAt },
+    })
+  }
 
   return { lead, message, created: !existing }
 }
