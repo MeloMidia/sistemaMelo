@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/bulk-send",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sync-messages",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

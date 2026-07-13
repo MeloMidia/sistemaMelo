@@ -254,11 +254,12 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-sync messages silently when component mounts or leadId changes
+  // Auto-sync ao abrir e a cada 30s enquanto a conversa estiver aberta
   useEffect(() => {
-    if (leadId) {
-      syncMessages.mutate(leadId)
-    }
+    if (!leadId) return
+    syncMessages.mutate(leadId)
+    const interval = setInterval(() => syncMessages.mutate(leadId), 30_000)
+    return () => clearInterval(interval)
   }, [leadId])
 
   useEffect(() => {
