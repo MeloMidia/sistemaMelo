@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Mic, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Mic, MicOff, Square, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
 import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign } from '@/hooks/campaigns-api'
 import { useStages } from '@/hooks/crm-api'
 import { useCrmTags } from '@/hooks/crm-api'
@@ -167,6 +167,56 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
     delaySeconds: 7,
   })
   const [error, setError] = useState('')
+  const [recording, setRecording] = useState(false)
+  const [recordSeconds, setRecordSeconds] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      mediaRecorderRef.current?.stop()
+    }
+  }, [])
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : 'audio/ogg'
+      const mr = new MediaRecorder(stream, { mimeType })
+      chunksRef.current = []
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunksRef.current, { type: mimeType })
+        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm'
+        const file = new File([blob], `gravacao.${ext}`, { type: mimeType })
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          update({ mediaFile: file, mediaPreview: e.target?.result as string ?? null })
+        }
+        reader.readAsDataURL(blob)
+        if (timerRef.current) clearInterval(timerRef.current)
+        setRecording(false)
+      }
+      mr.start(250)
+      mediaRecorderRef.current = mr
+      setRecordSeconds(0)
+      setRecording(true)
+      timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000)
+    } catch {
+      setError('Permissão de microfone negada ou indisponível')
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop()
+  }
 
   function update(patch: Partial<FormState>) {
     setForm((f) => ({ ...f, ...patch }))
@@ -402,18 +452,44 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                       <XCircle className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full py-6 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-white hover:border-white/20 transition-colors cursor-pointer flex flex-col items-center gap-2 text-sm"
-                  >
-                    <div className="flex gap-3">
-                      <ImageIcon className="w-5 h-5" />
-                      <Video className="w-5 h-5" />
-                      <Mic className="w-5 h-5" />
+                ) : recording ? (
+                  <div className="w-full py-5 rounded-xl border-2 border-red-500/40 bg-red-500/10 flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-red-400 font-semibold text-sm tabular-nums">
+                        {String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:{String(recordSeconds % 60).padStart(2, '0')}
+                      </span>
+                      <span className="text-slate-500 text-xs">Gravando...</span>
                     </div>
-                    Anexar imagem, vídeo ou áudio (opcional)
-                  </button>
+                    <button
+                      onClick={stopRecording}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-sm font-semibold transition-colors cursor-pointer"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      Parar gravação
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-white hover:border-white/20 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
+                    >
+                      <div className="flex gap-2">
+                        <ImageIcon className="w-4 h-4" />
+                        <Video className="w-4 h-4" />
+                        <Mic className="w-4 h-4" />
+                      </div>
+                      Anexar arquivo
+                    </button>
+                    <button
+                      onClick={startRecording}
+                      className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
+                    >
+                      <MicOff className="w-4 h-4" />
+                      Gravar áudio
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -554,6 +630,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
             <Button
               variant="ghost"
               onClick={() => setStep(steps[stepIdx - 1])}
+              disabled={recording}
               className="text-slate-400 hover:text-white cursor-pointer"
             >
               Voltar
@@ -561,7 +638,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
           )}
           <Button
             onClick={isLast ? handleSubmit : () => setStep(steps[stepIdx + 1])}
-            disabled={createCampaign.isPending}
+            disabled={createCampaign.isPending || recording}
             className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer gap-1.5"
           >
             {createCampaign.isPending ? (
