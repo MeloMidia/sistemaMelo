@@ -370,7 +370,7 @@ export function TaskManager() {
           {/* Column 3: Doing */}
           <DroppableColumn
             id="col-doing"
-            title="Fazendo"
+            title="Tarefas - Gustavo"
             icon={Activity}
             count={doingTasks.length}
             tasks={doingTasks}
@@ -398,7 +398,7 @@ export function TaskManager() {
           {/* Column 4: Priority */}
           <DroppableColumn
             id="col-priority"
-            title="Tarefa do Dia"
+            title="Tarefa do dia - Matheus"
             icon={Star}
             count={priorityTasks.length}
             tasks={priorityTasks}
