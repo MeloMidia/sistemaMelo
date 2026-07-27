@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
+import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Mic, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
 import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign } from '@/hooks/campaigns-api'
 import { useStages } from '@/hooks/crm-api'
 import { useCrmTags } from '@/hooks/crm-api'
@@ -78,8 +78,8 @@ function CampaignCard({
             )}
             {campaign.mediaType && (
               <span className="flex items-center gap-1 text-blue-400/70">
-                {campaign.mediaType === 'image' ? <ImageIcon className="w-3 h-3" /> : <Video className="w-3 h-3" />}
-                {campaign.mediaType === 'image' ? 'Imagem' : 'Vídeo'}
+                {campaign.mediaType === 'image' ? <ImageIcon className="w-3 h-3" /> : campaign.mediaType === 'audio' ? <Mic className="w-3 h-3" /> : <Video className="w-3 h-3" />}
+                {campaign.mediaType === 'image' ? 'Imagem' : campaign.mediaType === 'audio' ? 'Áudio' : 'Vídeo'}
               </span>
             )}
           </div>
@@ -211,6 +211,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
       fileName = form.mediaFile.name
       if (mimeType.startsWith('image/')) mediaType = 'image'
       else if (mimeType.startsWith('video/')) mediaType = 'video'
+      else if (mimeType.startsWith('audio/')) mediaType = 'audio'
       else mediaType = 'document'
     }
 
@@ -364,7 +365,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,audio/*"
                   className="hidden"
                   onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
                 />
@@ -372,6 +373,17 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                   <div className="relative rounded-xl overflow-hidden border border-white/[0.08] bg-black/20">
                     {form.mediaFile?.type.startsWith('image/') ? (
                       <img src={form.mediaPreview} alt="Preview" className="w-full max-h-48 object-contain" />
+                    ) : form.mediaFile?.type.startsWith('audio/') ? (
+                      <div className="flex items-center gap-3 p-4">
+                        <Mic className="w-8 h-8 text-emerald-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{form.mediaFile?.name}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {form.mediaFile ? `${(form.mediaFile.size / 1024 / 1024).toFixed(1)} MB · Áudio PTT` : ''}
+                          </p>
+                          <audio controls src={form.mediaPreview ?? ''} className="mt-2 w-full h-8" />
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-3 p-4">
                         <Video className="w-8 h-8 text-blue-400" />
@@ -398,14 +410,15 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                     <div className="flex gap-3">
                       <ImageIcon className="w-5 h-5" />
                       <Video className="w-5 h-5" />
+                      <Mic className="w-5 h-5" />
                     </div>
-                    Anexar imagem ou vídeo (opcional)
+                    Anexar imagem, vídeo ou áudio (opcional)
                   </button>
                 )}
               </div>
 
-              {/* Legenda da mídia (só quando tem mídia) */}
-              {form.mediaPreview && (
+              {/* Legenda da mídia (só para imagem/vídeo) */}
+              {form.mediaPreview && !form.mediaFile?.type.startsWith('audio/') && (
                 <input
                   value={form.mediaCaption}
                   onChange={(e) => update({ mediaCaption: e.target.value })}
@@ -510,7 +523,9 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Conteúdo</span>
                   <span className="text-white font-medium">
-                    {form.mediaFile ? `${form.mediaFile.type.startsWith('image/') ? 'Imagem' : 'Vídeo'}${form.message ? ' + texto' : ''}` : 'Texto'}
+                    {form.mediaFile
+                      ? `${form.mediaFile.type.startsWith('image/') ? 'Imagem' : form.mediaFile.type.startsWith('audio/') ? 'Áudio PTT' : 'Vídeo'}${form.message ? ' + texto' : ''}`
+                      : 'Texto'}
                   </span>
                 </div>
                 <div className="flex justify-between">

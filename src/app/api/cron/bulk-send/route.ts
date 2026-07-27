@@ -3,7 +3,7 @@
 // Processa um batch de leads pendentes da campanha ativa.
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendTextMessage, sendMediaMessage } from '@/lib/evolution-client'
+import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const BATCH_SIZE = 8 // mensagens por execução (com delay de 7s → ~56s total)
@@ -67,7 +67,14 @@ export async function POST(request: Request) {
   for (const item of pending) {
     const phone = item.lead.phone
     try {
-      if (campaign.mediaBase64 && campaign.mediaType && campaign.mimeType && campaign.fileName) {
+      if (campaign.mediaBase64 && campaign.mediaType === 'audio') {
+        // Envia áudio (PTT)
+        await sendAudioMessage(phone, campaign.mediaBase64)
+        if (campaign.message?.trim()) {
+          await sleep(1500)
+          await sendTextMessage(phone, campaign.message)
+        }
+      } else if (campaign.mediaBase64 && campaign.mediaType && campaign.mimeType && campaign.fileName) {
         // Envia mídia (imagem ou vídeo)
         await sendMediaMessage({
           phone,
