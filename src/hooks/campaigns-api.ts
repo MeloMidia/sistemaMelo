@@ -42,7 +42,7 @@ export function useCreateCampaign() {
       mediaCaption?: string
       scheduledAt?: string
       delaySeconds?: number
-      filter: { type: 'all' | 'stages' | 'labels'; ids?: string[] }
+      filter: { type: 'all' | 'stages' | 'labels' | 'followUp'; ids?: string[] }
     }) => {
       const res = await fetch('/api/crm/campaigns', {
         method: 'POST',

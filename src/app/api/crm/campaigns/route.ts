@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     scheduledAt?: string
     delaySeconds?: number
     // Filtro de destinatários (resolvido no servidor)
-    filter: { type: 'all' | 'stages' | 'labels'; ids?: string[] }
+    filter: { type: 'all' | 'stages' | 'labels' | 'followUp'; ids?: string[] }
   }
 
   if (!body.title?.trim()) return NextResponse.json({ error: 'Título obrigatório' }, { status: 400 })
@@ -63,6 +63,11 @@ export async function POST(request: Request) {
       distinct: ['leadId'],
     })
     leads = tags.map((t) => ({ id: t.leadId }))
+  } else if (body.filter.type === 'followUp') {
+    leads = await prisma.lead.findMany({
+      where: { followUpColumn: { not: null } },
+      select: { id: true },
+    })
   }
 
   if (!leads.length) return NextResponse.json({ error: 'Nenhum lead encontrado com o filtro selecionado' }, { status: 400 })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, FileText, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
+import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
 import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign } from '@/hooks/campaigns-api'
 import { useStages } from '@/hooks/crm-api'
 import { useCrmTags } from '@/hooks/crm-api'
@@ -140,7 +140,7 @@ type Step = 'recipients' | 'message' | 'schedule'
 
 interface FormState {
   title: string
-  filter: { type: 'all' | 'stages' | 'labels'; ids: string[] }
+  filter: { type: 'all' | 'stages' | 'labels' | 'followUp'; ids: string[] }
   message: string
   mediaFile: File | null
   mediaPreview: string | null
@@ -293,8 +293,8 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
               <p className="text-xs text-slate-500">Quem vai receber esta campanha?</p>
 
               {/* Tipo de filtro */}
-              <div className="grid grid-cols-3 gap-2">
-                {(['all', 'stages', 'labels'] as const).map((type) => (
+              <div className="grid grid-cols-2 gap-2">
+                {(['all', 'stages', 'labels', 'followUp'] as const).map((type) => (
                   <button
                     key={type}
                     onClick={() => update({ filter: { type, ids: [] } })}
@@ -304,7 +304,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                         : 'bg-white/[0.03] border-white/[0.07] text-slate-500 hover:border-white/20 hover:text-white'
                     }`}
                   >
-                    {type === 'all' ? 'Todos os leads' : type === 'stages' ? 'Por Estágio' : 'Por Etiqueta'}
+                    {type === 'all' ? 'Todos os leads' : type === 'stages' ? 'Por Estágio' : type === 'labels' ? 'Por Etiqueta' : 'Follow Up'}
                   </button>
                 ))}
               </div>
@@ -503,7 +503,8 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                   <span className="text-white font-medium">
                     {form.filter.type === 'all' ? 'Todos os leads' :
                      form.filter.type === 'stages' ? `${form.filter.ids.length} estágio(s)` :
-                     `${form.filter.ids.length} etiqueta(s)`}
+                     form.filter.type === 'labels' ? `${form.filter.ids.length} etiqueta(s)` :
+                     'Leads em Follow Up'}
                   </span>
                 </div>
                 <div className="flex justify-between">
