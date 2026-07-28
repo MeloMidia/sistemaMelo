@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Mic, MicOff, Square, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
 import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign } from '@/hooks/campaigns-api'
-import { useStages } from '@/hooks/crm-api'
-import { useCrmTags } from '@/hooks/crm-api'
+import { useStages, useCrmTags, useFollowUp } from '@/hooks/crm-api'
+import { FOLLOW_UP_COLORS } from '@/components/crm/follow-up-column'
 import type { BulkCampaign } from '@/types/campaign'
 import { Button } from '@/components/ui/button'
 
@@ -152,6 +152,7 @@ interface FormState {
 function CreateCampaignForm({ onClose }: { onClose: () => void }) {
   const { data: stages = [] } = useStages()
   const { data: tags = [] } = useCrmTags()
+  const { data: followUpCols = [] } = useFollowUp()
   const createCampaign = useCreateCampaign()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -245,7 +246,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
     setError('')
     if (!form.title.trim()) { setError('Informe o título da campanha'); return }
     if (!form.message.trim() && !form.mediaFile) { setError('Informe uma mensagem ou selecione uma mídia'); return }
-    if (form.filter.type !== 'all' && form.filter.ids.length === 0) {
+    if ((form.filter.type === 'stages' || form.filter.type === 'labels') && form.filter.ids.length === 0) {
       setError('Selecione pelo menos um estágio ou etiqueta'); return
     }
 
@@ -394,6 +395,37 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                       <span className="text-sm text-white flex-1">{t.name}</span>
                     </label>
                   ))}
+                </div>
+              )}
+
+              {/* Seleção de colunas de follow up */}
+              {form.filter.type === 'followUp' && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-slate-500">
+                    Escolha as colunas (sem seleção = todas as colunas)
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {followUpCols.filter((c) => c._count.leads > 0).map((c) => {
+                      const colId = String(c.column)
+                      const color = FOLLOW_UP_COLORS[c.column - 1]
+                      return (
+                        <label
+                          key={c.column}
+                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] cursor-pointer hover:bg-white/[0.05] transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.filter.ids.includes(colId)}
+                            onChange={() => toggleId(colId)}
+                            className="rounded"
+                          />
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="text-sm text-white flex-1">Coluna {c.column}</span>
+                          <span className="text-[11px] text-slate-500 tabular-nums">{c._count.leads}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -593,7 +625,9 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                     {form.filter.type === 'all' ? 'Todos os leads' :
                      form.filter.type === 'stages' ? `${form.filter.ids.length} estágio(s)` :
                      form.filter.type === 'labels' ? `${form.filter.ids.length} etiqueta(s)` :
-                     'Leads em Follow Up'}
+                     form.filter.ids.length
+                       ? `Follow Up: col. ${form.filter.ids.join(', ')}`
+                       : 'Follow Up (todas as colunas)'}
                   </span>
                 </div>
                 <div className="flex justify-between">

@@ -64,8 +64,11 @@ export async function POST(request: Request) {
     })
     leads = tags.map((t) => ({ id: t.leadId }))
   } else if (body.filter.type === 'followUp') {
+    const cols = body.filter.ids?.map(Number).filter(Boolean)
     leads = await prisma.lead.findMany({
-      where: { followUpColumn: { not: null } },
+      where: cols?.length
+        ? { followUpColumn: { in: cols } }
+        : { followUpColumn: { not: null } },
       select: { id: true },
     })
   }
