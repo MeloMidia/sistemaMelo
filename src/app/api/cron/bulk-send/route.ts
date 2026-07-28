@@ -76,6 +76,7 @@ export async function POST(request: Request) {
 
   let sent = 0
   let failed = 0
+  const errors: { name: string; phone: string; error: string }[] = []
 
   for (const item of pending) {
     const phone = item.lead.phone
@@ -114,6 +115,7 @@ export async function POST(request: Request) {
         where: { id: item.id },
         data: { status: 'FAILED', error },
       })
+      errors.push({ name: item.lead.name ?? phone, phone, error })
       failed++
     }
 
@@ -130,7 +132,12 @@ export async function POST(request: Request) {
     },
   })
 
-  return NextResponse.json({ ok: true, sent, failed, remaining: pending.length - sent - failed })
+  // Conta pendentes restantes para o frontend saber se há mais lotes
+  const remaining = await prisma.bulkCampaignLead.count({
+    where: { campaignId: campaign.id, status: 'PENDING' },
+  })
+
+  return NextResponse.json({ ok: true, sent, failed, remaining, errors })
 }
 
 // Vercel Cron também pode usar GET

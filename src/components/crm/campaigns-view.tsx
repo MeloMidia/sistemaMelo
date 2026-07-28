@@ -713,21 +713,47 @@ export function CampaignsView() {
   async function handleDispatch(campaignId: string) {
     setDispatchingId(campaignId)
     setDispatchMsg(null)
+    let totalSent = 0
+    let totalFailed = 0
+    const allErrors: { name: string; phone: string; error: string }[] = []
+
     try {
-      const res = await fetch('/api/cron/bulk-send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId }),
-      })
-      const data = await res.json()
-      const text = data.message ?? `Enviados: ${data.sent ?? 0} · Falhas: ${data.failed ?? 0}`
-      setDispatchMsg({ id: campaignId, text })
-      refetch()
+      while (true) {
+        const res = await fetch('/api/cron/bulk-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId }),
+        })
+        const data = await res.json()
+
+        if (data.message) {
+          // 'Nada para processar' ou 'Campanha concluída'
+          setDispatchMsg({ id: campaignId, text: data.message })
+          break
+        }
+
+        totalSent += data.sent ?? 0
+        totalFailed += data.failed ?? 0
+        if (data.errors?.length) allErrors.push(...data.errors)
+
+        const errText = allErrors.length
+          ? ` · ${allErrors.length} falha(s): ${allErrors.map((e) => e.name).join(', ')}`
+          : ''
+        setDispatchMsg({ id: campaignId, text: `Enviados: ${totalSent} · Falhas: ${totalFailed}${errText}` })
+
+        refetch()
+
+        if (!data.remaining || data.remaining === 0) break
+
+        // Pausa breve entre lotes
+        await new Promise((r) => setTimeout(r, 2000))
+      }
     } catch {
-      setDispatchMsg({ id: campaignId, text: 'Erro ao disparar' })
+      setDispatchMsg({ id: campaignId, text: 'Erro de conexão ao disparar' })
     } finally {
       setDispatchingId(null)
-      setTimeout(() => setDispatchMsg(null), 5000)
+      refetch()
+      setTimeout(() => setDispatchMsg(null), 10000)
     }
   }
 
