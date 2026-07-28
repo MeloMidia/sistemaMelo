@@ -1,6 +1,3 @@
-// POST /api/cron/bulk-send
-// Chamado pelo Vercel Cron a cada minuto.
-// Processa um batch de leads pendentes da campanha ativa.
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
@@ -8,7 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
-const BATCH_SIZE = 8 // mensagens por execução (com delay de 7s → ~56s total)
+const BATCH_SIZE = 8
 
 function sleep(ms: number) {
   return new Promise((res) => setTimeout(res, ms))
@@ -29,19 +26,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Busca campanha RUNNING ou SCHEDULED que já passou do horário
-  let campaign = await prisma.bulkCampaign.findFirst({
-    where: { status: 'RUNNING' },
-    orderBy: { scheduledAt: 'asc' },
-  })
+  // Aceita campaignId opcional para disparar campanha específica
+  let targetId: string | undefined
+  try {
+    const body = await request.json()
+    targetId = body.campaignId
+  } catch { /* sem body — cron ou GET */ }
+
+  // Busca a campanha alvo
+  let campaign = targetId
+    ? await prisma.bulkCampaign.findFirst({
+        where: { id: targetId, status: { in: ['RUNNING', 'SCHEDULED'] } },
+      })
+    : await prisma.bulkCampaign.findFirst({
+        where: { status: 'RUNNING' },
+        orderBy: { scheduledAt: 'asc' },
+      }) ?? await prisma.bulkCampaign.findFirst({
+        where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() } },
+        orderBy: { scheduledAt: 'asc' },
+      })
 
   if (!campaign) {
-    campaign = await prisma.bulkCampaign.findFirst({
-      where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() } },
-      orderBy: { scheduledAt: 'asc' },
-    })
-    if (!campaign) return NextResponse.json({ ok: true, message: 'Nada para processar' })
+    return NextResponse.json({ ok: true, message: 'Nada para processar' })
+  }
 
+  // Marca como RUNNING se ainda estava SCHEDULED
+  if (campaign.status === 'SCHEDULED') {
     campaign = await prisma.bulkCampaign.update({
       where: { id: campaign.id },
       data: { status: 'RUNNING', startedAt: new Date() },
@@ -57,7 +67,6 @@ export async function POST(request: Request) {
   })
 
   if (pending.length === 0) {
-    // Campanha concluída
     await prisma.bulkCampaign.update({
       where: { id: campaign.id },
       data: { status: 'DONE', completedAt: new Date() },
@@ -72,14 +81,12 @@ export async function POST(request: Request) {
     const phone = item.lead.phone
     try {
       if (campaign.mediaBase64 && campaign.mediaType === 'audio') {
-        // Envia áudio (PTT)
         await sendAudioMessage(phone, campaign.mediaBase64)
         if (campaign.message?.trim()) {
           await sleep(1500)
           await sendTextMessage(phone, campaign.message)
         }
       } else if (campaign.mediaBase64 && campaign.mediaType && campaign.mimeType && campaign.fileName) {
-        // Envia mídia (imagem ou vídeo)
         await sendMediaMessage({
           phone,
           mediaType: campaign.mediaType as 'image' | 'video' | 'document',
@@ -88,7 +95,6 @@ export async function POST(request: Request) {
           fileName: campaign.fileName,
           caption: campaign.mediaCaption ?? campaign.message ?? '',
         })
-        // Se tiver texto além da legenda, envia como mensagem separada
         if (campaign.message?.trim() && campaign.message !== campaign.mediaCaption) {
           await sleep(1500)
           await sendTextMessage(phone, campaign.message)
@@ -111,13 +117,11 @@ export async function POST(request: Request) {
       failed++
     }
 
-    // Delay entre envios para evitar ban
     if (item !== pending[pending.length - 1]) {
       await sleep((campaign.delaySeconds ?? 7) * 1000)
     }
   }
 
-  // Atualiza contadores
   await prisma.bulkCampaign.update({
     where: { id: campaign.id },
     data: {

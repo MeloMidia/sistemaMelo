@@ -45,10 +45,12 @@ function CampaignCard({
   campaign,
   onCancel,
   onDelete,
+  onDispatch,
 }: {
   campaign: BulkCampaign
   onCancel: () => void
   onDelete: () => void
+  onDispatch: () => void
 }) {
   const isRunning = campaign.status === 'RUNNING'
   const isCancellable = ['SCHEDULED', 'RUNNING'].includes(campaign.status)
@@ -86,6 +88,15 @@ function CampaignCard({
         </div>
 
         <div className="flex gap-1 shrink-0">
+          {isCancellable && (
+            <button
+              onClick={onDispatch}
+              title="Disparar lote agora"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          )}
           {isCancellable && (
             <button
               onClick={onCancel}
@@ -696,25 +707,26 @@ export function CampaignsView() {
   const cancelCampaign = useCancelCampaign()
   const deleteCampaign = useDeleteCampaign()
   const [creating, setCreating] = useState(false)
-  const [dispatching, setDispatching] = useState(false)
-  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null)
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null)
+  const [dispatchMsg, setDispatchMsg] = useState<{ id: string; text: string } | null>(null)
 
-  async function handleDispatch() {
-    setDispatching(true)
+  async function handleDispatch(campaignId: string) {
+    setDispatchingId(campaignId)
     setDispatchMsg(null)
     try {
-      const res = await fetch('/api/cron/bulk-send', { method: 'POST' })
+      const res = await fetch('/api/cron/bulk-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
+      })
       const data = await res.json()
-      if (data.message) {
-        setDispatchMsg(data.message)
-      } else {
-        setDispatchMsg(`Enviados: ${data.sent ?? 0} · Falhas: ${data.failed ?? 0}`)
-      }
+      const text = data.message ?? `Enviados: ${data.sent ?? 0} · Falhas: ${data.failed ?? 0}`
+      setDispatchMsg({ id: campaignId, text })
       refetch()
     } catch {
-      setDispatchMsg('Erro ao processar campanha')
+      setDispatchMsg({ id: campaignId, text: 'Erro ao disparar' })
     } finally {
-      setDispatching(false)
+      setDispatchingId(null)
       setTimeout(() => setDispatchMsg(null), 5000)
     }
   }
@@ -730,34 +742,18 @@ export function CampaignsView() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Sub-header */}
-      <div className="px-6 py-3 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xs text-slate-500 shrink-0">
-            <span className="text-white font-semibold tabular-nums">{campaigns.length}</span> campanhas
-          </span>
-          {dispatchMsg && (
-            <span className="text-[11px] text-slate-400 truncate">{dispatchMsg}</span>
-          )}
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button
-            size="sm"
-            onClick={handleDispatch}
-            disabled={dispatching}
-            className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs cursor-pointer gap-1.5"
-          >
-            {dispatching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            {dispatching ? 'Processando...' : 'Disparar'}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setCreating(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Nova Campanha
-          </Button>
-        </div>
+      <div className="px-6 py-3 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0 flex items-center justify-between">
+        <span className="text-xs text-slate-500">
+          <span className="text-white font-semibold tabular-nums">{campaigns.length}</span> campanhas
+        </span>
+        <Button
+          size="sm"
+          onClick={() => setCreating(true)}
+          className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer gap-1.5"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Nova Campanha
+        </Button>
       </div>
 
       {/* Lista */}
@@ -780,16 +776,26 @@ export function CampaignsView() {
         ) : (
           <div className="space-y-3 max-w-2xl">
             {campaigns.map((c) => (
-              <CampaignCard
-                key={c.id}
-                campaign={c}
-                onCancel={() => cancelCampaign.mutate(c.id)}
-                onDelete={() => {
-                  if (window.confirm(`Excluir campanha "${c.title}"?`)) {
-                    deleteCampaign.mutate(c.id)
-                  }
-                }}
-              />
+              <div key={c.id}>
+                <CampaignCard
+                  campaign={c}
+                  onDispatch={() => handleDispatch(c.id)}
+                  onCancel={() => cancelCampaign.mutate(c.id)}
+                  onDelete={() => {
+                    if (window.confirm(`Excluir campanha "${c.title}"?`)) {
+                      deleteCampaign.mutate(c.id)
+                    }
+                  }}
+                />
+                {dispatchMsg?.id === c.id && (
+                  <p className="text-[11px] text-slate-400 mt-1 px-1">{dispatchMsg.text}</p>
+                )}
+                {dispatchingId === c.id && (
+                  <p className="text-[11px] text-emerald-400 mt-1 px-1 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Disparando lote...
+                  </p>
+                )}
+              </div>
             ))}
           </div>
         )}
