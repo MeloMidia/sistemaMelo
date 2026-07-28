@@ -692,10 +692,32 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
 
 // ——— View principal ———
 export function CampaignsView() {
-  const { data: campaigns = [], isLoading } = useCampaigns()
+  const { data: campaigns = [], isLoading, refetch } = useCampaigns()
   const cancelCampaign = useCancelCampaign()
   const deleteCampaign = useDeleteCampaign()
   const [creating, setCreating] = useState(false)
+  const [dispatching, setDispatching] = useState(false)
+  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null)
+
+  async function handleDispatch() {
+    setDispatching(true)
+    setDispatchMsg(null)
+    try {
+      const res = await fetch('/api/cron/bulk-send', { method: 'POST' })
+      const data = await res.json()
+      if (data.message) {
+        setDispatchMsg(data.message)
+      } else {
+        setDispatchMsg(`Enviados: ${data.sent ?? 0} · Falhas: ${data.failed ?? 0}`)
+      }
+      refetch()
+    } catch {
+      setDispatchMsg('Erro ao processar campanha')
+    } finally {
+      setDispatching(false)
+      setTimeout(() => setDispatchMsg(null), 5000)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -708,18 +730,34 @@ export function CampaignsView() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Sub-header */}
-      <div className="px-6 py-3 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0 flex items-center justify-between">
-        <span className="text-xs text-slate-500">
-          <span className="text-white font-semibold tabular-nums">{campaigns.length}</span> campanhas
-        </span>
-        <Button
-          size="sm"
-          onClick={() => setCreating(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer gap-1.5"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nova Campanha
-        </Button>
+      <div className="px-6 py-3 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xs text-slate-500 shrink-0">
+            <span className="text-white font-semibold tabular-nums">{campaigns.length}</span> campanhas
+          </span>
+          {dispatchMsg && (
+            <span className="text-[11px] text-slate-400 truncate">{dispatchMsg}</span>
+          )}
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            size="sm"
+            onClick={handleDispatch}
+            disabled={dispatching}
+            className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs cursor-pointer gap-1.5"
+          >
+            {dispatching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            {dispatching ? 'Processando...' : 'Disparar'}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setCreating(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nova Campanha
+          </Button>
+        </div>
       </div>
 
       {/* Lista */}
