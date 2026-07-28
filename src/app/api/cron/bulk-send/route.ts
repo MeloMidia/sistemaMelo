@@ -3,6 +3,8 @@
 // Processa um batch de leads pendentes da campanha ativa.
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
@@ -13,15 +15,17 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
-  // Autenticação do cron
   const auth = request.headers.get('authorization')
-  if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Vercel Cron envia header x-vercel-cron-signature — aceitar mesmo sem secret
   const vercelCron = request.headers.get('x-vercel-cron-signature')
-  if (!CRON_SECRET && !vercelCron && process.env.NODE_ENV === 'production') {
+  const session = await getServerSession(authOptions)
+
+  const authed =
+    session ||
+    (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) ||
+    (!CRON_SECRET && vercelCron) ||
+    process.env.NODE_ENV !== 'production'
+
+  if (!authed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
