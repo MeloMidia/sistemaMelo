@@ -33,9 +33,10 @@ interface LeadCardProps {
   onSelect?: () => void
   isOverlay?: boolean
   disableDrag?: boolean
+  disableTimestamp?: boolean
 }
 
-export function LeadCard({ lead, onSelect, isOverlay = false, disableDrag = false }: LeadCardProps) {
+export function LeadCard({ lead, onSelect, isOverlay = false, disableDrag = false, disableTimestamp = false }: LeadCardProps) {
   const [imgError, setImgError] = useState(false)
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -102,7 +103,7 @@ export function LeadCard({ lead, onSelect, isOverlay = false, disableDrag = fals
               <span className="text-[13px] font-semibold text-white leading-tight truncate group-hover:text-green-400 transition-colors">
                 {displayName}
               </span>
-              {lastMessage?.createdAt && (
+              {!disableTimestamp && lastMessage?.createdAt && (
                 <span className="text-[10px] text-slate-500 shrink-0 tabular-nums font-medium">
                   {timeAgo(lastMessage.createdAt)}
                 </span>

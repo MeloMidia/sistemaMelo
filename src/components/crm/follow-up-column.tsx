@@ -89,17 +89,26 @@ export function FollowUpColumn({ column, leads, totalCount, onSelectLead }: Foll
       >
         {leads.map((lead) => {
           const since = sinceLabel(lead.followUpMovedAt)
+          const lastMsg = lead.messages?.[0]
+          const msgTime = lastMsg?.createdAt ? sinceLabel(lastMsg.createdAt) : null
           return (
-            <div key={lead.id} className="relative">
-              <LeadCard lead={lead} onSelect={() => onSelectLead(lead.id)} />
-              {since && (
-                <span
-                  className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full pointer-events-none"
-                  style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}30` }}
-                >
-                  {since}
-                </span>
-              )}
+            <div key={lead.id}>
+              <LeadCard lead={lead} onSelect={() => onSelectLead(lead.id)} disableTimestamp />
+              <div className="flex items-center justify-between px-1 mt-0.5 mb-0.5">
+                {msgTime ? (
+                  <span className="text-[9px] text-slate-500 tabular-nums">
+                    última msg: {msgTime}
+                  </span>
+                ) : <span />}
+                {since && (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}30` }}
+                  >
+                    {since} nessa col.
+                  </span>
+                )}
+              </div>
             </div>
           )
         })}
