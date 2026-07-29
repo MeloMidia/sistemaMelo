@@ -49,7 +49,11 @@ export function useCreateCampaign() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      const result = await res.json()
+      let result: Record<string, string> = {}
+      try { result = await res.json() } catch {
+        if (res.status === 413) throw new Error('Arquivo muito grande. Limite máximo: ~3 MB. Use um vídeo menor ou comprima o arquivo.')
+        throw new Error(`Erro ${res.status} ao criar campanha`)
+      }
       if (!res.ok) throw new Error(result.error || 'Erro ao criar campanha')
       return result
     },

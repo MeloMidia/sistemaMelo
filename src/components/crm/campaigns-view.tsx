@@ -241,11 +241,18 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
     update({ filter: { ...form.filter, ids } })
   }
 
+  const MAX_FILE_BYTES = 3.5 * 1024 * 1024 // 3.5 MB — Vercel Hobby limit is ~4.5 MB but base64 inflates ~33%
+
   function handleFile(file: File | null) {
     if (!file) {
       update({ mediaFile: null, mediaPreview: null })
       return
     }
+    if (file.size > MAX_FILE_BYTES) {
+      setError(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Limite máximo: 3.5 MB. Comprima o arquivo antes de enviar.`)
+      return
+    }
+    setError('')
     const reader = new FileReader()
     reader.onload = (e) => {
       update({ mediaFile: file, mediaPreview: e.target?.result as string ?? null })
