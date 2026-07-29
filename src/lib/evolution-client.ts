@@ -136,32 +136,6 @@ export async function sendMediaMessage(input: {
   return data as SendTextResult
 }
 
-// Envia mídia por URL pública — sem limite de tamanho de arquivo
-export async function sendMediaByUrl(input: {
-  phone: string
-  mediaType: MediaMessageType
-  mimeType: string
-  mediaUrl: string
-  fileName: string
-  caption?: string
-}): Promise<SendTextResult> {
-  const res = await evolutionRequest(`/message/sendMedia/${INSTANCE}`, {
-    method: 'POST',
-    body: JSON.stringify({
-      number: input.phone,
-      mediatype: input.mediaType,
-      mimetype: input.mimeType,
-      media: input.mediaUrl,
-      fileName: input.fileName,
-      caption: input.caption ?? '',
-    }),
-  })
-  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
-  const data = await res.json()
-  if (!data?.key?.id) throw new Error('Resposta da Evolution API sem ID de mensagem')
-  return data as SendTextResult
-}
-
 export interface WhatsappLabel {
   id: string
   name: string

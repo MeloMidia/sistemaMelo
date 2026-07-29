@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { sendTextMessage, sendMediaMessage, sendMediaByUrl, sendAudioMessage } from '@/lib/evolution-client'
+import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const BATCH_SIZE = 8
@@ -81,23 +81,9 @@ export async function POST(request: Request) {
   for (const item of pending) {
     const phone = item.lead.phone
     try {
-      const isUrl = campaign.mediaBase64?.startsWith('http')
-      if (campaign.mediaBase64 && campaign.mediaType === 'audio' && !isUrl) {
+      if (campaign.mediaBase64 && campaign.mediaType === 'audio') {
         await sendAudioMessage(phone, campaign.mediaBase64)
         if (campaign.message?.trim()) {
-          await sleep(1500)
-          await sendTextMessage(phone, campaign.message)
-        }
-      } else if (campaign.mediaBase64 && campaign.mediaType && campaign.mimeType && campaign.fileName && isUrl) {
-        await sendMediaByUrl({
-          phone,
-          mediaType: campaign.mediaType as 'image' | 'video' | 'document',
-          mimeType: campaign.mimeType,
-          mediaUrl: campaign.mediaBase64,
-          fileName: campaign.fileName,
-          caption: campaign.mediaCaption ?? campaign.message ?? '',
-        })
-        if (campaign.message?.trim() && campaign.message !== campaign.mediaCaption) {
           await sleep(1500)
           await sendTextMessage(phone, campaign.message)
         }
