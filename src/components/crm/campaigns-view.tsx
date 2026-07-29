@@ -156,6 +156,7 @@ interface FormState {
   mediaFile: File | null
   mediaPreview: string | null
   mediaCaption: string
+  mediaUrl: string  // URL pública para vídeos grandes (Evolution API busca diretamente)
   scheduledAt: string  // ISO string ou ''
   delaySeconds: number
 }
@@ -175,6 +176,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
     mediaFile: null,
     mediaPreview: null,
     mediaCaption: '',
+    mediaUrl: '',
     scheduledAt: '',
     delaySeconds: 7,
   })
@@ -263,7 +265,9 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
   async function handleSubmit() {
     setError('')
     if (!form.title.trim()) { setError('Informe o título da campanha'); return }
-    if (!form.message.trim() && !form.mediaFile) { setError('Informe uma mensagem ou selecione uma mídia'); return }
+    if (!form.message.trim() && !form.mediaFile && !form.mediaUrl.trim()) {
+      setError('Informe uma mensagem, selecione uma mídia ou cole uma URL de vídeo'); return
+    }
     if ((form.filter.type === 'stages' || form.filter.type === 'labels') && form.filter.ids.length === 0) {
       setError('Selecione pelo menos um estágio ou etiqueta'); return
     }
@@ -273,7 +277,13 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
     let mimeType: string | undefined
     let fileName: string | undefined
 
-    if (form.mediaFile && form.mediaPreview) {
+    if (form.mediaUrl.trim()) {
+      // URL pública — Evolution API busca o arquivo diretamente (sem limite de tamanho)
+      mediaBase64 = form.mediaUrl.trim()
+      mediaType = 'video'
+      mimeType = 'video/mp4'
+      fileName = 'video.mp4'
+    } else if (form.mediaFile && form.mediaPreview) {
       // Remove "data:image/jpeg;base64," prefix
       mediaBase64 = form.mediaPreview.split(',')[1]
       mimeType = form.mediaFile.type
@@ -469,7 +479,21 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                   className="hidden"
                   onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
                 />
-                {form.mediaPreview ? (
+                {form.mediaUrl ? (
+                  <div className="relative rounded-xl overflow-hidden border border-blue-500/20 bg-blue-500/5 p-4 flex items-center gap-3">
+                    <Video className="w-8 h-8 text-blue-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium">Vídeo por URL</p>
+                      <p className="text-[10px] text-slate-500 truncate">{form.mediaUrl}</p>
+                    </div>
+                    <button
+                      onClick={() => update({ mediaUrl: '' })}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer hover:bg-black/80"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : form.mediaPreview ? (
                   <div className="relative rounded-xl overflow-hidden border border-white/[0.08] bg-black/20">
                     {form.mediaFile?.type.startsWith('image/') ? (
                       <img src={form.mediaPreview} alt="Preview" className="w-full max-h-48 object-contain" />
@@ -520,31 +544,53 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-white hover:border-white/20 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
-                    >
-                      <div className="flex gap-2">
-                        <ImageIcon className="w-4 h-4" />
-                        <Video className="w-4 h-4" />
-                        <Mic className="w-4 h-4" />
-                      </div>
-                      Anexar arquivo
-                    </button>
-                    <button
-                      onClick={startRecording}
-                      className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
-                    >
-                      <MicOff className="w-4 h-4" />
-                      Gravar áudio
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-white hover:border-white/20 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
+                      >
+                        <div className="flex gap-2">
+                          <ImageIcon className="w-4 h-4" />
+                          <Video className="w-4 h-4" />
+                          <Mic className="w-4 h-4" />
+                        </div>
+                        Anexar arquivo
+                      </button>
+                      <button
+                        onClick={startRecording}
+                        className="flex-1 py-5 rounded-xl border-2 border-dashed border-white/[0.08] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors cursor-pointer flex flex-col items-center gap-2 text-xs"
+                      >
+                        <MicOff className="w-4 h-4" />
+                        Gravar áudio
+                      </button>
+                    </div>
+                    {/* URL pública para vídeos grandes */}
+                    <div className="relative">
+                      <input
+                        value={form.mediaUrl}
+                        onChange={(e) => { update({ mediaUrl: e.target.value, mediaFile: null, mediaPreview: null }); setError('') }}
+                        placeholder="ou cole URL pública de vídeo (para arquivos grandes)..."
+                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/40"
+                      />
+                      {form.mediaUrl && (
+                        <button
+                          onClick={() => update({ mediaUrl: '' })}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400 cursor-pointer"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-600">
+                      URL pública: Google Drive (link direto), Dropbox, Cloudflare R2, etc.
+                    </p>
                   </div>
                 )}
               </div>
 
               {/* Legenda da mídia (só para imagem/vídeo) */}
-              {form.mediaPreview && !form.mediaFile?.type.startsWith('audio/') && (
+              {(form.mediaUrl || (form.mediaPreview && !form.mediaFile?.type.startsWith('audio/'))) && (
                 <input
                   value={form.mediaCaption}
                   onChange={(e) => update({ mediaCaption: e.target.value })}
@@ -651,9 +697,11 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Conteúdo</span>
                   <span className="text-white font-medium">
-                    {form.mediaFile
-                      ? `${form.mediaFile.type.startsWith('image/') ? 'Imagem' : form.mediaFile.type.startsWith('audio/') ? 'Áudio PTT' : 'Vídeo'}${form.message ? ' + texto' : ''}`
-                      : 'Texto'}
+                    {form.mediaUrl
+                      ? `Vídeo (URL)${form.message ? ' + texto' : ''}`
+                      : form.mediaFile
+                        ? `${form.mediaFile.type.startsWith('image/') ? 'Imagem' : form.mediaFile.type.startsWith('audio/') ? 'Áudio PTT' : 'Vídeo'}${form.message ? ' + texto' : ''}`
+                        : 'Texto'}
                   </span>
                 </div>
                 <div className="flex justify-between">
