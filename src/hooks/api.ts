@@ -102,6 +102,9 @@ export function useCreateTask() {
       dueDate?: string
       isPriorityToday?: boolean
       columnId: string
+      source?: string
+      assignee?: string | null
+      leadId?: string | null
     }) => {
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -111,9 +114,12 @@ export function useCreateTask() {
       if (!res.ok) throw new Error('Failed to create task')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['columns'] })
       qc.invalidateQueries({ queryKey: ['tasks'] })
+      if (variables.leadId) {
+        qc.invalidateQueries({ queryKey: ['lead-tasks', variables.leadId] })
+      }
     },
   })
 }
@@ -164,6 +170,11 @@ export function useUpdateTask() {
       if ('completedAt' in variables) {
         qc.invalidateQueries({ queryKey: ['tasks-history'] })
       }
+      // Invalida tarefas do lead se a tarefa estiver vinculada a um
+      const task = qc.getQueryData<Task[]>(['tasks'])?.find(t => t.id === variables.id)
+      if (task?.leadId) {
+        qc.invalidateQueries({ queryKey: ['lead-tasks', task.leadId] })
+      }
     },
   })
 }
@@ -192,6 +203,19 @@ export function useCompletedTasks() {
       return res.json()
     },
     staleTime: 60_000,
+  })
+}
+
+export function useLeadTasks(leadId: string | null) {
+  return useQuery<Task[]>({
+    queryKey: ['lead-tasks', leadId],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks?leadId=${leadId}`)
+      if (!res.ok) throw new Error('Failed to fetch lead tasks')
+      return res.json()
+    },
+    enabled: !!leadId,
+    staleTime: 30_000,
   })
 }
 

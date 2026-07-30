@@ -49,6 +49,8 @@ model Task {
   completedAt     DateTime?
   completedBy     String?
   tags            TaskTag[]
+  leadId          String?
+  lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
 }
 
 model Tag {
@@ -124,6 +126,7 @@ model Lead {
   events           AgendaEvent[]
   campaignLeads    BulkCampaignLead[]
   followUpLogs     FollowUpLog[]
+  tasks            Task[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 }

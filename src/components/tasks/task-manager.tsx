@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { useAllTasks, useCreateTask, useUpdateTask, useDeleteTask, useColumns, useCompletedTasks } from '@/hooks/api'
+import { useAllTasks, useUpdateTask, useDeleteTask, useCompletedTasks } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import type { Task } from '@/types'
 import {
   DndContext,
@@ -23,7 +21,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import {
-  Plus,
   Calendar,
   Star,
   Trash2,
@@ -118,16 +115,9 @@ function DraggableTask({ task, children }: { task: Task, children: React.ReactNo
 export function TaskManager() {
   const { data: tasks, isLoading: tasksLoading } = useAllTasks()
   const { data: completedTasks, isLoading: historyLoading } = useCompletedTasks()
-  const { data: columns } = useColumns()
-  const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [isPriority, setIsPriority] = useState(false)
-  const [assignee, setAssignee] = useState('')
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
@@ -135,8 +125,6 @@ export function TaskManager() {
   const [completeModal, setCompleteModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
   const [completedBy, setCompletedBy] = useState('')
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null })
-
-  const defaultColumnId = columns?.[0]?.id || ''
 
   // Custom coordinate getter que ignora eventos de teclado vindos de inputs/textareas/selects
   // Isso impede o bug do espaço nos campos de edição
@@ -152,27 +140,6 @@ export function TaskManager() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: customKeyboardCoordinates })
   )
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !defaultColumnId) return
-
-    createTask.mutate({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      dueDate: dueDate ? parseDateLocal(dueDate).toISOString() : undefined,
-      isPriorityToday: isPriority,
-      columnId: defaultColumnId,
-      source: 'tasks',
-      assignee: assignee || null,
-    } as any)
-
-    setTitle('')
-    setDescription('')
-    setDueDate('')
-    setIsPriority(false)
-    setAssignee('')
-  }
 
   const allTasks = useMemo(() => {
     if (!tasks) return []
@@ -272,75 +239,9 @@ export function TaskManager() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* 4-column grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[500px]">
-          {/* Column 1: Form */}
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center ring-1 ring-blue-500/20">
-                <Plus className="w-5 h-5 text-blue-400" />
-              </div>
-              <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>Nova Tarefa</h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="taskTitle" className="text-slate-300 text-sm font-medium">
-                  Nome da tarefa *
-                </Label>
-                <Input
-                  id="taskTitle"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Digite o nome..."
-                  required
-                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taskDesc" className="text-slate-300 text-sm font-medium">
-                  Descrição
-                </Label>
-                <textarea
-                  id="taskDesc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Descrição opcional..."
-                  rows={3}
-                  className="w-full rounded-xl bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taskDue" className="text-slate-300 text-sm font-medium">
-                  Data máxima de entrega
-                </Label>
-                <Input
-                  id="taskDue"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] rounded-xl h-11"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={createTask.isPending || !title.trim()}
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold border-0 shadow-lg shadow-blue-600/20 cursor-pointer rounded-xl text-[15px]"
-              >
-                {createTask.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Plus className="w-4 h-4 mr-2" />
-                )}
-                Criar Tarefa
-              </Button>
-            </form>
-          </div>
-
-          {/* Column 2: Task Queue */}
+        {/* 3-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
+          {/* Column 1: Task Queue */}
           <DroppableColumn
             id="col-queue"
             title="Fila de Tarefas"

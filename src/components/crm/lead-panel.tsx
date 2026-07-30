@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Info as InfoIcon, MessageCircle } from 'lucide-react'
+import { X, Info as InfoIcon, MessageCircle, ClipboardList } from 'lucide-react'
 import { useStages, useFollowUp } from '@/hooks/crm-api'
+import { useLeadTasks } from '@/hooks/api'
 import { LeadInfoTab } from './lead-info-tab'
 import { LeadConversaTab } from './lead-conversa-tab'
+import { LeadProcessosTab } from './lead-processos-tab'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 
 interface LeadPanelProps {
@@ -22,7 +24,8 @@ function getAvatarColor(seed: string): string {
 export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   const { data: stages } = useStages()
   const { data: followUpColumns } = useFollowUp()
-  const [activeTab, setActiveTab] = useState<'info' | 'conversa'>('info')
+  const { data: leadTasks } = useLeadTasks(leadId)
+  const [activeTab, setActiveTab] = useState<'info' | 'conversa' | 'processos'>('info')
 
   // Busca o lead nas stages primeiro
   const stageWithLead = stages?.find((s) => s.leads.some((l) => l.id === leadId))
@@ -46,6 +49,9 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
   const displayName = getLeadDisplayName(lead)
   const initial = displayName.charAt(0).toUpperCase()
   const avatarColor = getAvatarColor(displayName)
+
+  const activeTasks = leadTasks?.filter(t => !t.completedAt) ?? []
+  const taskCount = activeTasks.length
 
   return (
     <div className="fixed top-[60px] bottom-0 right-0 w-[420px] bg-black/50 backdrop-blur-xl border-l border-white/[0.12] shadow-2xl shadow-black/60 flex flex-col z-40">
@@ -99,12 +105,28 @@ export function LeadPanel({ leadId, onClose }: LeadPanelProps) {
         >
           <MessageCircle className="w-3.5 h-3.5" /> Conversa
         </button>
+        <button
+          onClick={() => setActiveTab('processos')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
+            activeTab === 'processos' ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-white'
+          }`}
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          Processos
+          {taskCount > 0 && (
+            <span className="ml-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold px-1">
+              {taskCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {activeTab === 'info' ? (
         <LeadInfoTab lead={lead} stage={stage} onClose={onClose} />
-      ) : (
+      ) : activeTab === 'conversa' ? (
         <LeadConversaTab leadId={leadId} />
+      ) : (
+        <LeadProcessosTab leadId={leadId} />
       )}
     </div>
   )

@@ -19,6 +19,7 @@ export interface Task {
   createdAt: string
   completedAt: string | null
   completedBy: string | null
+  leadId: string | null
 }
 
 export interface Column {
