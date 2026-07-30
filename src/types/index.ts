@@ -20,6 +20,7 @@ export interface Task {
   completedAt: string | null
   completedBy: string | null
   leadId: string | null
+  kanbanTaskId: string | null
 }
 
 export interface Column {

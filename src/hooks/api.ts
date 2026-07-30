@@ -105,13 +105,17 @@ export function useCreateTask() {
       source?: string
       assignee?: string | null
       leadId?: string | null
+      kanbanTaskId?: string | null
     }) => {
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error('Failed to create task')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `HTTP ${res.status}`)
+      }
       return res.json()
     },
     onSuccess: (_data, variables) => {
@@ -119,6 +123,9 @@ export function useCreateTask() {
       qc.invalidateQueries({ queryKey: ['tasks'] })
       if (variables.leadId) {
         qc.invalidateQueries({ queryKey: ['lead-tasks', variables.leadId] })
+      }
+      if (variables.kanbanTaskId) {
+        qc.invalidateQueries({ queryKey: ['kanban-card-tasks', variables.kanbanTaskId] })
       }
     },
   })
@@ -175,6 +182,9 @@ export function useUpdateTask() {
       if (task?.leadId) {
         qc.invalidateQueries({ queryKey: ['lead-tasks', task.leadId] })
       }
+      if (task?.kanbanTaskId) {
+        qc.invalidateQueries({ queryKey: ['kanban-card-tasks', task.kanbanTaskId] })
+      }
     },
   })
 }
@@ -216,6 +226,35 @@ export function useLeadTasks(leadId: string | null) {
     },
     enabled: !!leadId,
     staleTime: 30_000,
+  })
+}
+
+export function useKanbanCardTasks(kanbanTaskId: string | null) {
+  return useQuery<Task[]>({
+    queryKey: ['kanban-card-tasks', kanbanTaskId],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks?kanbanTaskId=${kanbanTaskId}`)
+      if (!res.ok) throw new Error('Failed to fetch kanban card tasks')
+      return res.json()
+    },
+    enabled: !!kanbanTaskId,
+    staleTime: 30_000,
+  })
+}
+
+export function useExpirePromos() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/tasks/expire-promos', { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to expire promos')
+      return res.json() as Promise<{ expired: number }>
+    },
+    onSuccess: ({ expired }) => {
+      if (expired > 0) {
+        qc.invalidateQueries({ queryKey: ['columns'] })
+      }
+    },
   })
 }
 

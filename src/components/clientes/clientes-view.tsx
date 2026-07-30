@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Megaphone, Zap, Calendar, Layers, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { useColumns, useUpdateTask } from '@/hooks/api'
+import { useColumns, useUpdateTask, useExpirePromos } from '@/hooks/api'
 import type { Task } from '@/types'
 
 function Toggle({
@@ -77,8 +77,10 @@ function ClienteCard({ task }: { task: Task }) {
     updateTask.mutate({ id: task.id, promocaoAte: date || null })
   }
 
-  const promoDateStr = task.promocaoAte
-    ? new Date(task.promocaoAte).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  const promoDate = task.promocaoAte ? new Date(task.promocaoAte) : null
+  const promoExpired = promoDate ? promoDate < new Date() : false
+  const promoDateStr = promoDate
+    ? promoDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
     : null
 
   return (
@@ -120,9 +122,13 @@ function ClienteCard({ task }: { task: Task }) {
             {task.promocaoAtiva && promoDateStr && !editingDate && (
               <button
                 onClick={() => setEditingDate(true)}
-                className="text-[10px] text-amber-500 hover:text-amber-400 cursor-pointer transition-colors"
+                className={`text-[10px] cursor-pointer transition-colors ${
+                  promoExpired
+                    ? 'text-red-400 hover:text-red-300'
+                    : 'text-amber-500 hover:text-amber-400'
+                }`}
               >
-                até {promoDateStr}
+                {promoExpired ? `venceu ${promoDateStr}` : `até ${promoDateStr}`}
               </button>
             )}
           </div>
@@ -185,6 +191,12 @@ function KanbanCol({ title, subtitle, icon, count, colorClass, borderClass, chil
 
 export function ClientesView() {
   const { data: columns, isLoading } = useColumns('kanban')
+  const expirePromos = useExpirePromos()
+
+  // Expira promoções vencidas ao carregar a view
+  useEffect(() => {
+    expirePromos.mutate()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const COLUNAS_EXCLUIDAS = ['encerrado', 'cancelado', 'inativo', 'churned']
 

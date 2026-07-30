@@ -51,6 +51,7 @@ model Task {
   tags            TaskTag[]
   leadId          String?
   lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  kanbanTaskId    String?
 }
 
 model Tag {
