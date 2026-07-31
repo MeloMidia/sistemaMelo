@@ -110,6 +110,22 @@ export function useMoveAllLeads() {
   })
 }
 
+export function useMoveAllFollowUpLeads() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ fromColumn, toColumn }: { fromColumn: number; toColumn: number }) => {
+      const res = await fetch('/api/crm/follow-up/move-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromColumn, toColumn }),
+      })
+      if (!res.ok) throw new Error('Failed to move leads')
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-follow-up'] }),
+  })
+}
+
 // ——— Lead ———
 export function useUpdateLead() {
   const qc = useQueryClient()

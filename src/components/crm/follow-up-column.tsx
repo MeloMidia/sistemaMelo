@@ -1,6 +1,8 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
+import { ArrowRightLeft } from 'lucide-react'
 import type { Lead } from '@/types/crm'
 import { LeadCard } from './lead-card'
 
@@ -32,15 +34,33 @@ export const FOLLOW_UP_COLORS = [
   '#a855f7', // 14 - roxo
 ]
 
+interface OtherColumn {
+  column: number
+  color: string
+}
+
 interface FollowUpColumnProps {
   column: number
   leads: Lead[]
   totalCount: number
   onSelectLead: (id: string) => void
+  otherColumns?: OtherColumn[]
+  onMoveAll?: (toColumn: number) => void
+  isMovingAll?: boolean
 }
 
-export function FollowUpColumn({ column, leads, totalCount, onSelectLead }: FollowUpColumnProps) {
+export function FollowUpColumn({
+  column,
+  leads,
+  totalCount,
+  onSelectLead,
+  otherColumns = [],
+  onMoveAll,
+  isMovingAll,
+}: FollowUpColumnProps) {
   const color = FOLLOW_UP_COLORS[column - 1]
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const { setNodeRef, isOver } = useDroppable({
     id: `followup-droppable-${column}`,
@@ -79,6 +99,49 @@ export function FollowUpColumn({ column, leads, totalCount, onSelectLead }: Foll
           <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md tabular-nums shrink-0">
             R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </span>
+        )}
+
+        {/* Botão mover todos */}
+        {onMoveAll && otherColumns.length > 0 && (
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              onClick={() => setShowMoveMenu(!showMoveMenu)}
+              disabled={isMovingAll || totalCount === 0}
+              title="Mover todos os leads"
+              className="p-1 rounded-md text-slate-700 hover:text-slate-300 hover:bg-white/[0.06] transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {isMovingAll ? (
+                <div className="w-3.5 h-3.5 border border-slate-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {showMoveMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-[#0e1117] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-white/[0.06]">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Mover {totalCount} leads para…
+                  </span>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {otherColumns.map((col) => (
+                    <button
+                      key={col.column}
+                      onClick={() => {
+                        onMoveAll(col.column)
+                        setShowMoveMenu(false)
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                    >
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+                      <span className="truncate">Follow Up {col.column}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -11,8 +11,8 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { useFollowUp, useFollowUpLeadMove } from '@/hooks/crm-api'
-import { FollowUpColumn } from './follow-up-column'
+import { useFollowUp, useFollowUpLeadMove, useMoveAllFollowUpLeads } from '@/hooks/crm-api'
+import { FollowUpColumn, FOLLOW_UP_COLORS } from './follow-up-column'
 import { LeadCard } from './lead-card'
 import type { Lead } from '@/types/crm'
 import { Loader2, Clock } from 'lucide-react'
@@ -26,7 +26,17 @@ interface FollowUpBoardProps {
 export function FollowUpBoard({ onSelectLead, searchQuery }: FollowUpBoardProps) {
   const { data: columns = [], isLoading } = useFollowUp()
   const moveLeadMutation = useFollowUpLeadMove()
+  const moveAllMutation = useMoveAllFollowUpLeads()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
+  const [movingColumn, setMovingColumn] = useState<number | null>(null)
+
+  const handleMoveAll = useCallback((fromColumn: number, toColumn: number) => {
+    setMovingColumn(fromColumn)
+    moveAllMutation.mutate(
+      { fromColumn, toColumn },
+      { onSettled: () => setMovingColumn(null) }
+    )
+  }, [moveAllMutation])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -106,15 +116,23 @@ export function FollowUpBoard({ onSelectLead, searchQuery }: FollowUpBoardProps)
       >
         <div className="flex-1 overflow-x-auto p-5">
           <div className="flex gap-4 items-start min-h-[calc(100vh-210px)]">
-            {filteredColumns.map((col) => (
-              <FollowUpColumn
-                key={col.column}
-                column={col.column}
-                leads={col.leads}
-                totalCount={col._count.leads}
-                onSelectLead={onSelectLead}
-              />
-            ))}
+            {filteredColumns.map((col) => {
+              const otherColumns = filteredColumns
+                .filter((c) => c.column !== col.column)
+                .map((c) => ({ column: c.column, color: FOLLOW_UP_COLORS[c.column - 1] }))
+              return (
+                <FollowUpColumn
+                  key={col.column}
+                  column={col.column}
+                  leads={col.leads}
+                  totalCount={col._count.leads}
+                  onSelectLead={onSelectLead}
+                  otherColumns={otherColumns}
+                  onMoveAll={(toColumn) => handleMoveAll(col.column, toColumn)}
+                  isMovingAll={movingColumn === col.column}
+                />
+              )
+            })}
           </div>
         </div>
 
