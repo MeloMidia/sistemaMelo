@@ -53,11 +53,11 @@ export function MeetingsStatusCard({ start, end }: Props) {
               key={event.id}
               className={`flex items-center justify-between gap-3 border rounded-xl px-4 py-3 transition-all ${
                 isRealizada
-                  ? 'bg-emerald-500/[0.04] border-emerald-500/20'
+                  ? 'bg-yellow-500/[0.06] border-yellow-500/20'
                   : isFalta
-                    ? 'bg-amber-500/[0.04] border-amber-500/20'
+                    ? 'bg-red-500/[0.06] border-red-500/20'
                     : isNaoRealizada
-                      ? 'bg-rose-500/[0.04] border-rose-500/20'
+                      ? 'bg-slate-500/[0.06] border-slate-500/20'
                       : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]'
               }`}
             >
@@ -68,7 +68,7 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   style={{ backgroundColor: event.category?.color ?? '#64748b' }}
                 />
                 <div className="min-w-0">
-                  <p className={`text-sm font-medium truncate ${isRealizada ? 'text-slate-400 line-through' : 'text-white'}`}>
+                  <p className={`text-sm font-medium truncate ${isRealizada ? 'text-yellow-400/80 line-through' : isFalta ? 'text-red-400' : isNaoRealizada ? 'text-slate-400' : 'text-white'}`}>
                     {event.title}
                   </p>
                   <p className="text-[11px] text-slate-500">
@@ -86,8 +86,8 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   title="Marcar como realizada"
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isRealizada
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : 'text-slate-500 hover:text-yellow-400 hover:bg-yellow-500/10 border border-transparent'
                   }`}
                 >
                   <CheckCircle2 className="w-3 h-3" />
@@ -99,8 +99,8 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   title="Lead não compareceu (falta)"
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isFalta
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
                   }`}
                 >
                   <UserX className="w-3 h-3" />
@@ -112,8 +112,8 @@ export function MeetingsStatusCard({ start, end }: Props) {
                   title="Reunião não foi realizada"
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isNaoRealizada
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      : 'text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent'
+                      ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-500/10 border border-transparent'
                   }`}
                 >
                   <XCircle className="w-3 h-3" />

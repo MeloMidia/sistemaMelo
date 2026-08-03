@@ -380,7 +380,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                 const isRealizada    = event.status === 'REALIZADA'
                 const isFalta        = event.status === 'FALTA'
                 const isNaoRealizada = event.status === 'NAO_REALIZADA'
-                const eventColor = isFalta ? '#ef4444' : isNaoRealizada ? '#6b7280' : color
+                const eventColor = isRealizada ? '#ca8a04' : isFalta ? '#ef4444' : isNaoRealizada ? '#6b7280' : color
 
                 return (
                   <div
@@ -401,14 +401,9 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                     className="rounded-lg overflow-hidden group/event shadow-md flex flex-col"
                     onPointerDown={ev => handleMoveDown(ev, event, eventColor)}
                   >
-                    {/* Overlay de status */}
-                    {isRealizada && (
-                      <div className="absolute inset-0 bg-black/35 pointer-events-none rounded-lg" />
-                    )}
-
                     {/* Badge de status */}
                     {(isRealizada || isFalta || isNaoRealizada) && (
-                      <div className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center pointer-events-none z-10 ${isRealizada ? 'bg-emerald-500/90' : isFalta ? 'bg-red-700/90' : 'bg-slate-500/90'}`}>
+                      <div className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center pointer-events-none z-10 ${isRealizada ? 'bg-yellow-600/90' : isFalta ? 'bg-red-700/90' : 'bg-slate-500/90'}`}>
                         {isRealizada
                           ? <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                           : <X className="w-2.5 h-2.5 text-white" strokeWidth={3} />
