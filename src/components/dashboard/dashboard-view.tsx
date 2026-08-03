@@ -335,6 +335,12 @@ export function DashboardView() {
         </section>
 
 
+        {/* Reuniões — status rápido */}
+        {(() => {
+          const range = getDateRange(period, customRange)
+          return <MeetingsStatusCard start={range.start} end={range.end} />
+        })()}
+
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4">
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
