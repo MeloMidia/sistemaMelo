@@ -63,7 +63,6 @@ export function TaskCard({ task }: TaskCardProps) {
 
   // Task creation modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [taskTitle, setTaskTitle] = useState('')
   const [taskDesc, setTaskDesc] = useState('')
   const [taskDueDate, setTaskDueDate] = useState('')
 
@@ -71,12 +70,11 @@ export function TaskCard({ task }: TaskCardProps) {
   const completedCardTasks = (cardTasks ?? []).filter(t => t.completedAt)
 
   const handleCreateTask = () => {
-    if (!taskTitle.trim()) return
     const columnId = columns?.[0]?.id ?? kanbanColumns?.[0]?.id
     if (!columnId) return
     const [y, m, d] = (taskDueDate || '').split('-').map(Number)
     createTask.mutate({
-      title: taskTitle.trim(),
+      title: task.title,
       description: taskDesc.trim() || undefined,
       dueDate: taskDueDate ? new Date(y, m - 1, d, 12).toISOString() : undefined,
       columnId,
@@ -84,7 +82,6 @@ export function TaskCard({ task }: TaskCardProps) {
       kanbanTaskId: task.id,
     }, {
       onSuccess: () => {
-        setTaskTitle('')
         setTaskDesc('')
         setTaskDueDate('')
         setCreateModalOpen(false)
@@ -508,18 +505,6 @@ export function TaskCard({ task }: TaskCardProps) {
             {/* Form */}
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Título *</label>
-                <Input
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTask() }}
-                  placeholder="Nome da tarefa..."
-                  autoFocus
-                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl h-10 text-sm focus-visible:ring-1 focus-visible:ring-blue-500/40"
-                />
-              </div>
-
-              <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Descrição</label>
                 <textarea
                   value={taskDesc}
@@ -558,7 +543,7 @@ export function TaskCard({ task }: TaskCardProps) {
               </button>
               <button
                 onClick={handleCreateTask}
-                disabled={!taskTitle.trim() || createTask.isPending}
+                disabled={createTask.isPending}
                 className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 {createTask.isPending ? (

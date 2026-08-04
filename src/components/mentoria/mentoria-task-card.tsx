@@ -6,9 +6,9 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, FileText, Save, NotebookPen, Plus, Users
+  ImagePlus, FileText, Save, NotebookPen, Plus, Users, ClipboardList, CheckCircle2, Clock
 } from 'lucide-react'
-import { useDeleteTask, useUpdateTask } from '@/hooks/api'
+import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 
 interface MentoriaTaskCardProps {
@@ -72,6 +72,11 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   const [newNoteText, setNewNoteText] = useState('')
   const [editModalMeetings, setEditModalMeetings] = useState(String(task.meetingsCount || 0))
 
+  // Task creation modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [taskDesc, setTaskDesc] = useState('')
+  const [taskDueDate, setTaskDueDate] = useState('')
+
   useEffect(() => {
     setNotesList(parseNotes(task.notes))
   }, [task.notes])
@@ -82,6 +87,33 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
 
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
+  const createTask = useCreateTask()
+  const { data: columns } = useColumns('tasks')
+  const { data: kanbanColumns } = useColumns()
+  const { data: cardTasks } = useKanbanCardTasks(task.id)
+
+  const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
+  const completedCardTasks = (cardTasks ?? []).filter(t => t.completedAt)
+
+  const handleCreateTask = () => {
+    const columnId = columns?.[0]?.id ?? kanbanColumns?.[0]?.id
+    if (!columnId) return
+    const [y, m, d] = (taskDueDate || '').split('-').map(Number)
+    createTask.mutate({
+      title: task.title,
+      description: taskDesc.trim() || undefined,
+      dueDate: taskDueDate ? new Date(y, m - 1, d, 12).toISOString() : undefined,
+      columnId,
+      source: 'tasks',
+      kanbanTaskId: task.id,
+    }, {
+      onSuccess: () => {
+        setTaskDesc('')
+        setTaskDueDate('')
+        setCreateModalOpen(false)
+      }
+    })
+  }
 
   const {
     attributes,
@@ -318,6 +350,12 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                       {task.meetingsCount} Reuni{task.meetingsCount !== 1 ? 'ões' : 'ão'}
                     </span>
                   )}
+                  {activeTasks.length > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
+                      <ClipboardList className="w-3 h-3 shrink-0" />
+                      {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
+                    </span>
+                  )}
                   {task.notes && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
                       <NotebookPen className="w-3 h-3 shrink-0" />
@@ -442,6 +480,65 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
               </div>
             </div>
 
+            {/* Tasks section */}
+            <div className="px-6 pb-3 pt-1 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-200">Tarefas</span>
+                  {activeTasks.length > 0 && (
+                    <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold px-1.5">
+                      {activeTasks.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setCreateModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nova Tarefa
+                </button>
+              </div>
+
+              {activeTasks.length > 0 && (
+                <div className="space-y-1.5">
+                  {activeTasks.map(t => (
+                    <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-colors group/item">
+                      <button
+                        onClick={() => updateTask.mutate({ id: t.id, completedAt: new Date().toISOString() })}
+                        className="shrink-0 w-5 h-5 rounded-full border border-white/20 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer transition-colors"
+                        title="Concluir"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white leading-snug">{t.title}</p>
+                        {t.dueDate && (
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Calendar className="w-2.5 h-2.5" />
+                            {new Date(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {completedCardTasks.length > 0 && (
+                <div className="pt-1 space-y-1">
+                  <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider pb-1">
+                    Concluídas ({completedCardTasks.length})
+                  </p>
+                  {completedCardTasks.map(t => (
+                    <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500/60 shrink-0" />
+                      <p className="text-xs text-slate-600 line-through truncate">{t.title}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notes section */}
             <div className="p-6 pt-3 space-y-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
@@ -505,6 +602,84 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de criação de tarefa ──────────────── */}
+      {createModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          onClick={() => setCreateModalOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-md bg-[#0d0f18] border border-white/[0.08] rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+              <div>
+                <h3 className="text-base font-bold text-white">Nova Tarefa</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{task.title}</p>
+              </div>
+              <button
+                onClick={() => setCreateModalOpen(false)}
+                className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Descrição</label>
+                <textarea
+                  value={taskDesc}
+                  onChange={(e) => setTaskDesc(e.target.value)}
+                  placeholder="Descreva a tarefa..."
+                  rows={3}
+                  autoFocus
+                  className="w-full rounded-xl bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500/40 resize-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Prazo</label>
+                <Input
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] rounded-xl h-10 text-sm focus-visible:ring-1 focus-visible:ring-purple-500/40"
+                />
+              </div>
+            </div>
+
+            {createTask.isError && (
+              <p className="px-6 pb-2 text-xs text-red-400">
+                Erro: {(createTask.error as Error)?.message ?? 'Tente novamente.'}
+              </p>
+            )}
+
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                onClick={() => setCreateModalOpen(false)}
+                className="flex-1 h-10 rounded-xl text-sm font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateTask}
+                disabled={createTask.isPending}
+                className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                {createTask.isPending ? (
+                  <Clock className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                Criar Tarefa
+              </button>
             </div>
           </div>
         </div>
