@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { findLabels, WhatsappLabel } from '@/lib/evolution-client'
+import { findLabels } from '@/lib/evolution-client'
 import { WA_COLORS, STAGE_PRIORITY, LABEL_TO_STAGE, LABEL_ID_TO_STAGE, LABEL_ID_TO_NAME } from '@/lib/wa-label-map'
 
-// Aumenta o timeout da Vercel para esta rota (máx 60s no Hobby, 300s no Pro)
+// Aumenta o timeout da Vercel para esta rota
 export const maxDuration = 60
 
 const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
@@ -19,6 +19,12 @@ async function evo(path: string, init?: RequestInit) {
   })
 }
 
+/**
+ * Busca TODOS os chats de uma vez.
+ * O objeto de cada chat já contém o campo `labels` (array de labelIds).
+ * Não fazemos chamadas separadas por etiqueta — a Evolution API ignora filtros
+ * no body de /chat/findChats, o que causava TODOS os leads recebendo TODAS as tags.
+ */
 async function fetchAllChats(): Promise<unknown[]> {
   const all: unknown[] = []
   const PAGE = 500
@@ -29,28 +35,13 @@ async function fetchAllChats(): Promise<unknown[]> {
     })
     if (!res.ok) break
     const data = await res.json()
-    const items: unknown[] = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.chats as unknown[] ?? [])
+    const items: unknown[] = Array.isArray(data)
+      ? data
+      : ((data as Record<string, unknown>)?.chats as unknown[] ?? [])
     all.push(...items)
     if (items.length < PAGE) break
   }
   return all
-}
-
-async function fetchChatsForLabel(labelId: string): Promise<string[]> {
-  const jids: string[] = []
-  const PAGE = 500
-  for (let page = 0; page < 20; page++) {
-    const res = await evo(`/chat/findChats/${INSTANCE}`, {
-      method: 'POST',
-      body: JSON.stringify({ where: { labels: { array_contains: labelId } }, count: PAGE, pageIndex: page }),
-    })
-    if (!res.ok) break
-    const data = await res.json()
-    const items = Array.isArray(data) ? data as Record<string, unknown>[] : []
-    jids.push(...items.map((i) => String(i.remoteJid ?? '')).filter(Boolean))
-    if (items.length < PAGE) break
-  }
-  return jids
 }
 
 async function updateWebhook(existingUrl: string, existingEvents: string[]) {
@@ -78,8 +69,7 @@ export async function POST() {
 }
 
 async function runImport() {
-  // ── Phase 1: Import chats as leads ──────────────────────────────────────
-
+  // ── Fase 1: Buscar dados em paralelo ─────────────────────────────────────
   const [waLabels, chats, dbStages, existingTags] = await Promise.all([
     findLabels(),
     fetchAllChats(),
@@ -90,7 +80,7 @@ async function runImport() {
   const stageByName = new Map(dbStages.map((s) => [s.name, s]))
   const defaultStage = dbStages[0]
 
-  // Create "Perdido" stage if missing
+  // Criar stage "Perdido" se não existir
   if (!stageByName.has('Perdido')) {
     const lastOrder = Math.max(...dbStages.map((s) => s.order))
     const perdido = await prisma.leadStage.create({
@@ -99,7 +89,7 @@ async function runImport() {
     stageByName.set('Perdido', perdido)
   }
 
-  // Ensure CRM tags exist for all WA labels (with waLabelId stored)
+  // ── Fase 2: Sincronizar CrmTags com os labels do WhatsApp ────────────────
   const tagByName = new Map(existingTags.map((t) => [t.name, t]))
   for (const l of waLabels) {
     if (!tagByName.has(l.name)) {
@@ -115,16 +105,17 @@ async function runImport() {
       tagByName.set(tag.name, tag)
     }
   }
-  // Back-fill waLabelId on existing tags that match by name
   for (const label of waLabels) {
     const tag = tagByName.get(label.name)
     if (tag && !tag.waLabelId) {
       await prisma.crmTag.update({ where: { id: tag.id }, data: { waLabelId: String(label.id) } })
     }
   }
-
-  // Fix garbled tag names caused by Evolution API encoding issues
-  const allTagsForFix = await prisma.crmTag.findMany({ where: { waLabelId: { not: null } }, select: { id: true, waLabelId: true, name: true } })
+  // Corrigir nomes garbled (encoding da Evolution API)
+  const allTagsForFix = await prisma.crmTag.findMany({
+    where: { waLabelId: { not: null } },
+    select: { id: true, waLabelId: true, name: true },
+  })
   for (const tag of allTagsForFix) {
     const canonical = LABEL_ID_TO_NAME[tag.waLabelId!]
     if (canonical && tag.name !== canonical) {
@@ -132,7 +123,17 @@ async function runImport() {
     }
   }
 
-  // Build phone/waLid entries from chats
+  // ── Fase 3: Extrair jid→labels dos chats já buscados ────────────────────
+  // IMPORTANTE: não fazemos chamadas por etiqueta — a Evolution API ignorava
+  // o filtro e retornava todos os chats, aplicando TODAS as tags em TODOS os leads.
+  // A correção usa o campo `labels` que já vem em cada objeto de chat.
+
+  // Mapeia: jid → [labelIds]
+  const jidToLabelIds = new Map<string, string[]>()
+  // Mapeia: labelId → [jids que têm essa label]
+  const labelToJids = new Map<string, string[]>()
+
+  // Mapa: jid → phone (para criar leads)
   type ChatEntry = { phone: string; waLid: string; name: string | null }
   const toImport = new Map<string, ChatEntry>()
 
@@ -141,6 +142,18 @@ async function runImport() {
     const jid = String(chat.remoteJid ?? chat.id ?? '')
     if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) continue
 
+    // Extrair labels deste chat
+    const rawLabels = chat.labels
+    if (Array.isArray(rawLabels) && rawLabels.length > 0) {
+      const ids = rawLabels.map(String).filter(Boolean)
+      jidToLabelIds.set(jid, ids)
+      for (const lid of ids) {
+        if (!labelToJids.has(lid)) labelToJids.set(lid, [])
+        labelToJids.get(lid)!.push(jid)
+      }
+    }
+
+    // Resolver phone para criar lead
     let phone: string | null = null
     if (jid.endsWith('@s.whatsapp.net')) {
       phone = jid.split('@')[0]
@@ -150,11 +163,15 @@ async function runImport() {
       const alt = key?.remoteJidAlt as string | undefined
       if (alt?.endsWith('@s.whatsapp.net')) phone = alt.split('@')[0]
     }
-
     if (!phone || phone.length < 8) continue
-    toImport.set(phone, { phone, waLid: jid, name: typeof chat.pushName === 'string' ? chat.pushName : null })
+    toImport.set(phone, {
+      phone,
+      waLid: jid,
+      name: typeof chat.pushName === 'string' ? chat.pushName : null,
+    })
   }
 
+  // ── Fase 4: Criar/atualizar leads ────────────────────────────────────────
   const phones = [...toImport.keys()]
   const existingLeads = await prisma.lead.findMany({
     where: { phone: { in: phones } },
@@ -173,7 +190,7 @@ async function runImport() {
     await prisma.lead.createMany({ data: newLeads, skipDuplicates: true })
   }
 
-  // Back-fill waLid on existing leads that don't have it
+  // Preencher waLid em leads existentes que não têm
   for (const existing of existingLeads) {
     if (!existing.waLid) {
       const entry = toImport.get(existing.phone)
@@ -183,51 +200,48 @@ async function runImport() {
     }
   }
 
-  // ── Phase 2: Label sweep — assign stages from WA label data ─────────────
-
-  // Reload fresh tags (names may have been fixed above)
+  // ── Fase 5: Aplicar tags e stages por etiqueta ───────────────────────────
   const freshTags = await prisma.crmTag.findMany()
   const tagById = new Map(freshTags.map((t) => [t.waLabelId ?? '', t]))
-
-  // Pre-load all stages for priority comparisons
   const allStages = await prisma.leadStage.findMany({ select: { id: true, name: true } })
   const stageByIdFresh = new Map(allStages.map((s) => [s.id, s]))
+
+  // Limpar TODOS os vínculos lead↔tag de WA antes de reaplicar corretamente
+  // (evita acúmulo de vínculos errados de importações anteriores com bug)
+  const waTagIds = freshTags.filter(t => t.waLabelId).map(t => t.id)
+  if (waTagIds.length > 0) {
+    await prisma.leadTag.deleteMany({ where: { tagId: { in: waTagIds } } })
+  }
 
   let stagesAssigned = 0
   let tagsApplied = 0
 
-  // Busca os JIDs de todas as etiquetas em paralelo (antes: 23 chamadas sequenciais)
-  const labelJidResults = await Promise.all(
-    waLabels.map(async (label) => {
-      const labelId = String(label.id)
-      const jids = await fetchChatsForLabel(labelId)
-      return { label, labelId, jids }
-    })
-  )
-
-  for (const { label, labelId, jids } of labelJidResults) {
+  for (const label of waLabels) {
+    const labelId = String(label.id)
+    // Usa o mapa construído a partir dos chats — sem chamada extra à API
+    const jids = labelToJids.get(labelId) ?? []
     if (jids.length === 0) continue
 
     const stageName = LABEL_ID_TO_STAGE[labelId]
-    const targetStage = stageName ? stageByName.get(stageName) ?? allStages.find(s => s.name === stageName) : null
+    const targetStage = stageName
+      ? stageByName.get(stageName) ?? allStages.find(s => s.name === stageName)
+      : null
     const crmTag = tagById.get(labelId) ?? null
 
-    // Batch-find leads by waLid
     const leads = await prisma.lead.findMany({
       where: { waLid: { in: jids } },
       select: { id: true, stageId: true },
     })
     if (leads.length === 0) continue
 
-    // Stage update e tag em paralelo
     await Promise.all([
-      // Stage update
+      // Atualizar stage
       (async () => {
         if (!targetStage) return
         const newPriority = STAGE_PRIORITY[stageName!] ?? 0
         const toUpdate = leads
-          .filter((l) => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
-          .map((l) => l.id)
+          .filter(l => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
+          .map(l => l.id)
         if (toUpdate.length === 0) return
         await prisma.lead.updateMany({ where: { id: { in: toUpdate } }, data: { stageId: targetStage.id } })
         stagesAssigned += toUpdate.length
@@ -236,11 +250,11 @@ async function runImport() {
           if (lead) lead.stageId = targetStage.id
         }
       })(),
-      // Tag upsert
+      // Criar vínculos tag
       (async () => {
         if (!crmTag) return
         await prisma.leadTag.createMany({
-          data: leads.map((l) => ({ leadId: l.id, tagId: crmTag.id })),
+          data: leads.map(l => ({ leadId: l.id, tagId: crmTag.id })),
           skipDuplicates: true,
         })
         tagsApplied += leads.length
@@ -248,8 +262,7 @@ async function runImport() {
     ])
   }
 
-  // ── Phase 3: Update webhook to capture future label changes ──────────────
-
+  // ── Fase 6: Atualizar webhook ────────────────────────────────────────────
   let webhookUpdated = false
   const webhookRes = await evo(`/webhook/find/${INSTANCE}`, { method: 'GET' })
   if (webhookRes.ok) {
