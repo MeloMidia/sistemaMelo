@@ -39,31 +39,73 @@ async function fetchAllChats(): Promise<unknown[]> {
 }
 
 /**
- * Busca chats de uma etiqueta específica.
- * O diagnóstico confirmou que o filtro `array_contains` FUNCIONA com `take`/`skip`.
- * O parâmetro `count`/`pageIndex` (antigo) ignorava o filtro e retornava todos os chats.
+ * Busca mapeamento labelId → [jids] DIRETO do banco PostgreSQL da Evolution API.
+ *
+ * A REST API da Evolution usa prisma.$queryRaw() com array_contains que precisa
+ * de arquivos temporários de ordenação. Com o disco cheio (erro 53100 "No space
+ * left on device") qualquer take > 5 falha. Consultar o banco diretamente evita
+ * esse problema pois é um SELECT simples sem ORDER BY (sem temp files).
  */
-async function fetchChatsForLabel(labelId: string): Promise<string[]> {
-  const jids: string[] = []
-  const PAGE = 500
-  // A Evolution API usa page/offset para findChats (igual ao findMessages)
-  // take/skip com skip:0 parece quebrar o filtro nesta versão da API
-  for (let page = 1; page <= 20; page++) {
-    const res = await evo(`/chat/findChats/${INSTANCE}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        where: { labels: { array_contains: labelId } },
-        page,
-        offset: PAGE,
-      }),
-    })
-    if (!res.ok) break
-    const data = await res.json()
-    const items = Array.isArray(data) ? data as Record<string, unknown>[] : []
-    jids.push(...items.map((i) => String(i.remoteJid ?? '')).filter(Boolean))
-    if (items.length < PAGE) break
+async function fetchLabelJidsFromDb(): Promise<Map<string, string[]>> {
+  const dbUrl = process.env.EVOLUTION_DB_URL
+  if (!dbUrl) {
+    console.warn('[WA Import] EVOLUTION_DB_URL não configurada — etiquetas não serão sincronizadas')
+    return new Map()
   }
-  return jids
+
+  const { Client } = await import('pg')
+  const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } })
+
+  try {
+    await client.connect()
+
+    // SELECT simples sem ORDER BY → não usa temp disk, seguro mesmo com disco cheio
+    const result = await client.query<{ remoteJid: string; labels: unknown }>(
+      `SELECT "remoteJid", labels
+       FROM "Chat"
+       WHERE labels IS NOT NULL
+         AND labels::text != 'null'
+         AND labels::text != '[]'
+         AND "remoteJid" NOT LIKE '%@g.us'
+         AND "remoteJid" NOT LIKE '%@newsletter'
+       LIMIT 50000`
+    )
+
+    const map = new Map<string, string[]>()
+
+    for (const row of result.rows) {
+      const jid = row.remoteJid
+      if (!jid) continue
+
+      // labels pode ser parsed automaticamente pelo pg driver (JSONB) ou string
+      let rawLabels = row.labels
+      if (typeof rawLabels === 'string') {
+        try { rawLabels = JSON.parse(rawLabels) } catch { continue }
+      }
+      if (!Array.isArray(rawLabels)) continue
+
+      for (const entry of rawLabels) {
+        let labelId: string
+        if (typeof entry === 'string') labelId = entry
+        else if (typeof entry === 'number') labelId = String(entry)
+        else if (entry && typeof entry === 'object' && 'id' in (entry as object))
+          labelId = String((entry as Record<string, unknown>).id)
+        else continue
+
+        if (!labelId) continue
+        if (!map.has(labelId)) map.set(labelId, [])
+        map.get(labelId)!.push(jid)
+      }
+    }
+
+    console.log(`[WA Import] DB direto: ${result.rows.length} chats com labels, ${map.size} labelIds distintos`)
+    return map
+  } catch (err) {
+    console.error('[WA Import] Erro ao consultar DB direto da Evolution:', err)
+    return new Map()
+  } finally {
+    await client.end().catch(() => {})
+  }
 }
 
 async function updateWebhook(existingUrl: string, existingEvents: string[]) {
@@ -203,25 +245,15 @@ async function runImport() {
     }
   }
 
-  // ── Fase 5: Buscar jids por etiqueta e aplicar tags/stages ──────────────
+  // ── Fase 5: Mapear label → jids via DB direto e aplicar tags/stages ──────
   const freshTags = await prisma.crmTag.findMany()
   const tagById = new Map(freshTags.map((t) => [t.waLabelId ?? '', t]))
   const allStages = await prisma.leadStage.findMany({ select: { id: true, name: true } })
   const stageByIdFresh = new Map(allStages.map((s) => [s.id, s]))
 
-  // Busca jids por etiqueta em paralelo usando o filtro confirmado (take/skip)
-  const labelJidResults = await Promise.all(
-    waLabels.map(async (label) => {
-      const labelId = String(label.id)
-      const jids = await fetchChatsForLabel(labelId)
-      return { labelId, jids }
-    })
-  )
-
-  const labelToJids = new Map<string, string[]>()
-  for (const { labelId, jids } of labelJidResults) {
-    if (jids.length > 0) labelToJids.set(labelId, jids)
-  }
+  // Consulta o banco da Evolution diretamente para evitar erro de disco cheio
+  // (a REST API falha com "No space left on device" para take > 5)
+  const labelToJids = await fetchLabelJidsFromDb()
 
   // Limpa vínculos WA antigos apenas se encontramos dados de alguma etiqueta
   const waTagIds = freshTags.filter(t => t.waLabelId).map(t => t.id)
