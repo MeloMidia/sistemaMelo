@@ -344,6 +344,22 @@ export function useWaImport() {
   })
 }
 
+export function useCleanupLidLeads() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/crm/leads/cleanup-lid', { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error((data.error as string) || 'Falha na limpeza')
+      return data as { deleted: number; skipped: number }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+    },
+  })
+}
+
 export function useSyncLeadMessages() {
   const qc = useQueryClient()
   return useMutation({
