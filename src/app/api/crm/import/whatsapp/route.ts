@@ -5,6 +5,9 @@ import { authOptions } from '@/lib/auth'
 import { findLabels, WhatsappLabel } from '@/lib/evolution-client'
 import { WA_COLORS, STAGE_PRIORITY, LABEL_TO_STAGE, LABEL_ID_TO_STAGE, LABEL_ID_TO_NAME } from '@/lib/wa-label-map'
 
+// Aumenta o timeout da Vercel para esta rota (máx 60s no Hobby, 300s no Pro)
+export const maxDuration = 60
+
 const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
@@ -193,14 +196,21 @@ async function runImport() {
   let stagesAssigned = 0
   let tagsApplied = 0
 
-  for (const label of waLabels) {
-    const labelId = String(label.id)
+  // Busca os JIDs de todas as etiquetas em paralelo (antes: 23 chamadas sequenciais)
+  const labelJidResults = await Promise.all(
+    waLabels.map(async (label) => {
+      const labelId = String(label.id)
+      const jids = await fetchChatsForLabel(labelId)
+      return { label, labelId, jids }
+    })
+  )
+
+  for (const { label, labelId, jids } of labelJidResults) {
+    if (jids.length === 0) continue
+
     const stageName = LABEL_ID_TO_STAGE[labelId]
     const targetStage = stageName ? stageByName.get(stageName) ?? allStages.find(s => s.name === stageName) : null
     const crmTag = tagById.get(labelId) ?? null
-
-    const jids = await fetchChatsForLabel(labelId)
-    if (jids.length === 0) continue
 
     // Batch-find leads by waLid
     const leads = await prisma.lead.findMany({
@@ -209,31 +219,33 @@ async function runImport() {
     })
     if (leads.length === 0) continue
 
-    // Stage update: group leads that should move to this stage
-    if (targetStage) {
-      const newPriority = STAGE_PRIORITY[stageName!] ?? 0
-      const toUpdate = leads
-        .filter((l) => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
-        .map((l) => l.id)
-      if (toUpdate.length > 0) {
+    // Stage update e tag em paralelo
+    await Promise.all([
+      // Stage update
+      (async () => {
+        if (!targetStage) return
+        const newPriority = STAGE_PRIORITY[stageName!] ?? 0
+        const toUpdate = leads
+          .filter((l) => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
+          .map((l) => l.id)
+        if (toUpdate.length === 0) return
         await prisma.lead.updateMany({ where: { id: { in: toUpdate } }, data: { stageId: targetStage.id } })
         stagesAssigned += toUpdate.length
-        // Update local cache so later labels respect the updated priority
         for (const id of toUpdate) {
           const lead = leads.find(l => l.id === id)
           if (lead) lead.stageId = targetStage.id
         }
-      }
-    }
-
-    // Tag: batch upsert
-    if (crmTag) {
-      await prisma.leadTag.createMany({
-        data: leads.map((l) => ({ leadId: l.id, tagId: crmTag.id })),
-        skipDuplicates: true,
-      })
-      tagsApplied += leads.length
-    }
+      })(),
+      // Tag upsert
+      (async () => {
+        if (!crmTag) return
+        await prisma.leadTag.createMany({
+          data: leads.map((l) => ({ leadId: l.id, tagId: crmTag.id })),
+          skipDuplicates: true,
+        })
+        tagsApplied += leads.length
+      })(),
+    ])
   }
 
   // ── Phase 3: Update webhook to capture future label changes ──────────────
