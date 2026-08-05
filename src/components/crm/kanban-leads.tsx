@@ -21,7 +21,7 @@ import { LeadCard } from './lead-card'
 import { FollowUpBoard } from './follow-up-board'
 import { CampaignsView } from './campaigns-view'
 import type { Lead, LeadStage } from '@/types/crm'
-import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock, Megaphone, RefreshCw } from 'lucide-react'
+import { Plus, Loader2, Search, X, Download, Tag, Layers, Hash, Clock, Megaphone, RefreshCw, ChevronRight, ChevronLeft, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
@@ -38,94 +38,150 @@ function TagsView({
   onSelectLead: (id: string) => void
 }) {
   const { data: columns = [], isLoading } = useLeadsByLabel()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const q = searchQuery.trim().toLowerCase()
 
-  const filtered = q
-    ? columns.map((col) => ({
-        ...col,
-        leads: col.leads.filter((lead) => {
+  // Etiqueta selecionada
+  const selectedCol = selectedId ? columns.find((c) => c.id === selectedId) ?? null : null
+
+  // Lista filtrada para a tela principal
+  const filteredCols = q
+    ? columns.filter((col) => col.name.toLowerCase().includes(q))
+    : columns
+
+  // Leads filtrados quando dentro de uma etiqueta
+  const filteredLeads = selectedCol
+    ? q
+      ? selectedCol.leads.filter((lead) => {
           const name = getLeadDisplayName(lead).toLowerCase()
           const phone = lead.phone.replace(/\D/g, '')
           return name.includes(q) || phone.includes(q.replace(/\D/g, ''))
-        }),
-      }))
-    : columns
+        })
+      : selectedCol.leads
+    : []
 
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
           <span className="text-sm text-slate-500">Carregando etiquetas...</span>
         </div>
       </div>
     )
   }
 
-  if (filtered.length === 0) {
+  // ── Vista interna: leads de uma etiqueta ────────────────────────────────
+  if (selectedCol) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Hash className="w-10 h-10 text-slate-700" />
-          <span className="text-sm text-slate-500">Nenhuma etiqueta encontrada</span>
-          <span className="text-xs text-slate-600">Importe leads do WhatsApp para sincronizar as etiquetas</span>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header da etiqueta */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.05] shrink-0">
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1 text-slate-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" /> Etiquetas
+          </button>
+          <span className="text-slate-700">/</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: selectedCol.color }} />
+            <span className="text-sm font-semibold text-white">{selectedCol.name}</span>
+            <span
+              className="text-[11px] font-bold px-2 py-0.5 rounded-full tabular-nums"
+              style={{ backgroundColor: `${selectedCol.color}20`, color: selectedCol.color }}
+            >
+              {selectedCol._count.leads}
+            </span>
+          </div>
+        </div>
+
+        {/* Lista de leads */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredLeads.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-slate-600">
+              <Users className="w-8 h-8" />
+              <span className="text-sm">{q ? 'Nenhum lead encontrado' : 'Nenhum lead nesta etiqueta'}</span>
+            </div>
+          ) : (
+            <div className="p-4 space-y-2 max-w-2xl mx-auto">
+              {filteredLeads.map((lead) => (
+                <LeadCard key={lead.id} lead={lead} disableDrag onSelect={() => onSelectLead(lead.id)} />
+              ))}
+              {selectedCol._count.leads > filteredLeads.length && (
+                <p className="text-center text-xs text-slate-600 py-2">
+                  Mostrando {filteredLeads.length} de {selectedCol._count.leads} leads
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
   }
 
-  const totalTagged = filtered.reduce((sum, col) => sum + col.leads.length, 0)
+  // ── Vista principal: lista de etiquetas (estilo WhatsApp) ─────────────
+  if (filteredCols.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Hash className="w-10 h-10 text-slate-700" />
+          <span className="text-sm text-slate-500">
+            {q ? 'Nenhuma etiqueta encontrada' : 'Nenhuma etiqueta sincronizada'}
+          </span>
+          {!q && (
+            <span className="text-xs text-slate-600">Use "Importar WA" para sincronizar as etiquetas do WhatsApp</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const totalTagged = columns.reduce((sum, col) => sum + col._count.leads, 0)
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Sub-header com contagem */}
-      <div className="px-6 py-2 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0 flex items-center gap-3">
+      {/* Sub-header */}
+      <div className="px-5 py-2.5 border-b border-white/[0.04] bg-[#07080c]/40 shrink-0">
         <span className="text-xs text-slate-500">
-          <span className="text-white font-semibold tabular-nums">{totalTagged}</span> leads etiquetados em{' '}
-          <span className="text-white font-semibold tabular-nums">{filtered.length}</span> etiquetas
+          <span className="text-white font-semibold tabular-nums">{totalTagged.toLocaleString('pt-BR')}</span> leads em{' '}
+          <span className="text-white font-semibold tabular-nums">{columns.length}</span> etiquetas
         </span>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-5">
-        <div className="flex gap-4 items-start h-full">
-          {filtered.map((col) => (
-            <div key={col.id} className="w-[290px] shrink-0 flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-              {/* Header da coluna */}
+      {/* Lista estilo WhatsApp */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto py-2">
+          {filteredCols.map((col, i) => (
+            <button
+              key={col.id}
+              onClick={() => setSelectedId(col.id)}
+              className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors cursor-pointer text-left ${
+                i < filteredCols.length - 1 ? 'border-b border-white/[0.04]' : ''
+              }`}
+            >
+              {/* Bolinha colorida */}
               <div
-                className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border shrink-0"
-                style={{
-                  backgroundColor: `${col.color}10`,
-                  borderColor: `${col.color}20`,
-                }}
+                className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: `${col.color}20` }}
               >
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
-                <span className="text-sm font-semibold truncate" style={{ color: col.color }}>
-                  {col.name}
-                </span>
-                <span
-                  className="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums shrink-0"
-                  style={{ backgroundColor: `${col.color}18`, color: col.color }}
-                >
-                  {col._count.leads > col.leads.length
-                    ? `${col.leads.length} de ${col._count.leads}`
-                    : col._count.leads}
-                </span>
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: col.color }} />
               </div>
 
-              {/* Cards com scroll vertical interno */}
-              <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
-                {col.leads.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/[0.06] p-6 text-center text-xs text-slate-600">
-                    Sem leads
-                  </div>
-                ) : (
-                  col.leads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} disableDrag onSelect={() => onSelectLead(lead.id)} />
-                  ))
-                )}
+              {/* Nome */}
+              <span className="flex-1 text-sm font-medium text-white truncate">
+                {col.name}
+              </span>
+
+              {/* Contagem + seta */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-semibold text-slate-400 tabular-nums">
+                  {col._count.leads.toLocaleString('pt-BR')}
+                </span>
+                <ChevronRight className="w-4 h-4 text-slate-600" />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
