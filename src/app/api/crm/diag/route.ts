@@ -99,56 +99,64 @@ export async function GET(request: Request) {
     }
   }
 
-  const testLabelId = '9' // Frio
+  // Pega os labels reais para usar IDs reais no teste
+  const labelsRes = await evo(`/label/findLabels/${INSTANCE}`, { method: 'GET' })
+  const labelsData = labelsRes.ok ? (labelsRes.body as unknown[]) : []
+  const realLabels = Array.isArray(labelsData) ? labelsData.slice(0, 3) as Record<string, unknown>[] : []
+  const testLabelId = realLabels[0] ? String(realLabels[0].id) : '9'
 
-  // Try every plausible label-chat endpoint variant
-  const [
-    r1, r2, r3, r4, r5, r6, r7, r8,
-  ] = await Promise.all([
-    // Variant 1: POST with body labelId
-    evo(`/label/findLabelChats/${INSTANCE}`, {
-      method: 'POST',
-      body: JSON.stringify({ labelId: testLabelId }),
-    }),
-    // Variant 2: POST with body id
-    evo(`/label/findLabelChats/${INSTANCE}`, {
-      method: 'POST',
-      body: JSON.stringify({ id: testLabelId }),
-    }),
-    // Variant 3: GET with label ID in path
-    evo(`/label/findLabelChats/${INSTANCE}/${testLabelId}`, { method: 'GET' }),
-    // Variant 4: POST with label ID in path
-    evo(`/label/findLabelChats/${INSTANCE}/${testLabelId}`, { method: 'POST', body: JSON.stringify({}) }),
-    // Variant 5: fetchLabelChats GET
-    evo(`/label/fetchLabelChats/${INSTANCE}`, { method: 'GET' }),
-    // Variant 6: getLabelChats GET
-    evo(`/label/getLabelChats/${INSTANCE}/${testLabelId}`, { method: 'GET' }),
-    // Variant 7: chats endpoint under label path
-    evo(`/label/chats/${INSTANCE}/${testLabelId}`, { method: 'GET' }),
-    // Variant 8: findChats with JSON array contains (PostgreSQL)
+  // Testa diferentes variações do mesmo filtro para identificar o que funciona
+  const [rA, rB, rC, rD, rE] = await Promise.all([
+    // A: take:5 (confirmado funcionando antes)
     evo(`/chat/findChats/${INSTANCE}`, {
       method: 'POST',
       body: JSON.stringify({ where: { labels: { array_contains: testLabelId } }, take: 5 }),
+    }),
+    // B: take:500 skip:0 (o que estava sendo usado no import — pode estar quebrando)
+    evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ where: { labels: { array_contains: testLabelId } }, take: 500, skip: 0 }),
+    }),
+    // C: page:1 offset:500 (igual ao findMessages — nova tentativa)
+    evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ where: { labels: { array_contains: testLabelId } }, page: 1, offset: 500 }),
+    }),
+    // D: count:500 pageIndex:0 + where (o original que retornava tudo — verificar se com where filtra)
+    evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ where: { labels: { array_contains: testLabelId } }, count: 500, pageIndex: 0 }),
+    }),
+    // E: sem paginação nenhuma com where (só o where)
+    evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({ where: { labels: { array_contains: testLabelId } } }),
     }),
   ])
 
   const fmt = (r: { status: number; body: unknown }) => ({
     status: r.status,
     count: Array.isArray(r.body) ? r.body.length : null,
-    body: typeof r.body === 'string' ? r.body.slice(0, 150) : Array.isArray(r.body) ? r.body.slice(0, 2) : r.body,
+    body: typeof r.body === 'string' ? r.body.slice(0, 150) : Array.isArray(r.body) ? (r.body as unknown[]).slice(0, 1) : r.body,
+  })
+
+  // Contagem de LeadTag no banco para cada tag WA
+  const tagCounts = await prisma.crmTag.findMany({
+    where: { waLabelId: { not: null } },
+    select: { name: true, waLabelId: true, _count: { select: { leads: true } } },
+    orderBy: { name: 'asc' },
   })
 
   return NextResponse.json({
     testLabelId,
-    labelChatEndpoints: {
-      'POST /findLabelChats body:{labelId}': fmt(r1),
-      'POST /findLabelChats body:{id}': fmt(r2),
-      'GET /findLabelChats/{labelId}': fmt(r3),
-      'POST /findLabelChats/{labelId}': fmt(r4),
-      'GET /fetchLabelChats': fmt(r5),
-      'GET /getLabelChats/{labelId}': fmt(r6),
-      'GET /chats/{labelId}': fmt(r7),
-      'POST findChats array_contains': fmt(r8),
+    realLabels: realLabels.map(l => ({ id: l.id, name: l.name })),
+    pagination: {
+      'A: take:5 (baseline)': fmt(rA),
+      'B: take:500 skip:0': fmt(rB),
+      'C: page:1 offset:500': fmt(rC),
+      'D: count:500 pageIndex:0 + where': fmt(rD),
+      'E: só where sem paginação': fmt(rE),
     },
+    dbTagCounts: tagCounts,
   })
 }

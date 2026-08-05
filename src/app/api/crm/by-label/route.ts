@@ -14,7 +14,6 @@ export async function GET() {
     include: {
       _count: { select: { leads: true } },
       leads: {
-        where: { lead: { followUpColumn: null } },
         take: LEADS_PER_TAG,
         orderBy: { lead: { updatedAt: 'desc' } },
         include: {

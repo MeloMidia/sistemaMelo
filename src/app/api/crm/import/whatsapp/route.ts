@@ -46,13 +46,15 @@ async function fetchAllChats(): Promise<unknown[]> {
 async function fetchChatsForLabel(labelId: string): Promise<string[]> {
   const jids: string[] = []
   const PAGE = 500
-  for (let page = 0; page < 20; page++) {
+  // A Evolution API usa page/offset para findChats (igual ao findMessages)
+  // take/skip com skip:0 parece quebrar o filtro nesta versão da API
+  for (let page = 1; page <= 20; page++) {
     const res = await evo(`/chat/findChats/${INSTANCE}`, {
       method: 'POST',
       body: JSON.stringify({
         where: { labels: { array_contains: labelId } },
-        take: PAGE,
-        skip: page * PAGE,
+        page,
+        offset: PAGE,
       }),
     })
     if (!res.ok) break
