@@ -206,10 +206,12 @@ async function runImport() {
   const allStages = await prisma.leadStage.findMany({ select: { id: true, name: true } })
   const stageByIdFresh = new Map(allStages.map((s) => [s.id, s]))
 
-  // Limpar TODOS os vínculos lead↔tag de WA antes de reaplicar corretamente
-  // (evita acúmulo de vínculos errados de importações anteriores com bug)
+  // Só limpa os vínculos existentes se encontramos dados de labels nos chats.
+  // Se labelToJids estiver vazio, a API não retornou o campo labels —
+  // manter as tags existentes em vez de apagar tudo.
+  const totalChatsWithLabels = labelToJids.size
   const waTagIds = freshTags.filter(t => t.waLabelId).map(t => t.id)
-  if (waTagIds.length > 0) {
+  if (totalChatsWithLabels > 0 && waTagIds.length > 0) {
     await prisma.leadTag.deleteMany({ where: { tagId: { in: waTagIds } } })
   }
 
@@ -272,6 +274,11 @@ async function runImport() {
     webhookUpdated = await updateWebhook(url, events)
   }
 
+  // Debug: mostra o que veio nos primeiros chats para diagnóstico de labels
+  const firstChat = chats[0] as Record<string, unknown> | undefined
+  const debugChatKeys = firstChat ? Object.keys(firstChat) : []
+  const debugLabelsSample = firstChat?.labels
+
   return NextResponse.json({
     chatsImported: newLeads.length,
     chatsAlreadyExisted: existingLeads.length,
@@ -280,6 +287,13 @@ async function runImport() {
     tagsApplied,
     webhookUpdated,
     labels: waLabels.length,
+    _debug: {
+      chatsTotal: chats.length,
+      chatsWithLabels: totalChatsWithLabels,
+      firstChatKeys: debugChatKeys,
+      firstChatLabelsField: debugLabelsSample,
+      labelIds: waLabels.map(l => ({ id: String(l.id), name: l.name })),
+    },
   })
 }
 
