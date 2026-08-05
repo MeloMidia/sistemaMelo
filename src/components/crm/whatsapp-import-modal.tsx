@@ -16,6 +16,7 @@ interface ImportResult {
   tagsApplied: number
   webhookUpdated: boolean
   labels: number
+  labelsWithChats: number
 }
 
 interface CleanupResult {

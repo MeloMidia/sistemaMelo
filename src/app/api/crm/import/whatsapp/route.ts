@@ -19,12 +19,6 @@ async function evo(path: string, init?: RequestInit) {
   })
 }
 
-/**
- * Busca TODOS os chats de uma vez.
- * O objeto de cada chat já contém o campo `labels` (array de labelIds).
- * Não fazemos chamadas separadas por etiqueta — a Evolution API ignora filtros
- * no body de /chat/findChats, o que causava TODOS os leads recebendo TODAS as tags.
- */
 async function fetchAllChats(): Promise<unknown[]> {
   const all: unknown[] = []
   const PAGE = 500
@@ -42,6 +36,32 @@ async function fetchAllChats(): Promise<unknown[]> {
     if (items.length < PAGE) break
   }
   return all
+}
+
+/**
+ * Busca chats de uma etiqueta específica.
+ * O diagnóstico confirmou que o filtro `array_contains` FUNCIONA com `take`/`skip`.
+ * O parâmetro `count`/`pageIndex` (antigo) ignorava o filtro e retornava todos os chats.
+ */
+async function fetchChatsForLabel(labelId: string): Promise<string[]> {
+  const jids: string[] = []
+  const PAGE = 500
+  for (let page = 0; page < 20; page++) {
+    const res = await evo(`/chat/findChats/${INSTANCE}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        where: { labels: { array_contains: labelId } },
+        take: PAGE,
+        skip: page * PAGE,
+      }),
+    })
+    if (!res.ok) break
+    const data = await res.json()
+    const items = Array.isArray(data) ? data as Record<string, unknown>[] : []
+    jids.push(...items.map((i) => String(i.remoteJid ?? '')).filter(Boolean))
+    if (items.length < PAGE) break
+  }
+  return jids
 }
 
 async function updateWebhook(existingUrl: string, existingEvents: string[]) {
@@ -123,17 +143,10 @@ async function runImport() {
     }
   }
 
-  // ── Fase 3: Extrair jid→labels dos chats já buscados ────────────────────
-  // IMPORTANTE: não fazemos chamadas por etiqueta — a Evolution API ignorava
-  // o filtro e retornava todos os chats, aplicando TODAS as tags em TODOS os leads.
-  // A correção usa o campo `labels` que já vem em cada objeto de chat.
+  // ── Fase 3: Extrair contatos dos chats ──────────────────────────────────
+  // Nota: a Evolution API NÃO inclui o campo `labels` nos objetos de chat.
+  // O mapeamento label→jids é feito na Fase 5 via fetchChatsForLabel (filtro confirmado).
 
-  // Mapeia: jid → [labelIds]
-  const jidToLabelIds = new Map<string, string[]>()
-  // Mapeia: labelId → [jids que têm essa label]
-  const labelToJids = new Map<string, string[]>()
-
-  // Mapa: jid → phone (para criar leads)
   type ChatEntry = { phone: string; waLid: string; name: string | null }
   const toImport = new Map<string, ChatEntry>()
 
@@ -142,18 +155,6 @@ async function runImport() {
     const jid = String(chat.remoteJid ?? chat.id ?? '')
     if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) continue
 
-    // Extrair labels deste chat
-    const rawLabels = chat.labels
-    if (Array.isArray(rawLabels) && rawLabels.length > 0) {
-      const ids = rawLabels.map(String).filter(Boolean)
-      jidToLabelIds.set(jid, ids)
-      for (const lid of ids) {
-        if (!labelToJids.has(lid)) labelToJids.set(lid, [])
-        labelToJids.get(lid)!.push(jid)
-      }
-    }
-
-    // Resolver phone para criar lead
     let phone: string | null = null
     if (jid.endsWith('@s.whatsapp.net')) {
       phone = jid.split('@')[0]
@@ -200,18 +201,29 @@ async function runImport() {
     }
   }
 
-  // ── Fase 5: Aplicar tags e stages por etiqueta ───────────────────────────
+  // ── Fase 5: Buscar jids por etiqueta e aplicar tags/stages ──────────────
   const freshTags = await prisma.crmTag.findMany()
   const tagById = new Map(freshTags.map((t) => [t.waLabelId ?? '', t]))
   const allStages = await prisma.leadStage.findMany({ select: { id: true, name: true } })
   const stageByIdFresh = new Map(allStages.map((s) => [s.id, s]))
 
-  // Só limpa os vínculos existentes se encontramos dados de labels nos chats.
-  // Se labelToJids estiver vazio, a API não retornou o campo labels —
-  // manter as tags existentes em vez de apagar tudo.
-  const totalChatsWithLabels = labelToJids.size
+  // Busca jids por etiqueta em paralelo usando o filtro confirmado (take/skip)
+  const labelJidResults = await Promise.all(
+    waLabels.map(async (label) => {
+      const labelId = String(label.id)
+      const jids = await fetchChatsForLabel(labelId)
+      return { labelId, jids }
+    })
+  )
+
+  const labelToJids = new Map<string, string[]>()
+  for (const { labelId, jids } of labelJidResults) {
+    if (jids.length > 0) labelToJids.set(labelId, jids)
+  }
+
+  // Limpa vínculos WA antigos apenas se encontramos dados de alguma etiqueta
   const waTagIds = freshTags.filter(t => t.waLabelId).map(t => t.id)
-  if (totalChatsWithLabels > 0 && waTagIds.length > 0) {
+  if (labelToJids.size > 0 && waTagIds.length > 0) {
     await prisma.leadTag.deleteMany({ where: { tagId: { in: waTagIds } } })
   }
 
@@ -220,7 +232,6 @@ async function runImport() {
 
   for (const label of waLabels) {
     const labelId = String(label.id)
-    // Usa o mapa construído a partir dos chats — sem chamada extra à API
     const jids = labelToJids.get(labelId) ?? []
     if (jids.length === 0) continue
 
@@ -237,7 +248,6 @@ async function runImport() {
     if (leads.length === 0) continue
 
     await Promise.all([
-      // Atualizar stage
       (async () => {
         if (!targetStage) return
         const newPriority = STAGE_PRIORITY[stageName!] ?? 0
@@ -247,12 +257,7 @@ async function runImport() {
         if (toUpdate.length === 0) return
         await prisma.lead.updateMany({ where: { id: { in: toUpdate } }, data: { stageId: targetStage.id } })
         stagesAssigned += toUpdate.length
-        for (const id of toUpdate) {
-          const lead = leads.find(l => l.id === id)
-          if (lead) lead.stageId = targetStage.id
-        }
       })(),
-      // Criar vínculos tag
       (async () => {
         if (!crmTag) return
         await prisma.leadTag.createMany({
@@ -274,11 +279,6 @@ async function runImport() {
     webhookUpdated = await updateWebhook(url, events)
   }
 
-  // Debug: mostra o que veio nos primeiros chats para diagnóstico de labels
-  const firstChat = chats[0] as Record<string, unknown> | undefined
-  const debugChatKeys = firstChat ? Object.keys(firstChat) : []
-  const debugLabelsSample = firstChat?.labels
-
   return NextResponse.json({
     chatsImported: newLeads.length,
     chatsAlreadyExisted: existingLeads.length,
@@ -287,13 +287,7 @@ async function runImport() {
     tagsApplied,
     webhookUpdated,
     labels: waLabels.length,
-    _debug: {
-      chatsTotal: chats.length,
-      chatsWithLabels: totalChatsWithLabels,
-      firstChatKeys: debugChatKeys,
-      firstChatLabelsField: debugLabelsSample,
-      labelIds: waLabels.map(l => ({ id: String(l.id), name: l.name })),
-    },
+    labelsWithChats: labelToJids.size,
   })
 }
 
