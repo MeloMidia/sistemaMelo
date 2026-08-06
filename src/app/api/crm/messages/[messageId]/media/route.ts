@@ -66,17 +66,41 @@ export async function GET(
       return NextResponse.json({ error: 'Nenhum dado de mídia retornado pela Evolution API' }, { status: 400 })
     }
 
-    const mimeType = data.mimetype || 'audio/ogg'
+    const mimeType = data.mimetype || 'audio/ogg; codecs=opus'
     // Converter base64 para Buffer
     const buffer = Buffer.from(data.base64, 'base64')
+
+    // Suporte a range requests — obrigatório para <audio> tocar no browser.
+    // Sem isso o Chrome recusa a reprodução mesmo com o arquivo válido.
+    const rangeHeader = request.headers.get('Range')
+    if (rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d*)-(\d*)/)
+      if (match) {
+        const start = match[1] ? parseInt(match[1]) : 0
+        const end   = match[2] ? parseInt(match[2]) : buffer.length - 1
+        const safeEnd = Math.min(end, buffer.length - 1)
+        const chunk = buffer.slice(start, safeEnd + 1)
+        return new Response(chunk, {
+          status: 206,
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': chunk.length.toString(),
+            'Content-Range': `bytes ${start}-${safeEnd}/${buffer.length}`,
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        })
+      }
+    }
 
     // Retornar a mídia com o Content-Type correto
     return new Response(buffer, {
       headers: {
         'Content-Type': mimeType,
         'Content-Length': buffer.length.toString(),
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
     })
   } catch (error: any) {
     console.error('Erro ao recuperar mídia:', error)
