@@ -16,7 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useColumns, useUpdateTask } from '@/hooks/api'
 import type { Task } from '@/types'
-import { GripVertical, Loader2, Users } from 'lucide-react'
+import { Loader2, Users } from 'lucide-react'
 
 // ── Responsáveis ──────────────────────────────────────────────────────────────
 
@@ -43,30 +43,26 @@ function ClientCard({ task, isDragging = false }: { task: Task; isDragging?: boo
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-150 select-none
+      {...listeners}
+      {...attributes}
+      className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all duration-150 select-none
+        cursor-grab active:cursor-grabbing touch-none
         ${isDragging
           ? 'opacity-40 border-white/[0.08] bg-white/[0.03]'
-          : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.12]'
+          : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/[0.15] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30'
         }`}
     >
-      {/* Drag handle */}
-      <span
-        {...listeners}
-        {...attributes}
-        className="shrink-0 cursor-grab active:cursor-grabbing text-slate-700 hover:text-slate-500 transition-colors touch-none"
-      >
-        <GripVertical className="w-3.5 h-3.5" />
-      </span>
-
       {/* Avatar inicial */}
-      <div className="w-6 h-6 rounded-md bg-white/[0.06] ring-1 ring-white/[0.08] flex items-center justify-center shrink-0">
-        <span className="text-[10px] font-bold text-slate-400">
+      <div className="w-9 h-9 rounded-xl bg-white/[0.07] ring-1 ring-white/[0.10] flex items-center justify-center shrink-0">
+        <span className="text-sm font-bold text-slate-300">
           {task.title.charAt(0).toUpperCase()}
         </span>
       </div>
 
       {/* Nome */}
-      <span className="text-sm text-white font-medium truncate flex-1">{task.title}</span>
+      <span className="text-sm text-white font-semibold truncate flex-1 leading-tight">
+        {task.title}
+      </span>
     </div>
   )
 }
@@ -74,14 +70,13 @@ function ClientCard({ task, isDragging = false }: { task: Task; isDragging?: boo
 // Versão estática do card (usado no DragOverlay)
 function ClientCardStatic({ task }: { task: Task }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.15] bg-[#0d0f1a] shadow-2xl shadow-black/50 rotate-1 scale-105">
-      <GripVertical className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-      <div className="w-6 h-6 rounded-md bg-white/[0.08] flex items-center justify-center shrink-0">
-        <span className="text-[10px] font-bold text-slate-300">
+    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-white/[0.20] bg-[#0d0f1a] shadow-2xl shadow-black/60 rotate-1 scale-105">
+      <div className="w-9 h-9 rounded-xl bg-white/[0.10] flex items-center justify-center shrink-0">
+        <span className="text-sm font-bold text-slate-200">
           {task.title.charAt(0).toUpperCase()}
         </span>
       </div>
-      <span className="text-sm text-white font-medium truncate">{task.title}</span>
+      <span className="text-sm text-white font-semibold truncate">{task.title}</span>
     </div>
   )
 }
@@ -137,7 +132,7 @@ function ColResponsavel({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 p-3 space-y-1.5 overflow-y-auto min-h-[120px] max-h-[calc(100vh-240px)]">
+      <div className="flex-1 p-3 space-y-2 overflow-y-auto min-h-[120px] max-h-[calc(100vh-240px)]">
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <Users className="w-5 h-5 text-slate-700 mb-2" />
@@ -170,11 +165,11 @@ function ColSemResponsavel({ tasks, activeId }: { tasks: Task[]; activeId: strin
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sem responsável</span>
         <span className="ml-auto text-xs text-slate-600 bg-white/[0.04] px-2 py-0.5 rounded-full">{tasks.length}</span>
       </div>
-      <div className="flex-1 p-3 overflow-y-auto max-h-64">
+      <div className="flex-1 p-3 overflow-y-auto max-h-80">
         {tasks.length === 0 ? (
           <p className="text-xs text-slate-700 text-center py-6">Todos atribuídos 🎉</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {tasks.map((task) => (
               <ClientCard key={task.id} task={task} isDragging={task.id === activeId} />
             ))}
