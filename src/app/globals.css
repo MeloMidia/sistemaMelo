@@ -395,17 +395,6 @@
   --tw-ring-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Input fields */
-[data-theme="light"] .bg-\[#0a0b10\]\/40,
-[data-theme="light"] .bg-\[#0f111a\] {
-  background-color: rgba(0, 0, 0, 0.04) !important;
-}
-
-/* Dropdown/modal dark backgrounds */
-[data-theme="light"] .bg-\[#0f111a\] {
-  background: var(--nm-bg) !important;
-}
-
 /* Avatar/icon containers on dark */
 [data-theme="light"] .bg-white\/\[0\.04\] {
   background-color: rgba(0, 0, 0, 0.05) !important;
