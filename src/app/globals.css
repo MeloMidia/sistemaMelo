@@ -131,17 +131,18 @@
 
 /* ═══════════════════════════════════════════════════════════════
    NEUMORPHIC DESIGN SYSTEM — MeloFlow
-   Dark:  base #1a1d2e | light #303552 | dark #070918
-   Light: base #e4e7f2 | light #ffffff | dark #c0c4d4
+   Dark:  navy profundo #0f1340 — estilo push.in pay
+   Light: clean SaaS branco sobre cinza (#edf0f7)
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── DARK THEME (default) ────────────────────────────────────── */
+/* ── DARK THEME — Navy profundo (referência push.in pay) ────── */
 :root {
-  /* Surface */
-  --nm-bg:    #1a1d2e;
-  /* Shadows (bigger delta = more visible effect) */
-  --nm-light: #303552;   /* bg + 22 per channel */
-  --nm-dark:  #070918;   /* bg - 19 per channel */
+  /* Surface: navy/índigo profundo */
+  --nm-bg:    #0f1340;
+
+  /* Shadows: matiz azul-índigo nos dois lados */
+  --nm-light: #1e2460;   /* bg + 15 por canal — azul-índigo claro */
+  --nm-dark:  #060924;   /* bg - 9 por canal — quase preto com matiz azul */
 
   /* Distances */
   --nm-d-xs:  3px;
@@ -149,7 +150,7 @@
   --nm-d-md:  8px;
   --nm-d-lg: 12px;
 
-  /* Blur (2.2× distance for softer spread) */
+  /* Blur */
   --nm-b-xs:  8px;
   --nm-b-sm: 14px;
   --nm-b-md: 20px;
@@ -175,14 +176,14 @@
     inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
     inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
 
-  /* Text — high contrast on dark */
-  --nm-text-primary:   #e8edf5;  /* 13:1 */
-  --nm-text-secondary: #a0aec0;  /* 6.2:1 */
-  --nm-text-muted:     #6e7a94;  /* 3.8:1 — labels/section headers */
+  /* Texto — alto contraste sobre navy */
+  --nm-text-primary:   #e8edf8;  /* branco-azulado 14:1 */
+  --nm-text-secondary: #8b9cc8;  /* azul-cinza médio 5.8:1 */
+  --nm-text-muted:     #4f5e8a;  /* azul-cinza escuro 3.6:1 */
 
-  /* Accent & border */
-  --nm-accent: #6366f1;
-  --nm-border: rgba(255, 255, 255, 0.10);
+  /* Accent índigo-brilhante + border azul-tinted */
+  --nm-accent: #5b7bff;
+  --nm-border: rgba(120, 150, 255, 0.18);
 }
 
 /* ── LIGHT THEME — Clean SaaS (inspiração BizLink/Conceptzilla) ── */
@@ -305,7 +306,7 @@
 /* ── Sidebar shadow (right-only depth) ───────────────────────── */
 .nm-sidebar {
   background: var(--nm-bg);
-  box-shadow: 6px 0 20px var(--nm-dark), inset -1px 0 0 var(--nm-light);
+  box-shadow: 4px 0 24px var(--nm-dark), inset -1px 0 0 var(--nm-border);
 }
 
 /* ── Card hover animation ────────────────────────────────────── */

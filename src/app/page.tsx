@@ -133,11 +133,11 @@ export default function HomePage() {
       className="dark min-h-screen flex overflow-hidden"
       style={{ background: pageBg }}
     >
-      {/* Ambient glow — subtle, not dominant */}
-      <div className="fixed top-[-80px] left-[15%] w-[400px] h-[300px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #6366f108 0%, transparent 70%)' }} />
-      <div className="fixed bottom-[-60px] right-[8%] w-[350px] h-[250px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #a855f706 0%, transparent 70%)' }} />
+      {/* Ambient glow — matiz índigo/navy */}
+      <div className="fixed top-[-80px] left-[15%] w-[500px] h-[350px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(91,123,255,0.08) 0%, transparent 65%)' }} />
+      <div className="fixed bottom-[-60px] right-[8%] w-[400px] h-[300px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%)' }} />
 
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside
