@@ -107,19 +107,22 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
   return (
     <div
       ref={setSortableRef}
-      style={style}
-      className={`
-        flex flex-col w-[330px] shrink-0 rounded-2xl border transition-all duration-300 backdrop-blur-xl
-        ${isDragging
-          ? 'opacity-50 scale-[0.98] shadow-2xl shadow-purple-500/10 border-purple-500/20 bg-white/[0.01]'
+      style={{
+        ...style,
+        background: 'var(--nm-bg)',
+        boxShadow: isDragging
+          ? 'inset -5px -5px 12px var(--nm-light), inset 5px 5px 12px var(--nm-dark)'
           : isOver
-            ? 'bg-[#a855f7]/[0.01] border-[#a855f7]/25 shadow-lg shadow-[#a855f7]/5'
-            : 'bg-white/[0.01] border-white/[0.05] hover:border-white/[0.09] shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
-        }
-      `}
+            ? '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark), 0 0 0 2px #a855f740'
+            : '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)',
+        border: `1px solid ${isOver ? '#a855f730' : 'var(--nm-border)'}`,
+        transition: 'box-shadow 0.2s ease, opacity 0.15s ease',
+        opacity: isDragging ? 0.55 : 1,
+      }}
+      className="flex flex-col w-[320px] shrink-0 rounded-2xl"
     >
       {/* Column header */}
-      <div className="p-4 rounded-t-2xl border-b border-white/[0.03]">
+      <div className="p-4 rounded-t-2xl" style={{ borderBottom: '1px solid var(--nm-border)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button

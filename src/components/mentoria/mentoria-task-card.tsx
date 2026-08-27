@@ -171,17 +171,23 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
       {/* ── Card ─────────────────────────────────────── */}
       <div
         ref={setNodeRef}
-        style={style}
         onClick={handleOpenModal}
-        className={`
-          group relative p-3.5 rounded-xl border transition-all duration-300 backdrop-blur-sm
-          ${isDragging
-            ? 'opacity-40 scale-[1.01] shadow-2xl shadow-black/80 border-purple-500/30 bg-[#141120]'
-            : 'bg-[#0a0b10]/40 border-white/[0.04] hover:bg-[#100f1a]/70 hover:border-white/[0.1] hover:shadow-[0_8px_24px_rgba(168,85,247,0.12)] hover:-translate-y-0.5'
-          }
-          ${task.isPriorityToday && !isDragging ? 'border-l-2 border-l-amber-500/80' : ''}
-          ${!isEditing ? 'cursor-pointer' : ''}
-        `}
+        style={{
+          ...style,
+          background: 'var(--nm-bg)',
+          boxShadow: isDragging
+            ? 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)'
+            : '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)',
+          border: task.isPriorityToday && !isDragging
+            ? '1px solid rgba(245,158,11,0.35)'
+            : '1px solid var(--nm-border)',
+          borderLeft: task.isPriorityToday && !isDragging
+            ? '2px solid rgba(245,158,11,0.6)'
+            : undefined,
+          opacity: isDragging ? 0.45 : 1,
+          transition: 'box-shadow 0.18s ease, transform 0.15s ease',
+        }}
+        className={`group relative p-3.5 rounded-xl nm-card-hover ${!isEditing ? 'cursor-pointer' : ''}`}
       >
         <div className="flex items-start gap-2.5">
           {/* Drag handle */}
@@ -378,11 +384,16 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
           <div
-            className="relative z-10 w-full max-w-lg bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden"
+            className="relative z-10 w-full max-w-lg rounded-2xl overflow-hidden"
+            style={{
+              background: 'var(--nm-bg)',
+              boxShadow: '-12px -12px 28px var(--nm-light), 12px 12px 28px var(--nm-dark)',
+              border: '1px solid var(--nm-border)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-start gap-4 p-6 border-b border-white/[0.06]">
+            <div className="flex items-start gap-4 p-6" style={{ borderBottom: '1px solid var(--nm-border)' }}>
               {task.logoUrl && (
                 <img
                   src={task.logoUrl}
@@ -517,10 +528,15 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
         >
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
           <div
-            className="relative z-10 w-full max-w-md bg-[#0d0f18] border border-white/[0.08] rounded-2xl shadow-2xl"
+            className="relative z-10 w-full max-w-md rounded-2xl"
+            style={{
+              background: 'var(--nm-bg)',
+              boxShadow: '-10px -10px 24px var(--nm-light), 10px 10px 24px var(--nm-dark)',
+              border: '1px solid var(--nm-border)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid var(--nm-border)' }}>
               <div>
                 <h3 className="text-base font-bold text-white">Nova Tarefa</h3>
                 <p className="text-xs text-slate-500 mt-0.5">{task.title}</p>
@@ -591,7 +607,15 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
       {deleteModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteModalOpen(false)} />
-          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative z-10 w-full max-w-sm rounded-2xl p-6"
+            style={{
+              background: 'var(--nm-bg)',
+              boxShadow: '-10px -10px 24px var(--nm-light), 10px 10px 24px var(--nm-dark)',
+              border: '1px solid var(--nm-border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold text-white mb-2">Excluir Cliente</h3>
             <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.</p>
             <div className="flex gap-3 justify-end">

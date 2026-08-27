@@ -158,7 +158,7 @@ export function MentoriaBoard() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 overflow-x-auto p-6">
+      <div className="flex-1 overflow-x-auto p-6" style={{ background: 'var(--nm-bg)' }}>
         <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {(columns || []).map((column) => (
@@ -167,7 +167,14 @@ export function MentoriaBoard() {
 
             {/* Add column */}
             {isAddingColumn ? (
-              <div className="w-[330px] shrink-0 p-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] space-y-3">
+              <div
+                className="w-[320px] shrink-0 p-4 rounded-2xl space-y-3"
+                style={{
+                  background: 'var(--nm-bg)',
+                  boxShadow: '-5px -5px 12px var(--nm-light), 5px 5px 12px var(--nm-dark)',
+                  border: '1px solid var(--nm-border)',
+                }}
+              >
                 <Input
                   value={newColumnTitle}
                   onChange={(e) => setNewColumnTitle(e.target.value)}
@@ -177,13 +184,19 @@ export function MentoriaBoard() {
                   }}
                   placeholder="Nome da coluna..."
                   autoFocus
-                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl"
+                  className="rounded-xl"
+                  style={{
+                    background: 'var(--nm-bg)',
+                    boxShadow: 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)',
+                    border: '1px solid var(--nm-border)',
+                    color: 'var(--nm-text-primary)',
+                  }}
                 />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAddColumn} className="bg-purple-600 hover:bg-purple-500 text-white text-xs cursor-pointer rounded-lg">
+                  <Button size="sm" onClick={handleAddColumn} className="bg-purple-600 hover:bg-purple-500 text-white text-xs cursor-pointer rounded-lg border-0">
                     Criar
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingColumn(false); setNewColumnTitle('') }} className="text-slate-500 hover:text-white text-xs cursor-pointer">
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingColumn(false); setNewColumnTitle('') }} className="text-xs cursor-pointer" style={{ color: 'var(--nm-text-muted)' }}>
                     Cancelar
                   </Button>
                 </div>
@@ -191,9 +204,27 @@ export function MentoriaBoard() {
             ) : (
               <button
                 onClick={() => setIsAddingColumn(true)}
-                className="w-[330px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-white/[0.06] text-slate-500 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/[0.03] cursor-pointer flex items-center justify-center gap-2 text-sm font-medium"
+                className="w-[320px] shrink-0 p-4 rounded-2xl cursor-pointer flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200"
+                style={{
+                  background: 'var(--nm-bg)',
+                  boxShadow: 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)',
+                  border: '1px solid var(--nm-border)',
+                  color: 'var(--nm-text-muted)',
+                }}
+                onMouseEnter={e => {
+                  Object.assign((e.currentTarget as HTMLElement).style, {
+                    boxShadow: '-5px -5px 12px var(--nm-light), 5px 5px 12px var(--nm-dark)',
+                    color: 'var(--nm-text-secondary)',
+                  })
+                }}
+                onMouseLeave={e => {
+                  Object.assign((e.currentTarget as HTMLElement).style, {
+                    boxShadow: 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)',
+                    color: 'var(--nm-text-muted)',
+                  })
+                }}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Nova coluna
               </button>
             )}
