@@ -186,24 +186,25 @@
 }
 
 /* ── LIGHT THEME ─────────────────────────────────────────────── */
+/* Base mais escuro/saturado = delta de sombra maior = efeito muito mais visível */
 [data-theme="light"] {
-  /* Surface */
-  --nm-bg:    #e4e7f2;
+  /* Surface — azul-ardósia médio, não branco */
+  --nm-bg:    #cdd3e0;
+  /* Shadows — delta de ~38 canais para cima e ~28 para baixo */
+  --nm-light: #f5f8ff;   /* quase branco — highlight forte */
+  --nm-dark:  #a2abbe;   /* azul-cinza escuro — sombra profunda */
+
+  /* Distâncias ligeiramente maiores em light para compensar fundo médio */
+  --nm-d-xs:  4px;
+  --nm-d-sm:  6px;
+  --nm-d-md: 10px;
+  --nm-d-lg: 14px;
+  --nm-b-xs: 10px;
+  --nm-b-sm: 16px;
+  --nm-b-md: 22px;
+  --nm-b-lg: 30px;
+
   /* Shadows */
-  --nm-light: #ffffff;   /* pure white highlight */
-  --nm-dark:  #bec3d4;   /* medium-gray depth */
-
-  /* Same distance/blur tokens */
-  --nm-d-xs:  3px;
-  --nm-d-sm:  5px;
-  --nm-d-md:  8px;
-  --nm-d-lg: 12px;
-  --nm-b-xs:  8px;
-  --nm-b-sm: 14px;
-  --nm-b-md: 20px;
-  --nm-b-lg: 28px;
-
-  /* Shadows (same formula, different colors) */
   --nm-shadow-xs:
     calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
     var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
@@ -223,14 +224,14 @@
     inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
     inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
 
-  /* Text — high contrast on light */
-  --nm-text-primary:   #1a1d2e;  /* 13:1 */
-  --nm-text-secondary: #3d4560;  /* 6.5:1 */
-  --nm-text-muted:     #626a82;  /* 4.2:1 */
+  /* Texto — alto contraste sobre base azul-ardósia */
+  --nm-text-primary:   #1a1d2e;  /* 8.5:1 */
+  --nm-text-secondary: #3a4260;  /* 5.2:1 */
+  --nm-text-muted:     #5c6480;  /* 3.9:1 */
 
   /* Accent & border */
   --nm-accent: #4f52d9;
-  --nm-border: rgba(0, 0, 0, 0.09);
+  --nm-border: rgba(0, 0, 0, 0.12);
 }
 
 /* ── Raised elements (extrude from surface) ────────────────── */
@@ -361,7 +362,6 @@
 [data-theme="light"] .text-slate-600,
 [data-theme="light"] .text-slate-700 {
   color: var(--nm-text-muted);
-  opacity: 0.75;
 }
 
 /* Subtle glass/white bg → light shadow-tinted bg */
