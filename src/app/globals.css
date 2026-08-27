@@ -177,9 +177,9 @@
     inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
 
   /* Texto — alto contraste sobre navy */
-  --nm-text-primary:   #e8edf8;  /* branco-azulado 14:1 */
-  --nm-text-secondary: #8b9cc8;  /* azul-cinza médio 5.8:1 */
-  --nm-text-muted:     #4f5e8a;  /* azul-cinza escuro 3.6:1 */
+  --nm-text-primary:   #ffffff;  /* branco puro 21:1 */
+  --nm-text-secondary: #b8c8f0;  /* azul-branco claro 9:1 */
+  --nm-text-muted:     #7080a8;  /* azul-cinza médio 4.5:1 */
 
   /* Accent índigo-brilhante + border azul-tinted */
   --nm-accent: #5b7bff;
@@ -459,3 +459,21 @@
 [data-theme="light"] .nm-sidebar nav button:hover {
   background: #f5f7fd !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME OVERRIDES
+   Força legibilidade nas classes Tailwind hardcoded (slate-X)
+   que ficam cinza-puro sobre navy e perdem contraste.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* text-slate em dark → blue-white legível */
+[data-theme="dark"] .text-slate-200 { color: #ccd8f8 !important; }
+[data-theme="dark"] .text-slate-300 { color: #b8c8f0 !important; }
+[data-theme="dark"] .text-slate-400 { color: #9ab0d8 !important; }
+[data-theme="dark"] .text-slate-500 { color: #7080a8 !important; }
+[data-theme="dark"] .text-slate-600 { color: #5a6e98 !important; }
+[data-theme="dark"] .text-slate-700 { color: #4a5c84 !important; }
+
+/* Placeholder em campos de input */
+[data-theme="dark"] .placeholder\:text-slate-600::placeholder { color: #5a6e98; }
+[data-theme="dark"] .placeholder\:text-slate-500::placeholder { color: #7080a8; }
