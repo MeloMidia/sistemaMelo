@@ -125,11 +125,13 @@ export default function HomePage() {
     )
   }
 
+  const pageBg = theme === 'light' ? 'var(--nm-surface)' : 'var(--nm-bg)'
+
   return (
     <div
       data-theme={theme}
       className="dark min-h-screen flex overflow-hidden"
-      style={{ background: 'var(--nm-bg)' }}
+      style={{ background: pageBg }}
     >
       {/* Ambient glow — subtle, not dominant */}
       <div className="fixed top-[-80px] left-[15%] w-[400px] h-[300px] rounded-full pointer-events-none"
@@ -259,7 +261,7 @@ export default function HomePage() {
 
       {/* ── Main ─────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden relative min-w-0"
-        style={{ background: 'var(--nm-bg)' }}>
+        style={{ background: pageBg }}>
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
         {activeTab === 'clientes'     && <ClientesView />}

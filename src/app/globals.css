@@ -185,53 +185,78 @@
   --nm-border: rgba(255, 255, 255, 0.10);
 }
 
-/* ── LIGHT THEME ─────────────────────────────────────────────── */
-/* Base mais escuro/saturado = delta de sombra maior = efeito muito mais visível */
+/* ── LIGHT THEME — Clean SaaS (inspiração BizLink/Conceptzilla) ── */
+/* Fundo: cinza-azulado claro. Cards: branco com shadow sutil.        */
+/* nm-light = #fff (some no card branco). nm-dark = sombra visível.  */
 [data-theme="light"] {
-  /* Surface — azul-ardósia médio, não branco */
-  --nm-bg:    #cdd3e0;
-  /* Shadows — delta de ~38 canais para cima e ~28 para baixo */
-  --nm-light: #f5f8ff;   /* quase branco — highlight forte */
-  --nm-dark:  #a2abbe;   /* azul-cinza escuro — sombra profunda */
+  /* Variável de fundo da página — diferente do card */
+  --nm-surface: #edf0f7;
+  /* Cards/colunas = branco */
+  --nm-bg:    #ffffff;
+  /* Shadow: highlight branco (invisível sobre branco) + cinza-azul visível */
+  --nm-light: #ffffff;
+  --nm-dark:  #b0bccf;
 
-  /* Distâncias ligeiramente maiores em light para compensar fundo médio */
-  --nm-d-xs:  4px;
-  --nm-d-sm:  6px;
-  --nm-d-md: 10px;
-  --nm-d-lg: 14px;
-  --nm-b-xs: 10px;
-  --nm-b-sm: 16px;
-  --nm-b-md: 22px;
-  --nm-b-lg: 30px;
+  /* Distâncias menores = shadow sutil, não gritante */
+  --nm-d-xs:  2px;
+  --nm-d-sm:  3px;
+  --nm-d-md:  5px;
+  --nm-d-lg:  8px;
+  --nm-b-xs:  6px;
+  --nm-b-sm: 10px;
+  --nm-b-md: 16px;
+  --nm-b-lg: 22px;
 
-  /* Shadows */
+  /* Shadows — resultam em drop shadow sutil (estilo flat) */
   --nm-shadow-xs:
-    calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
-    var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+    0 1px var(--nm-b-xs) var(--nm-dark);
   --nm-shadow-sm:
-    calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
-    var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+    0 2px var(--nm-b-sm) var(--nm-dark);
   --nm-shadow-md:
-    calc(-1 * var(--nm-d-md)) calc(-1 * var(--nm-d-md)) var(--nm-b-md) var(--nm-light),
-    var(--nm-d-md) var(--nm-d-md) var(--nm-b-md) var(--nm-dark);
+    0 3px var(--nm-b-md) var(--nm-dark);
   --nm-shadow-lg:
-    calc(-1 * var(--nm-d-lg)) calc(-1 * var(--nm-d-lg)) var(--nm-b-lg) var(--nm-light),
-    var(--nm-d-lg) var(--nm-d-lg) var(--nm-b-lg) var(--nm-dark);
+    0 6px var(--nm-b-lg) var(--nm-dark);
   --nm-shadow-inset-xs:
-    inset calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
-    inset var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+    inset 0 1px 4px rgba(0,0,0,0.08);
   --nm-shadow-inset-sm:
-    inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
-    inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+    inset 0 2px 8px rgba(0,0,0,0.10);
 
-  /* Texto — alto contraste sobre base azul-ardósia */
-  --nm-text-primary:   #1a1d2e;  /* 8.5:1 */
-  --nm-text-secondary: #3a4260;  /* 5.2:1 */
-  --nm-text-muted:     #5c6480;  /* 3.9:1 */
+  /* Texto — alto contraste sobre branco */
+  --nm-text-primary:   #111827;  /* 16:1 */
+  --nm-text-secondary: #4b5563;  /* 7.2:1 */
+  --nm-text-muted:     #9ca3af;  /* 3.8:1 */
 
   /* Accent & border */
   --nm-accent: #4f52d9;
-  --nm-border: rgba(0, 0, 0, 0.12);
+  --nm-border: #e5e9f0;
+}
+
+/* Sidebar fica branca em light */
+[data-theme="light"] .nm-sidebar {
+  background: #ffffff !important;
+  box-shadow: 1px 0 0 #e5e9f0 !important;
+}
+
+/* Botões usam borda ao invés de shadow direcional */
+[data-theme="light"] .nm-btn {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px #e5e9f0 !important;
+  border-color: #e5e9f0 !important;
+}
+[data-theme="light"] .nm-btn:hover {
+  background: #f8faff !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px #dde2ec !important;
+}
+[data-theme="light"] .nm-btn:active {
+  background: #f0f4fc !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08) !important;
+}
+
+/* Input: inset light */
+[data-theme="light"] .nm-inset,
+[data-theme="light"] .nm-inset-md {
+  background: #f4f6fb !important;
+  border-color: #e0e4ed !important;
 }
 
 /* ── Raised elements (extrude from surface) ────────────────── */
@@ -407,5 +432,29 @@
 
 /* Scrollbar in light mode */
 [data-theme="light"] ::-webkit-scrollbar-track {
-  background: var(--nm-dark);
+  background: #e5e9f0;
+}
+
+/* Kanban/CRM: forçar fundo e shadow flat em elementos inline-styled */
+/* Inline styles tem prioridade, mas !important no CSS vence */
+[data-theme="light"] [class*="rounded-2xl"],
+[data-theme="light"] [class*="rounded-xl"] {
+  /* Só afeta cor do texto, não o background — background vem do nm-bg=white */
+  color: var(--nm-text-primary);
+}
+
+/* Nav item ativo — inset mais suave em light */
+[data-theme="light"] .nm-sidebar nav button[style*="inset"] {
+  background: #f0f4fc !important;
+}
+
+/* Section labels no sidebar mais escuros em light */
+[data-theme="light"] p[class*="tracking"] {
+  color: var(--nm-text-secondary) !important;
+  opacity: 0.7;
+}
+
+/* Hover states de itens na sidebar */
+[data-theme="light"] .nm-sidebar nav button:hover {
+  background: #f5f7fd !important;
 }
