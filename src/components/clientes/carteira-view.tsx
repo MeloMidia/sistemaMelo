@@ -42,15 +42,19 @@ function ClientCard({ task, isDragging = false }: { task: Task; isDragging?: boo
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        background: 'var(--nm-bg)',
+        boxShadow: isDragging
+          ? 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)'
+          : '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)',
+        border: '1px solid var(--nm-border)',
+        opacity: isDragging ? 0.45 : 1,
+        transition: 'box-shadow 0.18s ease, transform 0.15s ease',
+      }}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all duration-150 select-none
-        cursor-grab active:cursor-grabbing touch-none
-        ${isDragging
-          ? 'opacity-40 border-white/[0.08] bg-white/[0.03]'
-          : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/[0.15] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30'
-        }`}
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl select-none cursor-grab active:cursor-grabbing touch-none nm-card-hover"
     >
       {/* Avatar inicial */}
       <div className="w-9 h-9 rounded-xl bg-white/[0.07] ring-1 ring-white/[0.10] flex items-center justify-center shrink-0">
@@ -70,7 +74,14 @@ function ClientCard({ task, isDragging = false }: { task: Task; isDragging?: boo
 // Versão estática do card (usado no DragOverlay)
 function ClientCardStatic({ task }: { task: Task }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-white/[0.20] bg-[#0d0f1a] shadow-2xl shadow-black/60 rotate-1 scale-105">
+    <div
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl rotate-1 scale-105"
+      style={{
+        background: 'var(--nm-bg)',
+        boxShadow: '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)',
+        border: '1px solid rgba(99,102,241,0.35)',
+      }}
+    >
       <div className="w-9 h-9 rounded-xl bg-white/[0.10] flex items-center justify-center shrink-0">
         <span className="text-sm font-bold text-slate-200">
           {task.title.charAt(0).toUpperCase()}
@@ -97,21 +108,20 @@ function ColResponsavel({
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-2xl border flex flex-col overflow-hidden transition-all duration-200 ${
-        isOver ? 'ring-2 scale-[1.01]' : ''
-      }`}
+      className="rounded-2xl flex flex-col overflow-hidden transition-all duration-200"
       style={{
-        backgroundColor: '#0a0c14',
-        borderColor: isOver ? responsavel.color : responsavel.border,
-        boxShadow: isOver ? `0 0 24px ${responsavel.color}20` : undefined,
-        // @ts-expect-error css variable
-        '--ring-color': responsavel.color,
+        background: 'var(--nm-bg)',
+        boxShadow: isOver
+          ? `-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark), 0 0 0 2px ${responsavel.color}50`
+          : '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
+        border: `1px solid ${isOver ? responsavel.color + '50' : 'var(--nm-border)'}`,
+        transform: isOver ? 'scale(1.01)' : undefined,
       }}
     >
       {/* Header */}
       <div
-        className="px-4 py-3.5 border-b flex items-center gap-3"
-        style={{ borderColor: responsavel.border }}
+        className="px-4 py-3.5 flex items-center gap-3"
+        style={{ borderBottom: '1px solid var(--nm-border)' }}
       >
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
@@ -156,12 +166,16 @@ function ColSemResponsavel({ tasks, activeId }: { tasks: Task[]; activeId: strin
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-2xl border border-white/[0.06] flex flex-col overflow-hidden transition-all duration-200 ${
-        isOver ? 'border-white/20 ring-1 ring-white/20' : ''
-      }`}
-      style={{ backgroundColor: '#0a0c14' }}
+      className="rounded-2xl flex flex-col overflow-hidden transition-all duration-200"
+      style={{
+        background: 'var(--nm-bg)',
+        boxShadow: isOver
+          ? 'inset -4px -4px 10px var(--nm-light), inset 4px 4px 10px var(--nm-dark)'
+          : '-4px -4px 12px var(--nm-light), 4px 4px 12px var(--nm-dark)',
+        border: '1px solid var(--nm-border)',
+      }}
     >
-      <div className="px-4 py-3 border-b border-white/[0.05] flex items-center gap-2">
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid var(--nm-border)' }}>
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sem responsável</span>
         <span className="ml-auto text-xs text-slate-600 bg-white/[0.04] px-2 py-0.5 rounded-full">{tasks.length}</span>
       </div>
@@ -240,7 +254,7 @@ export function CarteiraView() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 p-6 overflow-y-auto space-y-5">
+      <div className="flex-1 p-6 overflow-y-auto space-y-5" style={{ background: 'var(--nm-bg)' }}>
         {/* Header */}
         <div className="flex items-center gap-4">
           <div>

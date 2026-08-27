@@ -404,7 +404,8 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header: stats + busca */}
-      <div className="px-6 h-14 border-b border-white/[0.05] bg-[#07080c]/80 backdrop-blur-md shrink-0 flex items-center justify-between gap-4 min-w-0">
+      <div className="px-6 h-14 shrink-0 flex items-center justify-between gap-4 min-w-0"
+        style={{ background: 'var(--nm-bg)', borderBottom: '1px solid var(--nm-border)' }}>
         {/* Stats */}
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-1.5">
@@ -454,7 +455,12 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
               placeholder="Buscar lead..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-7 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg text-sm text-white placeholder:text-slate-600 outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all w-52"
+              className="pl-9 pr-7 py-1.5 rounded-lg text-sm text-white placeholder:text-slate-600 outline-none w-52 transition-all"
+              style={{
+                background: 'var(--nm-bg)',
+                boxShadow: 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)',
+                border: '1px solid rgba(255,255,255,0.04)',
+              }}
             />
             {searchQuery && (
               <button
@@ -468,7 +474,10 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
           </div>
 
           {/* Toggle de visualização */}
-          <div className="flex items-center gap-0.5 p-0.5 bg-white/[0.04] border border-white/[0.08] rounded-lg shrink-0">
+          <div
+            className="flex items-center gap-0.5 p-0.5 rounded-lg shrink-0"
+            style={{ background: 'var(--nm-bg)', boxShadow: 'inset -2px -2px 5px var(--nm-light), inset 2px 2px 5px var(--nm-dark)', border: '1px solid var(--nm-border)' }}
+          >
             <button
               onClick={() => setViewMode('stages')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
@@ -566,7 +575,7 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 overflow-x-auto p-5">
+        <div className="flex-1 overflow-x-auto p-5" style={{ background: 'var(--nm-bg)' }}>
           <div className="flex gap-4 items-start min-h-[calc(100vh-170px)]">
             {visibleStages.map((stage) => (
               <LeadColumn
@@ -582,7 +591,10 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
             ))}
 
             {isAddingStage ? (
-              <div className="w-[290px] shrink-0 p-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] space-y-3">
+              <div
+                className="w-[285px] shrink-0 p-4 rounded-2xl space-y-3"
+                style={{ background: 'var(--nm-bg)', boxShadow: '-5px -5px 12px var(--nm-light), 5px 5px 12px var(--nm-dark)', border: '1px solid var(--nm-border)' }}
+              >
                 <Input
                   value={newStageName}
                   onChange={(e) => setNewStageName(e.target.value)}
@@ -595,25 +607,14 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
                   }}
                   placeholder="Nome da etapa..."
                   autoFocus
-                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 rounded-xl"
+                  className="rounded-xl text-white placeholder:text-slate-600"
+                  style={{ background: 'var(--nm-bg)', boxShadow: 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)', border: '1px solid rgba(255,255,255,0.04)' }}
                 />
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleAddStage}
-                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer rounded-lg"
-                  >
+                  <Button size="sm" onClick={handleAddStage} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs cursor-pointer rounded-lg border-0">
                     Criar
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsAddingStage(false)
-                      setNewStageName('')
-                    }}
-                    className="text-slate-500 hover:text-white text-xs cursor-pointer"
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingStage(false); setNewStageName('') }} className="text-slate-500 hover:text-white text-xs cursor-pointer">
                     Cancelar
                   </Button>
                 </div>
@@ -621,9 +622,17 @@ export function KanbanLeads({ openLeadId }: { openLeadId?: string | null }) {
             ) : (
               <button
                 onClick={() => setIsAddingStage(true)}
-                className="w-[290px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-white/[0.06] text-slate-500 hover:text-white hover:border-blue-500/30 hover:bg-blue-500/[0.03] cursor-pointer flex items-center justify-center gap-2 text-sm font-medium"
+                className="w-[285px] shrink-0 p-4 rounded-2xl cursor-pointer flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200"
+                style={{
+                  background: 'var(--nm-bg)',
+                  boxShadow: 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)',
+                  border: '1px solid var(--nm-border)',
+                  color: 'var(--nm-text-muted)',
+                }}
+                onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { boxShadow: '-5px -5px 12px var(--nm-light), 5px 5px 12px var(--nm-dark)', color: 'var(--nm-text-secondary)' })}
+                onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { boxShadow: 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)', color: 'var(--nm-text-muted)' })}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Nova etapa
               </button>
             )}

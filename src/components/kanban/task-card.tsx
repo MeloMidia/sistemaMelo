@@ -166,17 +166,23 @@ export function TaskCard({ task }: TaskCardProps) {
       {/* ── Card ─────────────────────────────────────── */}
       <div
         ref={setNodeRef}
-        style={style}
         onClick={handleOpenModal}
-        className={`
-          group relative p-3.5 rounded-xl border transition-all duration-300 backdrop-blur-sm
-          ${isDragging
-            ? 'opacity-40 scale-[1.01] shadow-2xl shadow-black/80 border-blue-500/30 bg-[#111320]'
-            : 'bg-[#0a0b10]/40 border-white/[0.04] hover:bg-[#0f111a]/70 hover:border-white/[0.1] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:-translate-y-0.5'
-          }
-          ${task.isPriorityToday && !isDragging ? 'border-l-2 border-l-amber-500/80' : ''}
-          ${!isEditing ? 'cursor-pointer' : ''}
-        `}
+        style={{
+          ...style,
+          background: 'var(--nm-bg)',
+          boxShadow: isDragging
+            ? 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)'
+            : '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)',
+          border: task.isPriorityToday && !isDragging
+            ? '1px solid rgba(245,158,11,0.35)'
+            : '1px solid var(--nm-border)',
+          borderLeft: task.isPriorityToday && !isDragging
+            ? '2px solid rgba(245,158,11,0.6)'
+            : undefined,
+          opacity: isDragging ? 0.5 : 1,
+          transition: 'box-shadow 0.2s ease, transform 0.15s ease, opacity 0.15s ease',
+        }}
+        className={`group relative p-3.5 rounded-xl nm-card-hover ${!isEditing ? 'cursor-pointer' : ''}`}
       >
         <div className="flex items-start gap-2.5">
           {/* Drag handle */}
@@ -365,11 +371,15 @@ export function TaskCard({ task }: TaskCardProps) {
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
 
           <div
-            className="relative z-10 w-full max-w-xl bg-[#0d0f18] border border-white/[0.07] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]"
+            className="relative z-10 w-full max-w-xl rounded-2xl flex flex-col max-h-[85vh]"
+            style={{
+              background: 'var(--nm-bg)',
+              boxShadow: '-12px -12px 28px var(--nm-light), 12px 12px 28px var(--nm-dark), 0 0 0 1px var(--nm-border)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center gap-4 px-6 py-5 border-b border-white/[0.06] shrink-0">
+            <div className="flex items-center gap-4 px-6 py-5 shrink-0" style={{ borderBottom: '1px solid var(--nm-border)' }}>
               {task.logoUrl ? (
                 <img
                   src={task.logoUrl}
@@ -485,7 +495,8 @@ export function TaskCard({ task }: TaskCardProps) {
         >
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
           <div
-            className="relative z-10 w-full max-w-md bg-[#0d0f18] border border-white/[0.08] rounded-2xl shadow-2xl"
+            className="relative z-10 w-full max-w-md rounded-2xl"
+            style={{ background: 'var(--nm-bg)', boxShadow: '-10px -10px 24px var(--nm-light), 10px 10px 24px var(--nm-dark), 0 0 0 1px var(--nm-border)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -562,7 +573,11 @@ export function TaskCard({ task }: TaskCardProps) {
       {deleteModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteModalOpen(false)} />
-          <div className="relative z-10 w-full max-w-sm bg-[#0f1117] border border-white/[0.08] rounded-2xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative z-10 w-full max-w-sm rounded-2xl p-6"
+            style={{ background: 'var(--nm-bg)', boxShadow: '-10px -10px 24px var(--nm-light), 10px 10px 24px var(--nm-dark), 0 0 0 1px var(--nm-border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold text-white mb-2">Excluir Tarefa</h3>
             <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.</p>
             <div className="flex gap-3 justify-end">

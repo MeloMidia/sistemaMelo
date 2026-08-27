@@ -57,15 +57,19 @@ export function LeadCard({ lead, onSelect, isOverlay = false, disableDrag = fals
       {...attributes}
       {...listeners}
       onClick={isOverlay ? undefined : onSelect}
-      className={`
-        group rounded-xl border select-none transition-all duration-300 backdrop-blur-sm
-        ${isOverlay
-          ? 'bg-[#151824] border-white/20 shadow-2xl shadow-black/80 scale-[1.01] cursor-grabbing'
+      className="group rounded-xl select-none cursor-pointer nm-card-hover"
+      style={{
+        background: 'var(--nm-bg)',
+        boxShadow: isOverlay
+          ? '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)'
           : isDragging
-            ? 'opacity-20 border-dashed border-white/10 bg-transparent cursor-grabbing'
-            : 'bg-[#0a0b10]/40 border-white/[0.04] hover:border-white/[0.1] hover:bg-[#0f111a]/70 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:-translate-y-0.5 cursor-pointer shadow-sm'
-        }
-      `}
+            ? 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)'
+            : '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)',
+        border: '1px solid var(--nm-border)',
+        opacity: isDragging ? 0.4 : 1,
+        transform: isOverlay ? 'scale(1.02) rotate(0.5deg)' : undefined,
+        transition: 'box-shadow 0.2s ease, transform 0.15s ease, opacity 0.15s ease',
+      }}
     >
       <div className="p-3.5">
         <div className="flex items-start gap-2.5">

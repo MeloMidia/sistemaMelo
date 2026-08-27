@@ -9,7 +9,7 @@ import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Menu, ChevronLeft, Settings,
+  Briefcase, Menu, ChevronLeft,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { KanbanLeads } from '@/components/crm/kanban-leads'
@@ -21,11 +21,11 @@ import { CarteiraView } from '@/components/clientes/carteira-view'
 type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm' | 'agenda'
 
 const OPERACIONAL = [
-  { id: 'kanban',    icon: LayoutDashboard, label: 'Processos', color: '#6366f1' },
-  { id: 'mentoria',  icon: GraduationCap,   label: 'Mentoria',  color: '#a855f7' },
-  { id: 'clientes',  icon: Building2,       label: 'PromoADS',  color: '#f59e0b' },
-  { id: 'carteira',  icon: Briefcase,       label: 'Carteira',  color: '#10b981' },
-  { id: 'tasks',     icon: ClipboardList,   label: 'Tarefas',   color: '#3b82f6' },
+  { id: 'kanban',   icon: LayoutDashboard, label: 'Processos', color: '#6366f1' },
+  { id: 'mentoria', icon: GraduationCap,   label: 'Mentoria',  color: '#a855f7' },
+  { id: 'clientes', icon: Building2,       label: 'PromoADS',  color: '#f59e0b' },
+  { id: 'carteira', icon: Briefcase,       label: 'Carteira',  color: '#10b981' },
+  { id: 'tasks',    icon: ClipboardList,   label: 'Tarefas',   color: '#3b82f6' },
 ] as const
 
 const COMERCIAL = [
@@ -36,8 +36,8 @@ const COMERCIAL = [
 ] as const
 
 export default function HomePage() {
-  const [activeTab, setActiveTab]     = useState<ActiveTab>('kanban')
-  const [expanded, setExpanded]       = useState(true)
+  const [activeTab, setActiveTab]         = useState<ActiveTab>('kanban')
+  const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
   const { data: session } = useSession()
 
@@ -46,29 +46,54 @@ export default function HomePage() {
     setActiveTab('crm')
   }
 
-  function NavItem({ id, icon: Icon, label, color }: { id: ActiveTab; icon: React.ElementType; label: string; color: string }) {
+  // Neumorphic nav item — pressed when active, raised when hovered
+  function NavItem({
+    id, icon: Icon, label, color,
+  }: { id: ActiveTab; icon: React.ElementType; label: string; color: string }) {
     const isActive = activeTab === id
     return (
       <button
-        key={id}
         onClick={() => setActiveTab(id)}
         title={!expanded ? label : undefined}
-        className={`w-full flex items-center gap-3 rounded-xl transition-all duration-150 cursor-pointer select-none
-          ${expanded ? 'px-3 py-2.5' : 'px-0 py-2.5 justify-center'}
-          ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'}`}
-        style={{ backgroundColor: isActive ? `${color}18` : undefined }}
+        className={`w-full flex items-center gap-3 rounded-xl cursor-pointer select-none transition-all duration-200
+          ${expanded ? 'px-3 py-2.5' : 'px-0 py-2.5 justify-center'}`}
+        style={{
+          background: 'var(--nm-bg)',
+          boxShadow: isActive
+            ? 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)'
+            : undefined,
+          color: isActive ? color : 'var(--nm-text-muted)',
+        }}
+        onMouseEnter={e => {
+          if (!isActive) {
+            (e.currentTarget as HTMLElement).style.boxShadow =
+              '-3px -3px 7px var(--nm-light), 3px 3px 7px var(--nm-dark)'
+            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-secondary)'
+          }
+        }}
+        onMouseLeave={e => {
+          if (!isActive) {
+            ;(e.currentTarget as HTMLElement).style.boxShadow = ''
+            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-muted)'
+          }
+        }}
       >
         <Icon
           className="w-[17px] h-[17px] shrink-0 transition-colors"
-          style={{ color: isActive ? color : undefined }}
+          style={{ color: isActive ? color : 'inherit' }}
         />
         {expanded && (
-          <span className="text-[13px] font-medium truncate leading-none">{label}</span>
+          <span
+            className="text-[13px] font-semibold truncate leading-none"
+            style={{ color: isActive ? 'var(--nm-text-primary)' : 'inherit' }}
+          >
+            {label}
+          </span>
         )}
         {isActive && expanded && (
           <span
             className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
           />
         )}
       </button>
@@ -76,42 +101,67 @@ export default function HomePage() {
   }
 
   function SectionLabel({ label }: { label: string }) {
-    if (!expanded) {
-      return <div className="my-1 mx-auto w-6 h-px bg-white/[0.08]" />
-    }
+    if (!expanded) return <div className="my-2 mx-auto w-5 h-px" style={{ background: 'var(--nm-border)' }} />
     return (
-      <p className="px-3 pt-1 pb-1 text-[10px] font-semibold tracking-widest uppercase text-slate-600 select-none">
+      <p className="px-3 pt-2 pb-1.5 text-[9px] font-bold tracking-[0.15em] uppercase select-none"
+        style={{ color: 'var(--nm-text-muted)' }}>
         {label}
       </p>
     )
   }
 
   return (
-    <div className="dark min-h-screen flex bg-[#07080c] text-white relative overflow-hidden">
-      {/* Ambient lights */}
-      <div className="fixed top-0 left-[20%] w-[500px] h-[300px] rounded-full bg-blue-600/[0.04] blur-[140px] pointer-events-none z-0" />
-      <div className="fixed bottom-0 right-[10%] w-[400px] h-[300px] rounded-full bg-indigo-500/[0.03] blur-[140px] pointer-events-none z-0" />
+    <div
+      className="dark min-h-screen flex overflow-hidden"
+      style={{ background: 'var(--nm-bg)' }}
+    >
+      {/* Ambient glow — subtle, not dominant */}
+      <div className="fixed top-[-80px] left-[15%] w-[400px] h-[300px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #6366f108 0%, transparent 70%)' }} />
+      <div className="fixed bottom-[-60px] right-[8%] w-[350px] h-[250px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #a855f706 0%, transparent 70%)' }} />
 
-      {/* ── Sidebar ───────────────────────────────────────────────────── */}
+      {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="shrink-0 flex flex-col border-r border-white/[0.06] bg-[#08090e] z-40 relative transition-all duration-200"
-        style={{ width: expanded ? 220 : 60 }}
+        className="nm-sidebar shrink-0 flex flex-col z-40 relative transition-all duration-200"
+        style={{ width: expanded ? 220 : 64 }}
       >
-        {/* Logo + Toggle */}
-        <div className={`flex items-center h-[60px] border-b border-white/[0.06] shrink-0
-          ${expanded ? 'px-4 gap-3' : 'justify-center'}`}>
+        {/* Logo + toggle */}
+        <div
+          className={`flex items-center h-16 shrink-0 ${expanded ? 'px-4 gap-3' : 'justify-center'}`}
+          style={{ borderBottom: '1px solid var(--nm-border)' }}
+        >
           {expanded && (
-            <div className="flex items-center gap-1 select-none flex-1 min-w-0">
-              <span className="text-lg font-medium tracking-tight text-amber-400 lowercase">melo</span>
-              <span className="text-lg font-light italic tracking-tight text-slate-300 lowercase">flow</span>
+            <div className="flex items-center gap-1.5 select-none flex-1 min-w-0">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                  boxShadow: '0 2px 8px #6366f140',
+                  color: '#fff',
+                }}
+              >
+                M
+              </div>
+              <div>
+                <span className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--nm-text-primary)' }}>
+                  melo
+                </span>
+                <span className="text-[15px] font-light italic tracking-tight" style={{ color: 'var(--nm-text-secondary)' }}>
+                  flow
+                </span>
+              </div>
             </div>
           )}
           <button
             onClick={() => setExpanded(v => !v)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer shrink-0"
-            title={expanded ? 'Recolher menu' : 'Expandir menu'}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer nm-btn shrink-0"
+            title={expanded ? 'Recolher' : 'Expandir'}
+            style={{ color: 'var(--nm-text-muted)' }}
           >
-            {expanded ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {expanded
+              ? <ChevronLeft className="w-4 h-4" />
+              : <Menu className="w-4 h-4" />}
           </button>
         </div>
 
@@ -122,7 +172,7 @@ export default function HomePage() {
             <NavItem key={item.id} {...item} id={item.id as ActiveTab} />
           ))}
 
-          <div className="pt-3">
+          <div className="pt-2">
             <SectionLabel label="Comercial" />
           </div>
           {COMERCIAL.map(item => (
@@ -130,33 +180,42 @@ export default function HomePage() {
           ))}
         </nav>
 
-        {/* Footer do sidebar */}
-        <div className="shrink-0 border-t border-white/[0.06] py-3 px-2 space-y-1">
-          {/* WhatsApp Settings */}
+        {/* Footer */}
+        <div
+          className="shrink-0 py-3 px-2 space-y-1"
+          style={{ borderTop: '1px solid var(--nm-border)' }}
+        >
+          {/* WhatsApp */}
           <div className={`flex ${expanded ? '' : 'justify-center'}`}>
             <WhatsappSettings collapsed={!expanded} />
           </div>
 
           {/* Usuário */}
           {session?.user && (
-            <div className={`flex items-center gap-2.5 rounded-xl px-2 py-2 ${expanded ? '' : 'justify-center'}`}>
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/30 to-indigo-500/30 flex items-center justify-center ring-1 ring-white/10 shrink-0">
-                <User className="w-3.5 h-3.5 text-blue-300" />
+            <div className={`flex items-center gap-2.5 px-2 py-2 rounded-xl ${expanded ? '' : 'justify-center'}`}>
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 nm-xs"
+                style={{ color: '#6366f1' }}
+              >
+                <User className="w-3.5 h-3.5" />
               </div>
               {expanded && (
-                <span className="text-[12px] text-slate-400 font-medium truncate flex-1 min-w-0">
+                <span className="text-[12px] font-medium truncate flex-1 min-w-0" style={{ color: 'var(--nm-text-secondary)' }}>
                   {session.user.name}
                 </span>
               )}
             </div>
           )}
 
-          {/* Logout */}
+          {/* Sair */}
           <button
             onClick={() => signOut()}
             title="Sair"
-            className={`w-full flex items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer
+            className={`w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-colors
               ${expanded ? '' : 'justify-center'}`}
+            style={{ color: 'var(--nm-text-muted)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--nm-text-muted)' }}
           >
             <LogOut className="w-4 h-4 shrink-0" />
             {expanded && <span className="text-[12px] font-medium">Sair</span>}
@@ -164,8 +223,9 @@ export default function HomePage() {
         </div>
       </aside>
 
-      {/* ── Main content ──────────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col overflow-hidden relative min-w-0">
+      {/* ── Main ─────────────────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col overflow-hidden relative min-w-0"
+        style={{ background: 'var(--nm-bg)' }}>
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
         {activeTab === 'clientes'     && <ClientesView />}

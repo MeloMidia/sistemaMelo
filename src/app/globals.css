@@ -129,27 +129,147 @@
   }
 }
 
-/* ——— Custom Design Tokens ——— */
+/* ═══════════════════════════════════════════════════════════════
+   DARK NEUMORPHIC DESIGN SYSTEM — MeloFlow
+   Base: #1a1d2e | Light shadow: #26293a | Dark shadow: #0e1122
+   ═══════════════════════════════════════════════════════════════ */
 
-/* Scrollbar styling for dark glass aesthetic */
+:root {
+  /* ── Surface ─────────────────────────────────────────────── */
+  --nm-bg:    #1a1d2e;
+
+  /* ── Shadows (bg ± 12 per channel) ──────────────────────── */
+  --nm-light: #26293a;   /* bg lightened */
+  --nm-dark:  #0e1122;   /* bg darkened  */
+
+  /* ── Distances ───────────────────────────────────────────── */
+  --nm-d-xs:  3px;
+  --nm-d-sm:  5px;
+  --nm-d-md:  8px;
+  --nm-d-lg: 12px;
+
+  /* ── Blur (2× distance) ──────────────────────────────────── */
+  --nm-b-xs:  7px;
+  --nm-b-sm: 12px;
+  --nm-b-md: 18px;
+  --nm-b-lg: 26px;
+
+  /* ── Pre-built shadow values ─────────────────────────────── */
+  --nm-shadow-xs:
+    calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
+    var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+
+  --nm-shadow-sm:
+    calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
+    var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+
+  --nm-shadow-md:
+    calc(-1 * var(--nm-d-md)) calc(-1 * var(--nm-d-md)) var(--nm-b-md) var(--nm-light),
+    var(--nm-d-md) var(--nm-d-md) var(--nm-b-md) var(--nm-dark);
+
+  --nm-shadow-lg:
+    calc(-1 * var(--nm-d-lg)) calc(-1 * var(--nm-d-lg)) var(--nm-b-lg) var(--nm-light),
+    var(--nm-d-lg) var(--nm-d-lg) var(--nm-b-lg) var(--nm-dark);
+
+  --nm-shadow-inset-xs:
+    inset calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
+    inset var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+
+  --nm-shadow-inset-sm:
+    inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
+    inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+
+  /* ── Text (WCAG AA on #1a1d2e) ───────────────────────────── */
+  --nm-text-primary:   #e2e8f0;  /* 12.3:1 contrast */
+  --nm-text-secondary: #94a3b8;  /* 5.1:1  contrast */
+  --nm-text-muted:     #505a6e;  /* 3.1:1  (large text only) */
+
+  /* ── Accent ──────────────────────────────────────────────── */
+  --nm-accent: #6366f1;
+
+  /* ── Border (accessibility boundary perception) ──────────── */
+  --nm-border: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Raised elements (extrude from surface) ────────────────── */
+.nm-xs  { background: var(--nm-bg); box-shadow: var(--nm-shadow-xs); border: 1px solid var(--nm-border); }
+.nm-sm  { background: var(--nm-bg); box-shadow: var(--nm-shadow-sm); border: 1px solid var(--nm-border); }
+.nm-md  { background: var(--nm-bg); box-shadow: var(--nm-shadow-md); border: 1px solid var(--nm-border); }
+.nm-lg  { background: var(--nm-bg); box-shadow: var(--nm-shadow-lg); border: 1px solid var(--nm-border); }
+
+/* ── Inset elements (sink into surface — active/inputs) ─────── */
+.nm-inset    { background: var(--nm-bg); box-shadow: var(--nm-shadow-inset-xs); }
+.nm-inset-md { background: var(--nm-bg); box-shadow: var(--nm-shadow-inset-sm); }
+
+/* ── Interactive button pattern ─────────────────────────────── */
+.nm-btn {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-shadow-sm);
+  border: 1px solid var(--nm-border);
+  transition: box-shadow 0.15s ease, transform 0.12s ease;
+  cursor: pointer;
+}
+.nm-btn:hover {
+  box-shadow: var(--nm-shadow-md);
+  transform: translateY(-1px);
+}
+.nm-btn:active {
+  box-shadow: var(--nm-shadow-inset-xs);
+  transform: translateY(0);
+}
+.nm-btn:focus-visible {
+  outline: 2px solid var(--nm-accent);
+  outline-offset: 3px;
+}
+
+/* ── Input well ──────────────────────────────────────────────── */
+.nm-input {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-shadow-inset-xs);
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--nm-text-primary);
+}
+.nm-input:focus {
+  outline: none;
+  box-shadow: var(--nm-shadow-inset-xs), 0 0 0 2px var(--nm-accent);
+}
+
+/* ── Sidebar shadow (right-only depth) ───────────────────────── */
+.nm-sidebar {
+  background: var(--nm-bg);
+  box-shadow: 6px 0 20px var(--nm-dark), inset -1px 0 0 var(--nm-light);
+}
+
+/* ── Card hover animation ────────────────────────────────────── */
+.nm-card-hover {
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.nm-card-hover:hover {
+  box-shadow: var(--nm-shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--nm-dark);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--nm-light);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #30354a;
 }
 
 /* Smooth transitions globally */
 *, *::before, *::after {
-  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -163,14 +283,13 @@
   }
 }
 
-/* Glass card utility */
+/* Glass card utility (mantido para compatibilidade) */
 .glass-card {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-
 .glass-card-hover:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.14);

@@ -108,15 +108,17 @@ export function LeadColumn({ stage, onSelectLead, otherStages, onMoveAll, isMovi
 
   return (
     <div
-      className={`flex flex-col w-[290px] shrink-0 rounded-2xl transition-all duration-300 backdrop-blur-xl ${isDragging ? 'opacity-30' : ''}`}
+      className={`flex flex-col w-[285px] shrink-0 rounded-2xl transition-all duration-200 ${isDragging ? 'opacity-30' : ''}`}
       style={{
-        backgroundColor: isOver ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.01)',
-        border: `1px solid ${isOver ? `${stage.color}40` : 'rgba(255,255,255,0.05)'}`,
-        boxShadow: isOver ? `0 0 24px ${stage.color}0a` : '0 8px 32px rgba(0,0,0,0.15)',
+        background: 'var(--nm-bg)',
+        border: `1px solid ${isOver ? `${stage.color}50` : 'var(--nm-border)'}`,
+        boxShadow: isOver
+          ? `-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark), 0 0 0 2px ${stage.color}40`
+          : '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
       }}
     >
       {/* Cabeçalho */}
-      <div className="px-3 pt-4 pb-3 shrink-0 border-b border-white/[0.03]">
+      <div className="px-3 pt-4 pb-3 shrink-0" style={{ borderBottom: '1px solid var(--nm-border)' }}>
         {isEditing ? (
           /* ── Modo edição ── */
           <div className="flex flex-col gap-2.5">
@@ -235,8 +237,11 @@ export function LeadColumn({ stage, onSelectLead, otherStages, onMoveAll, isMovi
                 </button>
 
                 {showMoveMenu && (
-                  <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-[#0e1117] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
-                    <div className="px-3 py-2 border-b border-white/[0.06]">
+                  <div
+                    className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl overflow-hidden"
+                    style={{ background: 'var(--nm-bg)', boxShadow: '-8px -8px 20px var(--nm-light), 8px 8px 20px var(--nm-dark)', border: '1px solid var(--nm-border)' }}
+                  >
+                    <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--nm-border)' }}>
                       <span className="text-[11px] text-slate-500 font-medium">
                         Mover {stage._count.leads} leads para…
                       </span>
