@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
-import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart,
@@ -12,27 +11,28 @@ import {
   Briefcase, Menu, ChevronLeft, Sun, Moon,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
+import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
 import { KanbanLeads } from '@/components/crm/kanban-leads'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
 import { AgendaView } from '@/components/agenda/agenda-view'
 import { ClientesView } from '@/components/clientes/clientes-view'
 import { CarteiraView } from '@/components/clientes/carteira-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'dashboard' | 'automacao-ml' | 'crm' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'crm' | 'agenda'
 
 const OPERACIONAL = [
-  { id: 'kanban',   icon: LayoutDashboard, label: 'Processos', color: '#6366f1' },
-  { id: 'mentoria', icon: GraduationCap,   label: 'Mentoria',  color: '#a855f7' },
-  { id: 'clientes', icon: Building2,       label: 'PromoADS',  color: '#f59e0b' },
-  { id: 'carteira', icon: Briefcase,       label: 'Carteira',  color: '#10b981' },
-  { id: 'tasks',    icon: ClipboardList,   label: 'Tarefas',   color: '#3b82f6' },
+  { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#6366f1' },
+  { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#a855f7' },
+  { id: 'clientes',     icon: Building2,       label: 'PromoADS',     color: '#f59e0b' },
+  { id: 'carteira',     icon: Briefcase,       label: 'Carteira',     color: '#10b981' },
+  { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#3b82f6' },
+  { id: 'automacao-ml', icon: Bot,             label: 'Automação ML', color: '#06b6d4' },
 ] as const
 
 const COMERCIAL = [
-  { id: 'crm',          icon: MessageSquare, label: 'CRM',          color: '#22c55e' },
-  { id: 'dashboard',    icon: BarChart,      label: 'Dashboard',    color: '#0ea5e9' },
-  { id: 'automacao-ml', icon: Bot,           label: 'Automação ML', color: '#10b981' },
-  { id: 'agenda',       icon: Calendar,      label: 'Agenda',       color: '#f97316' },
+  { id: 'crm',      icon: MessageSquare, label: 'CRM',      color: '#22c55e' },
+  { id: 'metricas', icon: BarChart,      label: 'Métricas', color: '#0ea5e9' },
+  { id: 'agenda',   icon: Calendar,      label: 'Agenda',   color: '#f97316' },
 ] as const
 
 export default function HomePage() {
@@ -267,7 +267,7 @@ export default function HomePage() {
         {activeTab === 'clientes'     && <ClientesView />}
         {activeTab === 'carteira'     && <CarteiraView />}
         {activeTab === 'tasks'        && <TaskManager />}
-        {activeTab === 'dashboard'    && <DashboardView />}
+        {activeTab === 'metricas'     && <ClientesMetricas />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <KanbanLeads openLeadId={crmOpenLeadId} />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
