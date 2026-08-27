@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
@@ -9,7 +9,7 @@ import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Menu, ChevronLeft,
+  Briefcase, Menu, ChevronLeft, Sun, Moon,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { KanbanLeads } from '@/components/crm/kanban-leads'
@@ -39,7 +39,22 @@ export default function HomePage() {
   const [activeTab, setActiveTab]         = useState<ActiveTab>('kanban')
   const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
+  const [theme, setTheme]                 = useState<'dark' | 'light'>('dark')
   const { data: session } = useSession()
+
+  // Persistir tema no localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nm-theme') as 'dark' | 'light' | null
+      if (saved === 'light' || saved === 'dark') setTheme(saved)
+    } catch {}
+  }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    try { localStorage.setItem('nm-theme', next) } catch {}
+  }
 
   function openLeadInCrm(leadId: string) {
     setCrmOpenLeadId(leadId)
@@ -60,21 +75,21 @@ export default function HomePage() {
         style={{
           background: 'var(--nm-bg)',
           boxShadow: isActive
-            ? 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)'
+            ? 'inset -3px -3px 8px var(--nm-light), inset 3px 3px 8px var(--nm-dark)'
             : undefined,
-          color: isActive ? color : 'var(--nm-text-muted)',
+          color: isActive ? color : 'var(--nm-text-secondary)',
         }}
         onMouseEnter={e => {
           if (!isActive) {
             (e.currentTarget as HTMLElement).style.boxShadow =
-              '-3px -3px 7px var(--nm-light), 3px 3px 7px var(--nm-dark)'
-            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-secondary)'
+              '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)'
+            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-primary)'
           }
         }}
         onMouseLeave={e => {
           if (!isActive) {
             ;(e.currentTarget as HTMLElement).style.boxShadow = ''
-            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-muted)'
+            ;(e.currentTarget as HTMLElement).style.color = 'var(--nm-text-secondary)'
           }
         }}
       >
@@ -112,6 +127,7 @@ export default function HomePage() {
 
   return (
     <div
+      data-theme={theme}
       className="dark min-h-screen flex overflow-hidden"
       style={{ background: 'var(--nm-bg)' }}
     >
@@ -206,6 +222,24 @@ export default function HomePage() {
               )}
             </div>
           )}
+
+          {/* Tema claro / escuro */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            className={`w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-all duration-200 nm-btn
+              ${expanded ? '' : 'justify-center'}`}
+            style={{ color: 'var(--nm-text-secondary)' }}
+          >
+            {theme === 'dark'
+              ? <Sun className="w-4 h-4 shrink-0" />
+              : <Moon className="w-4 h-4 shrink-0" />}
+            {expanded && (
+              <span className="text-[12px] font-medium">
+                {theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+              </span>
+            )}
+          </button>
 
           {/* Sair */}
           <button

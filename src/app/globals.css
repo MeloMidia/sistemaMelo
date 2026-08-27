@@ -130,65 +130,107 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DARK NEUMORPHIC DESIGN SYSTEM — MeloFlow
-   Base: #1a1d2e | Light shadow: #26293a | Dark shadow: #0e1122
+   NEUMORPHIC DESIGN SYSTEM — MeloFlow
+   Dark:  base #1a1d2e | light #303552 | dark #070918
+   Light: base #e4e7f2 | light #ffffff | dark #c0c4d4
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── DARK THEME (default) ────────────────────────────────────── */
 :root {
-  /* ── Surface ─────────────────────────────────────────────── */
+  /* Surface */
   --nm-bg:    #1a1d2e;
+  /* Shadows (bigger delta = more visible effect) */
+  --nm-light: #303552;   /* bg + 22 per channel */
+  --nm-dark:  #070918;   /* bg - 19 per channel */
 
-  /* ── Shadows (bg ± 12 per channel) ──────────────────────── */
-  --nm-light: #26293a;   /* bg lightened */
-  --nm-dark:  #0e1122;   /* bg darkened  */
-
-  /* ── Distances ───────────────────────────────────────────── */
+  /* Distances */
   --nm-d-xs:  3px;
   --nm-d-sm:  5px;
   --nm-d-md:  8px;
   --nm-d-lg: 12px;
 
-  /* ── Blur (2× distance) ──────────────────────────────────── */
-  --nm-b-xs:  7px;
-  --nm-b-sm: 12px;
-  --nm-b-md: 18px;
-  --nm-b-lg: 26px;
+  /* Blur (2.2× distance for softer spread) */
+  --nm-b-xs:  8px;
+  --nm-b-sm: 14px;
+  --nm-b-md: 20px;
+  --nm-b-lg: 28px;
 
-  /* ── Pre-built shadow values ─────────────────────────────── */
+  /* Pre-built shadow values */
   --nm-shadow-xs:
     calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
     var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
-
   --nm-shadow-sm:
     calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
     var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
-
   --nm-shadow-md:
     calc(-1 * var(--nm-d-md)) calc(-1 * var(--nm-d-md)) var(--nm-b-md) var(--nm-light),
     var(--nm-d-md) var(--nm-d-md) var(--nm-b-md) var(--nm-dark);
-
   --nm-shadow-lg:
     calc(-1 * var(--nm-d-lg)) calc(-1 * var(--nm-d-lg)) var(--nm-b-lg) var(--nm-light),
     var(--nm-d-lg) var(--nm-d-lg) var(--nm-b-lg) var(--nm-dark);
-
   --nm-shadow-inset-xs:
     inset calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
     inset var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
-
   --nm-shadow-inset-sm:
     inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
     inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
 
-  /* ── Text (WCAG AA on #1a1d2e) ───────────────────────────── */
-  --nm-text-primary:   #e2e8f0;  /* 12.3:1 contrast */
-  --nm-text-secondary: #94a3b8;  /* 5.1:1  contrast */
-  --nm-text-muted:     #505a6e;  /* 3.1:1  (large text only) */
+  /* Text — high contrast on dark */
+  --nm-text-primary:   #e8edf5;  /* 13:1 */
+  --nm-text-secondary: #a0aec0;  /* 6.2:1 */
+  --nm-text-muted:     #6e7a94;  /* 3.8:1 — labels/section headers */
 
-  /* ── Accent ──────────────────────────────────────────────── */
+  /* Accent & border */
   --nm-accent: #6366f1;
+  --nm-border: rgba(255, 255, 255, 0.10);
+}
 
-  /* ── Border (accessibility boundary perception) ──────────── */
-  --nm-border: rgba(255, 255, 255, 0.06);
+/* ── LIGHT THEME ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  /* Surface */
+  --nm-bg:    #e4e7f2;
+  /* Shadows */
+  --nm-light: #ffffff;   /* pure white highlight */
+  --nm-dark:  #bec3d4;   /* medium-gray depth */
+
+  /* Same distance/blur tokens */
+  --nm-d-xs:  3px;
+  --nm-d-sm:  5px;
+  --nm-d-md:  8px;
+  --nm-d-lg: 12px;
+  --nm-b-xs:  8px;
+  --nm-b-sm: 14px;
+  --nm-b-md: 20px;
+  --nm-b-lg: 28px;
+
+  /* Shadows (same formula, different colors) */
+  --nm-shadow-xs:
+    calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
+    var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+  --nm-shadow-sm:
+    calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
+    var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+  --nm-shadow-md:
+    calc(-1 * var(--nm-d-md)) calc(-1 * var(--nm-d-md)) var(--nm-b-md) var(--nm-light),
+    var(--nm-d-md) var(--nm-d-md) var(--nm-b-md) var(--nm-dark);
+  --nm-shadow-lg:
+    calc(-1 * var(--nm-d-lg)) calc(-1 * var(--nm-d-lg)) var(--nm-b-lg) var(--nm-light),
+    var(--nm-d-lg) var(--nm-d-lg) var(--nm-b-lg) var(--nm-dark);
+  --nm-shadow-inset-xs:
+    inset calc(-1 * var(--nm-d-xs)) calc(-1 * var(--nm-d-xs)) var(--nm-b-xs) var(--nm-light),
+    inset var(--nm-d-xs) var(--nm-d-xs) var(--nm-b-xs) var(--nm-dark);
+  --nm-shadow-inset-sm:
+    inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
+    inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
+
+  /* Text — high contrast on light */
+  --nm-text-primary:   #1a1d2e;  /* 13:1 */
+  --nm-text-secondary: #3d4560;  /* 6.5:1 */
+  --nm-text-muted:     #626a82;  /* 4.2:1 */
+
+  /* Accent & border */
+  --nm-accent: #4f52d9;
+  --nm-border: rgba(0, 0, 0, 0.09);
 }
 
 /* ── Raised elements (extrude from surface) ────────────────── */
@@ -260,11 +302,11 @@
   background: var(--nm-dark);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--nm-light);
+  background: var(--nm-text-muted);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #30354a;
+  background: var(--nm-text-secondary);
 }
 
 /* Smooth transitions globally */
@@ -293,4 +335,88 @@
 .glass-card-hover:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   Adapts Tailwind hard-coded classes to light neumorphic surface
+   ═══════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Text colors */
+[data-theme="light"] .text-white {
+  color: var(--nm-text-primary);
+}
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300 {
+  color: var(--nm-text-secondary);
+}
+[data-theme="light"] .text-slate-400,
+[data-theme="light"] .text-slate-500 {
+  color: var(--nm-text-muted);
+}
+[data-theme="light"] .text-slate-600,
+[data-theme="light"] .text-slate-700 {
+  color: var(--nm-text-muted);
+  opacity: 0.75;
+}
+
+/* Subtle glass/white bg → light shadow-tinted bg */
+[data-theme="light"] .bg-white\/\[0\.04\],
+[data-theme="light"] .bg-white\/\[0\.05\],
+[data-theme="light"] .bg-white\/\[0\.06\],
+[data-theme="light"] .bg-white\/\[0\.07\],
+[data-theme="light"] .bg-white\/\[0\.08\],
+[data-theme="light"] .bg-white\/\[0\.09\],
+[data-theme="light"] .bg-white\/\[0\.10\],
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+[data-theme="light"] .bg-white\/\[0\.14\] {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Borders */
+[data-theme="light"] .border-white\/\[0\.04\],
+[data-theme="light"] .border-white\/\[0\.06\],
+[data-theme="light"] .border-white\/\[0\.08\],
+[data-theme="light"] .border-white\/\[0\.10\],
+[data-theme="light"] .border-white\/\[0\.12\],
+[data-theme="light"] .border-white\/\[0\.14\] {
+  border-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+/* Rings */
+[data-theme="light"] .ring-white\/\[0\.10\],
+[data-theme="light"] .ring-white\/10 {
+  --tw-ring-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Input fields */
+[data-theme="light"] .bg-\[#0a0b10\]\/40,
+[data-theme="light"] .bg-\[#0f111a\] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Dropdown/modal dark backgrounds */
+[data-theme="light"] .bg-\[#0f111a\] {
+  background: var(--nm-bg) !important;
+}
+
+/* Avatar/icon containers on dark */
+[data-theme="light"] .bg-white\/\[0\.04\] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Placeholder text */
+[data-theme="light"] .placeholder\:text-slate-600::placeholder {
+  color: var(--nm-text-muted);
+}
+
+/* Scrollbar in light mode */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--nm-dark);
 }
