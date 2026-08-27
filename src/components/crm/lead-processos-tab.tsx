@@ -18,6 +18,9 @@ import {
   Clock,
   ClipboardList,
   Activity,
+  User,
+  FileText,
+  ChevronRight,
 } from 'lucide-react'
 
 const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor']
@@ -56,6 +59,7 @@ export function LeadProcessosTab({ leadId }: LeadProcessosTabProps) {
   const [completeModal, setCompleteModal] = useState<{ isOpen: boolean; task: Task | null }>({ isOpen: false, task: null })
   const [completedBy, setCompletedBy] = useState('')
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null })
+  const [detailTask, setDetailTask] = useState<Task | null>(null)
 
   const defaultColumnId = columns?.[0]?.id || ''
 
@@ -188,6 +192,7 @@ export function LeadProcessosTab({ leadId }: LeadProcessosTabProps) {
             <ProcessoTaskItem
               key={task.id}
               task={task}
+              onClick={() => setDetailTask(task)}
               onComplete={() => { setCompleteModal({ isOpen: true, task }); setCompletedBy(task.assignee || '') }}
               onDelete={() => setDeleteModal({ isOpen: true, id: task.id })}
               onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
@@ -277,12 +282,36 @@ export function LeadProcessosTab({ leadId }: LeadProcessosTabProps) {
           </div>
         </div>
       )}
+
+      {/* Modal Detalhe da Tarefa */}
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onComplete={() => {
+            setDetailTask(null)
+            setCompleteModal({ isOpen: true, task: detailTask })
+            setCompletedBy(detailTask.assignee || '')
+          }}
+          onDelete={() => {
+            setDetailTask(null)
+            setDeleteModal({ isOpen: true, id: detailTask.id })
+          }}
+          onEdit={(data) => {
+            updateTask.mutate({ id: detailTask.id, ...data })
+            setDetailTask(null)
+          }}
+          onTogglePriority={() => updateTask.mutate({ id: detailTask.id, isPriorityToday: !detailTask.isPriorityToday })}
+          onToggleWaiting={() => updateTask.mutate({ id: detailTask.id, isWaiting: !detailTask.isWaiting })}
+        />
+      )}
     </div>
   )
 }
 
 function ProcessoTaskItem({
   task,
+  onClick,
   onComplete,
   onDelete,
   onEdit,
@@ -290,6 +319,7 @@ function ProcessoTaskItem({
   onToggleWaiting,
 }: {
   task: Task
+  onClick: () => void
   onComplete: () => void
   onDelete: () => void
   onEdit: (data: { title: string; description?: string; dueDate?: string; assignee?: string | null }) => void
@@ -376,10 +406,16 @@ function ProcessoTaskItem({
   }
 
   return (
-    <div className="group p-3 rounded-xl border border-white/[0.07] hover:border-white/[0.14] bg-black/30 backdrop-blur-sm transition-colors">
+    <div
+      className="group p-3 rounded-xl border border-white/[0.07] hover:border-white/[0.18] bg-black/30 backdrop-blur-sm transition-all cursor-pointer"
+      onClick={onClick}
+      style={{ transition: 'border-color 0.15s, box-shadow 0.15s' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '-2px -2px 6px var(--nm-light), 2px 2px 6px var(--nm-dark)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '' }}
+    >
       <div className="flex items-start gap-2.5">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white leading-snug">{task.title}</p>
+          <p className="text-sm font-semibold text-white leading-snug hover:text-indigo-300 transition-colors">{task.title}</p>
           {task.description && (
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{task.description}</p>
           )}
@@ -413,7 +449,7 @@ function ProcessoTaskItem({
           </div>
         </div>
 
-        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity">
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" onClick={e => e.stopPropagation()}>
           <button
             onClick={onComplete}
             className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
@@ -442,6 +478,272 @@ function ProcessoTaskItem({
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Modal de detalhe da tarefa ─────────────────────────────────────────── */
+function TaskDetailModal({
+  task,
+  onClose,
+  onComplete,
+  onDelete,
+  onEdit,
+  onTogglePriority,
+  onToggleWaiting,
+}: {
+  task: Task
+  onClose: () => void
+  onComplete: () => void
+  onDelete: () => void
+  onEdit: (data: { title: string; description?: string; dueDate?: string; assignee?: string | null }) => void
+  onTogglePriority: () => void
+  onToggleWaiting: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editDue, setEditDue] = useState(toDateInputValue(task.dueDate))
+  const [editAssignee, setEditAssignee] = useState(task.assignee || '')
+
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null
+  const isOverdue = dueDate && dueDate < new Date()
+  const createdAt = task.createdAt ? new Date(task.createdAt) : null
+
+  const saveEdit = () => {
+    if (!editTitle.trim()) return
+    onEdit({
+      title: editTitle.trim(),
+      description: editDesc.trim() || undefined,
+      dueDate: editDue ? parseDateLocal(editDue).toISOString() : undefined,
+      assignee: editAssignee || null,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        style={{
+          background: 'var(--nm-bg)',
+          boxShadow: '-8px -8px 20px var(--nm-light), 8px 8px 20px var(--nm-dark)',
+          border: '1px solid var(--nm-border)',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-start justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--nm-border)' }}
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+              style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}
+            >
+              {task.title.charAt(0).toUpperCase()}
+            </div>
+            {editing ? (
+              <input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                autoFocus
+                className="flex-1 bg-transparent text-white font-semibold text-base focus:outline-none border-b border-indigo-500/50 pb-0.5"
+              />
+            ) : (
+              <h3 className="text-base font-semibold text-white truncate">{task.title}</h3>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.07] cursor-pointer ml-2 shrink-0 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+
+          {/* Descrição */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <FileText className="w-3.5 h-3.5 text-white/30" />
+              <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Descrição</span>
+            </div>
+            {editing ? (
+              <textarea
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="Adicionar descrição..."
+                rows={3}
+                className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none resize-none"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            ) : (
+              <p
+                className={`text-sm leading-relaxed rounded-xl px-3 py-2.5 ${task.description ? 'text-white/80' : 'text-white/25 italic'}`}
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                {task.description || 'Sem descrição'}
+              </p>
+            )}
+          </div>
+
+          {/* Vencimento + Responsável */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Calendar className="w-3.5 h-3.5 text-white/30" />
+                <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Vencimento</span>
+              </div>
+              {editing ? (
+                <input
+                  type="date"
+                  value={editDue}
+                  onChange={e => setEditDue(e.target.value)}
+                  className="w-full h-8 rounded-lg px-2.5 text-xs text-white [color-scheme:dark] focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+              ) : (
+                <p
+                  className={`text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                    isOverdue ? 'text-red-400' : dueDate ? 'text-white/80' : 'text-white/25'
+                  }`}
+                  style={{
+                    background: isOverdue ? 'rgba(244,63,94,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isOverdue ? 'rgba(244,63,94,0.2)' : 'rgba(255,255,255,0.07)'}`,
+                  }}
+                >
+                  {dueDate
+                    ? dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : 'Sem data'}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <User className="w-3.5 h-3.5 text-white/30" />
+                <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Responsável</span>
+              </div>
+              {editing ? (
+                <select
+                  value={editAssignee}
+                  onChange={e => setEditAssignee(e.target.value)}
+                  className="w-full h-8 rounded-lg px-2.5 text-xs text-white focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <option value="">Nenhum</option>
+                  {ASSIGNEES.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              ) : (
+                <p
+                  className={`text-sm font-medium rounded-lg px-2.5 py-1.5 ${task.assignee ? 'text-indigo-300' : 'text-white/25'}`}
+                  style={{
+                    background: task.assignee ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${task.assignee ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                  }}
+                >
+                  {task.assignee || 'Ninguém'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Criado em */}
+          {createdAt && (
+            <p className="text-[11px] text-white/25">
+              Criada em {createdAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+          )}
+
+          {/* Status toggles */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onTogglePriority}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                task.isPriorityToday
+                  ? 'text-amber-400 bg-amber-500/15 border border-amber-500/25'
+                  : 'text-white/40 hover:text-amber-400 hover:bg-amber-500/10'
+              }`}
+              style={{ border: task.isPriorityToday ? '' : '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <Star className={`w-3.5 h-3.5 ${task.isPriorityToday ? 'fill-current' : ''}`} />
+              Prioridade
+            </button>
+            <button
+              onClick={onToggleWaiting}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                task.isWaiting
+                  ? 'text-orange-400 bg-orange-500/15 border border-orange-500/25'
+                  : 'text-white/40 hover:text-orange-400 hover:bg-orange-500/10'
+              }`}
+              style={{ border: task.isWaiting ? '' : '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Aguardando
+            </button>
+            {task.isDoing && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-blue-400 bg-blue-500/15 border border-blue-500/25">
+                <Activity className="w-3.5 h-3.5" />
+                Em andamento
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between px-5 py-3"
+          style={{ borderTop: '1px solid var(--nm-border)' }}
+        >
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1.5 text-xs font-medium text-white/30 hover:text-red-400 transition-colors cursor-pointer px-2 py-1.5 rounded-lg hover:bg-red-500/10"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Excluir
+          </button>
+
+          <div className="flex items-center gap-2">
+            {editing ? (
+              <>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/40 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Salvar
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar
+                </button>
+                <button
+                  onClick={onComplete}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Concluir
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
