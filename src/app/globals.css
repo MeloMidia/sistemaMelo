@@ -176,10 +176,10 @@
     inset calc(-1 * var(--nm-d-sm)) calc(-1 * var(--nm-d-sm)) var(--nm-b-sm) var(--nm-light),
     inset var(--nm-d-sm) var(--nm-d-sm) var(--nm-b-sm) var(--nm-dark);
 
-  /* Texto — alto contraste sobre navy */
-  --nm-text-primary:   #ffffff;  /* branco puro 21:1 */
-  --nm-text-secondary: #b8c8f0;  /* azul-branco claro 9:1 */
-  --nm-text-muted:     #7080a8;  /* azul-cinza médio 4.5:1 */
+  /* Texto — tudo branco */
+  --nm-text-primary:   #ffffff;
+  --nm-text-secondary: #ffffff;
+  --nm-text-muted:     rgba(255, 255, 255, 0.55);
 
   /* Accent índigo-brilhante + border azul-tinted */
   --nm-accent: #5b7bff;
@@ -466,14 +466,14 @@
    que ficam cinza-puro sobre navy e perdem contraste.
    ═══════════════════════════════════════════════════════════════ */
 
-/* text-slate em dark → blue-white legível */
-[data-theme="dark"] .text-slate-200 { color: #ccd8f8 !important; }
-[data-theme="dark"] .text-slate-300 { color: #b8c8f0 !important; }
-[data-theme="dark"] .text-slate-400 { color: #9ab0d8 !important; }
-[data-theme="dark"] .text-slate-500 { color: #7080a8 !important; }
-[data-theme="dark"] .text-slate-600 { color: #5a6e98 !important; }
-[data-theme="dark"] .text-slate-700 { color: #4a5c84 !important; }
+/* text-slate em dark → branco */
+[data-theme="dark"] .text-slate-200 { color: #ffffff !important; }
+[data-theme="dark"] .text-slate-300 { color: #ffffff !important; }
+[data-theme="dark"] .text-slate-400 { color: rgba(255,255,255,0.80) !important; }
+[data-theme="dark"] .text-slate-500 { color: rgba(255,255,255,0.60) !important; }
+[data-theme="dark"] .text-slate-600 { color: rgba(255,255,255,0.50) !important; }
+[data-theme="dark"] .text-slate-700 { color: rgba(255,255,255,0.45) !important; }
 
 /* Placeholder em campos de input */
-[data-theme="dark"] .placeholder\:text-slate-600::placeholder { color: #5a6e98; }
-[data-theme="dark"] .placeholder\:text-slate-500::placeholder { color: #7080a8; }
+[data-theme="dark"] .placeholder\:text-slate-600::placeholder { color: rgba(255,255,255,0.35); }
+[data-theme="dark"] .placeholder\:text-slate-500::placeholder { color: rgba(255,255,255,0.40); }
