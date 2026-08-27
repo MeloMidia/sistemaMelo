@@ -138,7 +138,7 @@ function WebhookConfig() {
   )
 }
 
-export function WhatsappSettings() {
+export function WhatsappSettings({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false)
   const { data: connection } = useConnection()
   const isConnected = connection?.status === 'open'
@@ -151,12 +151,13 @@ export function WhatsappSettings() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+            title={collapsed ? (isConnected ? 'WhatsApp conectado' : 'WhatsApp desconectado') : undefined}
+            className="text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer w-full justify-start"
           />
         }
       >
-        {isConnected ? <Wifi className="w-4 h-4 text-emerald-400" /> : <WifiOff className="w-4 h-4 text-red-400" />}
-        WhatsApp
+        {isConnected ? <Wifi className="w-4 h-4 text-emerald-400 shrink-0" /> : <WifiOff className="w-4 h-4 text-red-400 shrink-0" />}
+        {!collapsed && <span className="ml-1.5">WhatsApp</span>}
       </DialogTrigger>
       <DialogContent className="bg-[#0a0b10] border-white/[0.1] sm:max-w-md">
         <DialogHeader>
