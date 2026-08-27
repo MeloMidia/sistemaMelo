@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
+import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
-  LayoutDashboard, ClipboardList, LogOut, User, BarChart,
+  LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
   Briefcase, Menu, ChevronLeft, Sun, Moon,
 } from 'lucide-react'
@@ -18,7 +19,7 @@ import { AgendaView } from '@/components/agenda/agenda-view'
 import { ClientesView } from '@/components/clientes/clientes-view'
 import { CarteiraView } from '@/components/clientes/carteira-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'crm' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'agenda'
 
 const OPERACIONAL = [
   { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#6366f1' },
@@ -30,9 +31,10 @@ const OPERACIONAL = [
 ] as const
 
 const COMERCIAL = [
-  { id: 'crm',      icon: MessageSquare, label: 'CRM',      color: '#22c55e' },
-  { id: 'metricas', icon: BarChart,      label: 'Métricas', color: '#0ea5e9' },
-  { id: 'agenda',   icon: Calendar,      label: 'Agenda',   color: '#f97316' },
+  { id: 'crm',       icon: MessageSquare, label: 'CRM',       color: '#22c55e' },
+  { id: 'dashboard', icon: BarChart,      label: 'Dashboard', color: '#0ea5e9' },
+  { id: 'metricas',  icon: Users,         label: 'Métricas',  color: '#a855f7' },
+  { id: 'agenda',    icon: Calendar,      label: 'Agenda',    color: '#f97316' },
 ] as const
 
 export default function HomePage() {
@@ -267,6 +269,7 @@ export default function HomePage() {
         {activeTab === 'clientes'     && <ClientesView />}
         {activeTab === 'carteira'     && <CarteiraView />}
         {activeTab === 'tasks'        && <TaskManager />}
+        {activeTab === 'dashboard'    && <DashboardView />}
         {activeTab === 'metricas'     && <ClientesMetricas />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <KanbanLeads openLeadId={crmOpenLeadId} />}
