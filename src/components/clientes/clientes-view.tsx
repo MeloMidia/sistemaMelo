@@ -84,7 +84,15 @@ function ClienteCard({ task }: { task: Task }) {
     : null
 
   return (
-    <div className="group relative rounded-xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm p-4 space-y-3 transition-all duration-200 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-lg">
+    <div
+      className="group relative rounded-xl p-4 space-y-3 nm-card-hover"
+      style={{
+        background: 'var(--nm-bg)',
+        boxShadow: '-3px -3px 8px var(--nm-light), 3px 3px 8px var(--nm-dark)',
+        border: '1px solid var(--nm-border)',
+        transition: 'box-shadow 0.18s ease, transform 0.15s ease',
+      }}
+    >
       {isPending && (
         <div className="absolute inset-0 rounded-xl bg-black/20 flex items-center justify-center">
           <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
@@ -165,8 +173,15 @@ interface KanbanColProps {
 
 function KanbanCol({ title, subtitle, icon, count, colorClass, borderClass, children, emptyText }: KanbanColProps) {
   return (
-    <div className={`rounded-2xl border ${borderClass} bg-[#0a0c14] flex flex-col overflow-hidden`}>
-      <div className={`px-4 py-3.5 border-b ${borderClass} flex items-center gap-3`}>
+    <div
+      className="rounded-2xl flex flex-col overflow-hidden"
+      style={{
+        background: 'var(--nm-bg)',
+        boxShadow: '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)',
+        border: '1px solid var(--nm-border)',
+      }}
+    >
+      <div className="px-4 py-3.5 flex items-center gap-3" style={{ borderBottom: '1px solid var(--nm-border)' }}>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ring-1 shrink-0 ${colorClass}`}>
           {icon}
         </div>
@@ -221,7 +236,7 @@ export function ClientesView() {
   }
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
+    <div className="flex-1 p-6 overflow-y-auto" style={{ background: 'var(--nm-bg)' }}>
       {/* Header */}
       <div className="flex items-center gap-4 mb-5">
         <div>
