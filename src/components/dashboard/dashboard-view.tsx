@@ -159,7 +159,7 @@ export function DashboardView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
+    <div className="mf-workspace flex-1 overflow-y-auto p-5 lg:p-8 custom-scrollbar">
       <EditMetricsModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -167,10 +167,21 @@ export function DashboardView() {
         currentFaturamento={currentMetrics.faturamento}
         currentVendasQtd={currentMetrics.vendasQtd}
       />
-      <div className="max-w-7xl mx-auto space-y-6 pb-10">
+      <div className="max-w-[1440px] mx-auto space-y-6 pb-10">
+
+        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mf-eyebrow mb-2">Painel comercial</p>
+            <h1 className="text-3xl font-bold tracking-[-0.045em] text-[#151817]">Ritmo de vendas</h1>
+            <p className="text-sm text-[#6C716E] mt-1">Acompanhe o que move a operação neste período.</p>
+          </div>
+          <div className="hidden lg:flex items-center gap-2 text-xs text-[#6C716E] bg-white border border-[#E6E8E3] rounded-full px-3 py-1.5 shadow-sm">
+            <span className="size-2 rounded-full bg-[#35A66F]" /> Dados atualizados em tempo real
+          </div>
+        </header>
 
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/5 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2">
           <PeriodSelector
             period={period}
             showComparison={showComparison}
@@ -181,7 +192,7 @@ export function DashboardView() {
           />
           <button
             onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-400 hover:text-white text-xs font-medium cursor-pointer transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#151817] hover:bg-[#2B302D] text-white text-xs font-semibold cursor-pointer transition-colors shrink-0"
           >
             <Pencil className="w-3.5 h-3.5" />
             Editar métricas
@@ -190,15 +201,15 @@ export function DashboardView() {
 
         {/* Goals */}
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-white tracking-tight flex items-center gap-2">
-            <Target className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-semibold text-[#151817] tracking-tight flex items-center gap-2">
+            <Target className="w-5 h-5 text-[#2854DF]" />
             Metas de Vendas & KPIs de Escala
           </h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5 hover:bg-white/[0.04] transition-colors relative overflow-hidden group h-full flex flex-col justify-center">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500 to-teal-400 opacity-[0.05] blur-3xl rounded-full group-hover:opacity-[0.1] transition-opacity" />
+              <div className="mf-hero rounded-3xl p-6 relative overflow-hidden group h-full flex flex-col justify-center">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#2854DF] opacity-[0.18] blur-3xl rounded-full group-hover:opacity-[0.25] transition-opacity" />
                 <div className="flex justify-between items-end mb-6 relative z-10">
                   <div>
                     <h3 className="text-slate-400 text-sm font-medium mb-1">META DE VENDAS (Faturamento)</h3>
@@ -207,22 +218,22 @@ export function DashboardView() {
                       <span className="text-sm font-medium text-slate-500">/ Meta: {formatMoney(salesActiveGoal)}</span>
                     </div>
                   </div>
-                  <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-yellow-500">
+                  <span className="text-xl font-bold text-[#AFC0FF]">
                     {salesPercentageText.toFixed(0)}%
                   </span>
                 </div>
                 <div className="relative z-10 w-full pb-6">
                   <div className="h-4 w-full rounded-full shadow-inner flex overflow-hidden border border-white/5">
                     <div className="h-full bg-slate-900 relative flex-shrink-0" style={{ width: '62.5%' }}>
-                      <div className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min((currentMetrics.faturamento / GOAL_1) * 100, 100)}%` }} />
+                      <div className="h-full bg-[#2854DF] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min((currentMetrics.faturamento / GOAL_1) * 100, 100)}%` }} />
                     </div>
                     <div className="w-px h-full bg-white/25 flex-shrink-0" />
                     <div className="h-full bg-slate-900 relative flex-shrink-0" style={{ width: '18.75%' }}>
-                      <div className="h-full bg-gradient-to-r from-slate-500 to-slate-300 transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_1) / (GOAL_2 - GOAL_1) * 100, 0), 100)}%` }} />
+                      <div className="h-full bg-[#7997F0] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_1) / (GOAL_2 - GOAL_1) * 100, 0), 100)}%` }} />
                     </div>
                     <div className="w-px h-full bg-white/25 flex-shrink-0" />
                     <div className="h-full bg-slate-900 relative flex-1">
-                      <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-300 transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_2) / (GOAL_3 - GOAL_2) * 100, 0), 100)}%` }} />
+                      <div className="h-full bg-[#B8C7FA] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_2) / (GOAL_3 - GOAL_2) * 100, 0), 100)}%` }} />
                     </div>
                   </div>
                   <div className="relative mt-1.5 text-[10px] w-full">
@@ -235,7 +246,7 @@ export function DashboardView() {
               </div>
             </div>
 
-            <div className="lg:col-span-1 bg-white/[0.02] border border-white/[0.05] rounded-xl p-5 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+            <div className="lg:col-span-1 mf-card rounded-3xl p-6 flex flex-col justify-center items-center text-center relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-500 to-yellow-400 opacity-[0.05] blur-3xl rounded-full group-hover:opacity-[0.1] transition-opacity" />
               <h3 className="text-slate-400 text-sm font-medium mb-2">
                 {leftToNextGoal === 0
@@ -343,7 +354,7 @@ export function DashboardView() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4">
-          <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
+          <div className="mf-card rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-slate-200 mb-1">Funil de conversão</h3>
             <p className="text-xs text-slate-500 mb-4">WA → Agendadas → Realizadas → Vendas</p>
             <FunnelChart
@@ -353,7 +364,7 @@ export function DashboardView() {
               vendas={currentMetrics.vendasQtd}
             />
           </div>
-          <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-5">
+          <div className="mf-card rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-slate-200 mb-1">Evolução diária</h3>
             <p className="text-xs text-slate-500 mb-4">Leads, agendamentos e realizações por dia</p>
             <DailyLineChart data={buildDailyChartData(sdrLogs, currentData?.agenda)} />

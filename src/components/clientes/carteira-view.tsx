@@ -254,7 +254,7 @@ export function CarteiraView() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 p-6 overflow-y-auto space-y-5" style={{ background: 'var(--nm-bg)' }}>
+      <div className="mf-workspace flex-1 p-6 overflow-y-auto space-y-5" style={{ background: 'var(--nm-bg)' }}>
         {/* Header */}
         <div className="flex items-center gap-4">
           <div>

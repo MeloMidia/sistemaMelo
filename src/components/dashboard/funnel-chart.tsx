@@ -10,7 +10,7 @@ interface FunnelChartProps {
   vendas: number
 }
 
-const COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#f59e0b']
+const COLORS = ['#277C91', '#4A9B8F', '#8ABFA2', '#B7791F']
 
 export function FunnelChart({ leadsWhatsapp, agendadas, realizadas, vendas }: FunnelChartProps) {
   const data = [

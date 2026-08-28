@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const poppins = Poppins({
+const manrope = Manrope({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-mono-ui",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${poppins.variable} ${inter.variable} h-full`}>
+    <html lang="pt-BR" className={`${manrope.variable} ${ibmPlexMono.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>

@@ -286,7 +286,7 @@ async function runImport() {
         if (!targetStage) return
         const newPriority = STAGE_PRIORITY[stageName!] ?? 0
         const toUpdate = leads
-          .filter(l => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId)?.name ?? ''] ?? 0) < newPriority)
+          .filter(l => (STAGE_PRIORITY[stageByIdFresh.get(l.stageId ?? '')?.name ?? ''] ?? 0) < newPriority)
           .map(l => l.id)
         if (toUpdate.length === 0) return
         await prisma.lead.updateMany({ where: { id: { in: toUpdate } }, data: { stageId: targetStage.id } })

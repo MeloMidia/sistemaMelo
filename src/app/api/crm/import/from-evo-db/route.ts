@@ -139,7 +139,7 @@ export async function POST() {
       if (labelIds.length === 0) continue
 
       if (!leadUpdates.has(lead.id)) {
-        leadUpdates.set(lead.id, { stageId: lead.stageId, tagIds: new Set() })
+        leadUpdates.set(lead.id, { stageId: lead.stageId ?? '', tagIds: new Set() })
       }
       const update = leadUpdates.get(lead.id)!
 

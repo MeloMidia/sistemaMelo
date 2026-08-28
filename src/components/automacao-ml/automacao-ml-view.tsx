@@ -138,7 +138,7 @@ export function AutomacaoMLView() {
   const isRunning = status === 'running'
 
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <div className="mf-workspace flex-1 overflow-auto p-6">
       <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Header */}

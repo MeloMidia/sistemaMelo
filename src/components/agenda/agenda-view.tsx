@@ -65,7 +65,7 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
   })
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[#07080c]">
+    <div className="mf-workspace flex-1 flex flex-col overflow-hidden bg-[#07080c]">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-3">

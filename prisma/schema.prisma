@@ -112,16 +112,26 @@ model Lead {
   name             String?
   phone            String             @unique
   waLid            String?            @unique
-  stageId          String
-  stage            LeadStage          @relation(fields: [stageId], references: [id])
+  stageId          String?
+  stage            LeadStage?         @relation(fields: [stageId], references: [id])
   assignedToId     String?
   assignedTo       User?              @relation(fields: [assignedToId], references: [id])
   value            Float?
   temperature      String?
   notes            String?
+  cpf              String?
+  email            String?
+  city             String?
+  state            String?
+  neighborhood     String?
+  postalCode       String?
+  address          String?
+  instagram        String?
+  nickname         String?
   profilePicUrl    String?
   followUpColumn   Int?
   followUpMovedAt  DateTime?
+  lastReadAt       DateTime?
   messages         Message[]
   tags             LeadTag[]
   events           AgendaEvent[]

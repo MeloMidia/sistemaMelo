@@ -135,12 +135,21 @@ export function useUpdateLead() {
       ...data
     }: {
       id: string
-      name?: string
+      name?: string | null
       stageId?: string
       assignedToId?: string | null
       value?: number | null
       temperature?: string | null
       notes?: string | null
+      cpf?: string | null
+      email?: string | null
+      city?: string | null
+      state?: string | null
+      neighborhood?: string | null
+      postalCode?: string | null
+      address?: string | null
+      instagram?: string | null
+      nickname?: string | null
     }) => {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: 'PUT',
@@ -690,11 +699,13 @@ export function useCrmStream() {
         const event = JSON.parse(e.data) as { type: string; leadId?: string; messageId?: string }
 
         if (event.type === 'new-message') {
+          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
           qc.invalidateQueries({ queryKey: ['crm-stages'] })
           qc.invalidateQueries({ queryKey: ['crm-by-label'] })
           qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
           if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
         } else if (event.type === 'message-status') {
+          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
           if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
         } else if (event.type === 'board-update') {
           qc.invalidateQueries({ queryKey: ['crm-stages'] })

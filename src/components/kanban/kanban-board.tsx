@@ -199,7 +199,7 @@ export function KanbanBoard() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 overflow-x-auto p-6" style={{ background: 'var(--nm-bg)' }}>
+      <div className="mf-workspace flex-1 overflow-x-auto p-6" style={{ background: 'var(--nm-bg)' }}>
         <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {(columns || []).map((column) => (

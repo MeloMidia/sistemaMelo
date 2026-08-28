@@ -279,7 +279,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto select-none bg-[#07080c]">
+    <div ref={scrollRef} className="mf-workspace flex-1 overflow-y-auto select-none bg-[#07080c]">
 
       {/* Cabeçalho sticky */}
       <div

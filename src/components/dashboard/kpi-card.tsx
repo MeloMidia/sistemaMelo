@@ -18,16 +18,16 @@ interface KpiCardProps {
 }
 
 const topBorderClasses: Record<KpiColorVariant, string> = {
-  default: 'border-t-white/20',
-  blue: 'border-t-indigo-500',
-  amber: 'border-t-amber-400',
-  red: 'border-t-red-500',
+  default: 'border-l-[#2854DF]',
+  blue: 'border-l-[#5E82F2]',
+  amber: 'border-l-[#C98720]',
+  red: 'border-l-[#BC4C4B]',
 }
 
 const deltaColors = {
-  up: 'text-emerald-400',
-  down: 'text-red-400',
-  neutral: 'text-slate-500',
+  up: 'text-[#16805D]',
+  down: 'text-[#BC4C4B]',
+  neutral: 'text-[#6C716E]',
 }
 
 const deltaArrows = { up: '▲', down: '▼', neutral: '—' }
@@ -42,15 +42,15 @@ export function KpiCard({
 }: KpiCardProps) {
   return (
     <div
-      className={`bg-white/[0.03] border border-white/[0.07] border-t-2 ${topBorderClasses[colorVariant]} rounded-xl p-5 hover:bg-white/[0.05] transition-colors flex flex-col gap-2 min-h-[100px]`}
+      className={`mf-stat border border-l-[3px] ${topBorderClasses[colorVariant]} rounded-2xl p-5 transition-colors flex flex-col gap-2 min-h-[112px]`}
     >
       <div className="flex items-center justify-between">
-        <p className="text-slate-400 text-xs font-medium">{title}</p>
-        {icon && <div className="text-slate-500">{icon}</div>}
+        <p className="mf-label">{title}</p>
+        {icon && <div className="text-[#6C716E]">{icon}</div>}
       </div>
 
       <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="text-2xl font-bold text-white tracking-tight leading-none">{value}</span>
+        <span className="text-2xl font-bold text-[#151817] tracking-tight leading-none tabular-nums">{value}</span>
         {delta && (
           <span className={`text-xs font-semibold ${deltaColors[delta.direction]}`}>
             {deltaArrows[delta.direction]} {delta.value}
@@ -58,7 +58,7 @@ export function KpiCard({
         )}
       </div>
 
-      {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-[#6C716E]">{subtitle}</p>}
     </div>
   )
 }

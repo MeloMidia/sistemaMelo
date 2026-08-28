@@ -236,7 +236,7 @@ export function ClientesView() {
   }
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto" style={{ background: 'var(--nm-bg)' }}>
+    <div className="mf-workspace flex-1 p-6 overflow-y-auto" style={{ background: 'var(--nm-bg)' }}>
       {/* Header */}
       <div className="flex items-center gap-4 mb-5">
         <div>

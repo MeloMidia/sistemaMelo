@@ -17,7 +17,7 @@ import {
 const EXCLUIDAS   = ['encerrado', 'cancelado', 'inativo', 'churned']
 const MESES_ABR   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const MESES_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-const ETAPA_CORES = ['#6366f1','#8b5cf6','#a855f7','#ec4899','#f59e0b','#10b981','#06b6d4']
+const ETAPA_CORES = ['#2854DF','#5E82F2','#7997F0','#A7B9F5','#C98720','#16805D','#BC4C4B']
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 function isExcluded(t: string) { return EXCLUIDAS.some(ex => t.toLowerCase().includes(ex)) }
@@ -55,18 +55,18 @@ function FeaturedCard({
   const up = delta >= 0
   return (
     <div
-      className="rounded-2xl p-6 flex flex-col justify-between min-h-[160px]"
+      className="mf-metrics-inverse rounded-2xl p-6 flex flex-col justify-between min-h-[160px]"
       style={{
-        background: 'linear-gradient(135deg, #1a1f6e 0%, #0f1340 55%, #18114a 100%)',
-        boxShadow: '-6px -6px 16px #1e2460, 6px 6px 16px #060924, inset 0 1px 0 rgba(120,150,255,0.15)',
-        border: '1px solid rgba(120,150,255,0.28)',
+        background: 'linear-gradient(135deg, #151817 0%, #252B34 72%, #2854DF 160%)',
+        boxShadow: '0 14px 30px rgba(21,24,23,0.16)',
+        border: '1px solid rgba(255,255,255,0.16)',
         flex: '1.4 1 0',
       }}
     >
       <div className="flex items-start justify-between">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}>
-          <Icon className="w-5 h-5 text-indigo-400" />
+          style={{ background: 'rgba(216,244,226,0.16)', border: '1px solid rgba(216,244,226,0.24)' }}>
+          <Icon className="w-5 h-5 text-emerald-100" />
         </div>
         <ArrowUpRight className="w-4 h-4 text-white/30" />
       </div>
@@ -234,11 +234,12 @@ export function ClientesMetricas() {
   const deltaAtivos = totalAtivos - ativosInicioMes
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-5" style={{ background: 'var(--nm-bg)' }}>
+    <div className="mf-workspace mf-metrics flex-1 overflow-y-auto p-5 lg:p-8 space-y-5" style={{ background: 'var(--nm-bg)' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          <p className="mf-eyebrow mb-2">Visão de carteira</p>
           <h1 className="text-[20px] font-extrabold text-white tracking-tight"
             style={{ fontFamily: 'var(--font-heading)' }}>
             Dashboard de Clientes
@@ -255,14 +256,14 @@ export function ClientesMetricas() {
             boxShadow: '-4px -4px 10px var(--nm-light), 4px 4px 10px var(--nm-dark)',
             border: '1px solid var(--nm-border)',
           }}>
-          <button onClick={prev}
+          <button onClick={prev} aria-label="Ver mês anterior"
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/45 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-[13px] font-semibold text-white px-3 min-w-[140px] text-center select-none">
             {MESES_FULL[selMonth]} {selYear}
           </span>
-          <button onClick={next} disabled={isNow}
+          <button onClick={next} disabled={isNow} aria-label="Ver mês seguinte"
             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer
               ${isNow ? 'text-white/15 cursor-not-allowed' : 'text-white/45 hover:text-white hover:bg-white/[0.06]'}`}>
             <ChevronRight className="w-4 h-4" />
@@ -271,7 +272,7 @@ export function ClientesMetricas() {
       </div>
 
       {/* ── KPI Row ─────────────────────────────────────────────────────── */}
-      <div className="flex gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Featured */}
         <FeaturedCard
           label="Clientes ativos"
@@ -307,10 +308,10 @@ export function ClientesMetricas() {
       </div>
 
       {/* ── Middle Row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
 
         {/* Bar chart — evolução 6 meses */}
-        <div className="col-span-5 rounded-2xl p-5"
+        <div className="col-span-1 rounded-2xl p-5 xl:col-span-5"
           style={{
             background: 'var(--nm-bg)',
             boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
@@ -343,7 +344,7 @@ export function ClientesMetricas() {
         </div>
 
         {/* ADS & Promoção */}
-        <div className="col-span-3 rounded-2xl p-5"
+        <div className="col-span-1 rounded-2xl p-5 xl:col-span-3"
           style={{
             background: 'var(--nm-bg)',
             boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
@@ -407,7 +408,7 @@ export function ClientesMetricas() {
         </div>
 
         {/* Contratos Vencendo */}
-        <div className="col-span-4 rounded-2xl p-5"
+        <div className="col-span-1 rounded-2xl p-5 xl:col-span-4"
           style={{
             background: 'var(--nm-bg)',
             boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
@@ -467,10 +468,10 @@ export function ClientesMetricas() {
       </div>
 
       {/* ── Bottom Row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
 
         {/* Por Etapa */}
-        <div className="col-span-8 rounded-2xl p-5"
+        <div className="col-span-1 rounded-2xl p-5 xl:col-span-8"
           style={{
             background: 'var(--nm-bg)',
             boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
@@ -497,7 +498,7 @@ export function ClientesMetricas() {
         </div>
 
         {/* Crescimento líquido — card destaque secundário */}
-        <div className="col-span-4 rounded-2xl p-6 flex flex-col justify-between"
+        <div className="mf-metrics-inverse col-span-1 rounded-2xl p-6 flex flex-col justify-between xl:col-span-4"
           style={{
             background: crescimento >= 0
               ? 'linear-gradient(135deg, #052e16 0%, #0f1340 60%, #0c1a0e 100%)'

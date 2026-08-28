@@ -233,19 +233,20 @@ async function findOrCreateLead(raw: UnknownRecord, remoteJid: string, fromMe: b
     return lead
   }
 
+  // A caixa de entrada só cria contatos a partir de mensagens recebidas.
+  // Eventos de mensagens enviadas para números que ainda não são leads não
+  // devem poluir o CRM com conversas iniciadas fora dele.
+  if (fromMe) return null
+
   // Novo contato: determinar phone a armazenar
   const phone = remoteJid.endsWith('@lid')
     ? `lid:${remoteJid.replace('@lid', '')}`
     : normalizePhone(remoteJid)
 
-  const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
-  if (!firstStage) return null
-
   const newLead = await prisma.lead.create({
     data: {
       phone,
       waLid: remoteJid.endsWith('@lid') ? remoteJid : undefined,
-      stageId: firstStage.id,
       name: pushName ?? 'Contato WhatsApp',
     },
   })
@@ -354,7 +355,9 @@ export async function applyLabelAssociation(data: unknown) {
     const targetStage = await prisma.leadStage.findFirst({ where: { name: targetStageName } })
     if (targetStage) {
       // Only move the lead "forward" in priority — don't downgrade
-      const currentStage = await prisma.leadStage.findUnique({ where: { id: lead.stageId } })
+      const currentStage = lead.stageId
+        ? await prisma.leadStage.findUnique({ where: { id: lead.stageId } })
+        : null
       const currentPriority = STAGE_PRIORITY[currentStage?.name ?? ''] ?? 0
       const newPriority = STAGE_PRIORITY[targetStageName] ?? 0
       if (newPriority > currentPriority) {

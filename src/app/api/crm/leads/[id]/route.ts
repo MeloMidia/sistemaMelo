@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     include: {
       tags: { include: { tag: true } },
       assignedTo: { select: { id: true, name: true } },
-      _count: { select: { messages: true } },
+      _count: { select: { messages: true, tasks: true } },
     },
   })
 
@@ -28,7 +28,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { name, stageId, assignedToId, value, temperature, notes, followUpColumn } = await request.json()
+  const {
+    name, stageId, assignedToId, value, temperature, notes, followUpColumn,
+    cpf, email, city, state, neighborhood, postalCode, address, instagram, nickname,
+  } = await request.json()
 
   const followUpChanged = followUpColumn !== undefined
 
@@ -42,6 +45,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(value !== undefined && { value }),
         ...(temperature !== undefined && { temperature }),
         ...(notes !== undefined && { notes }),
+        ...(cpf !== undefined && { cpf }),
+        ...(email !== undefined && { email }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
+        ...(neighborhood !== undefined && { neighborhood }),
+        ...(postalCode !== undefined && { postalCode }),
+        ...(address !== undefined && { address }),
+        ...(instagram !== undefined && { instagram }),
+        ...(nickname !== undefined && { nickname }),
         ...(followUpChanged && {
           followUpColumn,
           followUpMovedAt: new Date(),
