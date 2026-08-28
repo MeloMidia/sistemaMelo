@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Smile, Paperclip, Mic, Check, CheckCheck, MessageSquare, Lock, Zap, Clock, RefreshCw, Play, Pause, Square, Trash2, Pencil, X as XIcon } from 'lucide-react'
+import { Send, Smile, Paperclip, Mic, Check, MessageSquare, Lock, CalendarPlus, RefreshCw, Play, Pause, Square, Trash2, Pencil, X as XIcon } from 'lucide-react'
 import {
   useLeadMessages,
   useSendAudioMessage,
@@ -9,7 +9,9 @@ import {
   useSendMessage,
   useSyncLeadMessages,
   useUpdateInternalNote,
+  useConnection,
 } from '@/hooks/crm-api'
+import { EventModal } from '@/components/agenda/event-modal'
 
 interface LeadConversaTabProps {
   leadId: string
@@ -191,7 +193,7 @@ function MessageVideoPreview({ messageId }: { messageId: string }) {
   )
 }
 
-function MessageDocumentPreview({ messageId, content }: { messageId: string; content: string }) {
+function MessageDocumentPreview({ messageId }: { messageId: string }) {
   return (
     <a
       href={`/api/crm/messages/${messageId}/media`}
@@ -213,7 +215,8 @@ function MessageDocumentPreview({ messageId, content }: { messageId: string; con
 export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const { data: messages } = useLeadMessages(leadId)
   const sendMessage = useSendMessage(leadId)
-  const syncMessages = useSyncLeadMessages()
+  const { mutate: syncMessages, isPending: isSyncingMessages } = useSyncLeadMessages()
+  const { data: connection } = useConnection()
 
   const sendAudio = useSendAudioMessage(leadId)
   const sendMedia = useSendMediaMessage(leadId)
@@ -224,6 +227,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [micError, setMicError] = useState<string | null>(null)
+  const [isScheduling, setIsScheduling] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
@@ -244,14 +248,15 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isWhatsappConnected = connection?.status === 'open'
 
   // Auto-sync ao abrir e a cada 30s enquanto a conversa estiver aberta
   useEffect(() => {
     if (!leadId) return
-    syncMessages.mutate(leadId)
-    const interval = setInterval(() => syncMessages.mutate(leadId), 30_000)
+    syncMessages(leadId)
+    const interval = setInterval(() => syncMessages(leadId), 30_000)
     return () => clearInterval(interval)
-  }, [leadId])
+  }, [leadId, syncMessages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -281,10 +286,20 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   function handleSend() {
     if (!draft.trim() || sendMessage.isPending) return
 
+    if (activeMode === 'responder' && !isWhatsappConnected) {
+      setMicError('O WhatsApp está desconectado. Conecte a instância antes de enviar mensagens.')
+      return
+    }
+
     sendMessage.mutate(
       activeMode === 'nota'
         ? { content: draft.trim(), internal: true }
-        : draft.trim()
+        : draft.trim(),
+      {
+        onError: (error) => {
+          setMicError(error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.')
+        },
+      }
     )
     
     setDraft('')
@@ -299,6 +314,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   }
 
   function handleApplyTemplate(template: string) {
+    setActiveMode('responder')
     setDraft(template)
     setShowTemplates(false)
     setTimeout(() => textareaRef.current?.focus(), 50)
@@ -308,6 +324,11 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     const file = e.target.files?.[0]
     if (!file) return
     setMicError(null)
+    if (!isWhatsappConnected) {
+      setMicError('O WhatsApp está desconectado. Conecte a instância antes de enviar arquivos.')
+      e.target.value = ''
+      return
+    }
     sendMedia.mutate(file, {
       onError: (error) => {
         setMicError(error instanceof Error ? error.message : 'Falha ao enviar arquivo.')
@@ -388,6 +409,10 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
   function handleSendRecording() {
     if (!recordedBlob || sendAudio.isPending) return
+    if (!isWhatsappConnected) {
+      setMicError('O WhatsApp está desconectado. Conecte a instância antes de enviar áudios.')
+      return
+    }
     sendAudio.mutate(recordedBlob, {
       onSuccess: () => {
         if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -396,11 +421,18 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
         setRecordingState('idle')
         setRecordingSeconds(0)
       },
+      onError: (error) => {
+        setMicError(error instanceof Error ? error.message : 'Não foi possível enviar o áudio.')
+      },
     })
   }
 
   function handleMicButtonClick() {
     if (recordingState === 'idle') {
+      if (!isWhatsappConnected) {
+        setMicError('O WhatsApp está desconectado. Conecte a instância antes de gravar um áudio.')
+        return
+      }
       handleStartRecording()
     } else if (recordingState === 'recording') {
       handleStopRecording()
@@ -417,7 +449,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     try {
       const date = new Date(dateString)
       return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    } catch (e) {
+    } catch {
       return ''
     }
   }
@@ -479,8 +511,11 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     if (normalizedContent.includes('tipo: imagem')) {
       return <MessageImagePreview messageId={messageId} />
     }
+    if (normalizedContent.includes('tipo: video')) {
+      return <MessageVideoPreview messageId={messageId} />
+    }
     if (normalizedContent.includes('tipo: documento')) {
-      return <MessageDocumentPreview messageId={messageId} content={content} />
+      return <MessageDocumentPreview messageId={messageId} />
     }
 
     const urlRegex = /(https?:\/\/[^\s]+)/g
@@ -743,13 +778,13 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
         {/* Sync Button */}
         <button
           type="button"
-          onClick={() => syncMessages.mutate(leadId)}
-          disabled={syncMessages.isPending}
+          onClick={() => syncMessages(leadId)}
+          disabled={isSyncingMessages}
           className="mf-chat-sync text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shrink-0 select-none"
           title="Sincronizar histórico de mensagens com o WhatsApp"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${syncMessages.isPending ? 'animate-spin' : ''}`} />
-          <span>{syncMessages.isPending ? 'Sincronizando...' : 'Sincronizar'}</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingMessages ? 'animate-spin' : ''}`} />
+          <span>{isSyncingMessages ? 'Sincronizando...' : 'Sincronizar'}</span>
         </button>
       </div>
 
@@ -820,6 +855,18 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
       {/* Templates Selector Popover */}
       {showTemplates && (
         <div className="mf-chat-popover mf-chat-template-popover absolute bottom-[110px] left-[16px] rounded-lg p-1.5 z-50 flex flex-col w-[320px] max-h-[220px] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMode((mode) => mode === 'responder' ? 'nota' : 'responder')
+              setShowTemplates(false)
+              setTimeout(() => textareaRef.current?.focus(), 50)
+            }}
+            className="mf-chat-template-mode flex items-center gap-2 px-3 py-2 text-xs rounded transition-colors text-left"
+          >
+            {activeMode === 'responder' ? <Lock className="size-3.5" /> : <MessageSquare className="size-3.5" />}
+            {activeMode === 'responder' ? 'Adicionar nota interna' : 'Voltar para resposta'}
+          </button>
           <div className="mf-chat-template-title text-[10px] font-semibold px-3 py-1.5 uppercase tracking-wider mb-1">
             Respostas Rápidas
           </div>
@@ -845,7 +892,53 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
       />
 
       {/* Composing Input area */}
-      <div className="mf-chat-composer p-3 flex gap-3 items-end relative">
+      <div className="mf-chat-composer p-3 flex gap-2 items-end relative">
+        <div className="mf-chat-action-strip flex items-center gap-1 shrink-0 pb-1">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachMenu(!showAttachMenu)
+              setShowEmojiPicker(false)
+              setShowTemplates(false)
+            }}
+            className={`mf-chat-compose-action ${showAttachMenu ? 'is-active' : ''}`}
+            aria-label="Anexar arquivo"
+            title="Anexar arquivo"
+          >
+            <Paperclip className="size-4 rotate-45" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowTemplates(!showTemplates)
+              setShowEmojiPicker(false)
+              setShowAttachMenu(false)
+            }}
+            className={`mf-chat-compose-action ${showTemplates ? 'is-active' : ''}`}
+            aria-label="Respostas rápidas e notas"
+            title="Respostas rápidas e notas"
+          >
+            <MessageSquare className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsScheduling(true)}
+            className="mf-chat-compose-action"
+            aria-label="Agendar reunião com este lead"
+            title="Agendar reunião"
+          >
+            <CalendarPlus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleMicButtonClick}
+            className={`mf-chat-compose-action ${recordingState === 'recording' ? 'is-recording' : ''}`}
+            aria-label={recordingState === 'recording' ? 'Parar gravação' : 'Gravar áudio'}
+            title={recordingState === 'recording' ? 'Parar gravação' : 'Gravar áudio'}
+          >
+            {recordingState === 'recording' ? <Square className="size-3.5 fill-current" /> : <Mic className="size-4" />}
+          </button>
+        </div>
         {recordingState === 'recording' ? (
           <div className="mf-chat-recording flex-1 flex items-center gap-3 rounded-xl p-3 min-h-[96px]">
             <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
@@ -864,7 +957,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
             {previewUrl && <audio controls src={previewUrl} className="flex-1 h-9" />}
           </div>
         ) : (
-          <div className="mf-chat-compose-box flex-1 rounded-xl p-2 flex flex-col relative min-h-[96px]">
+          <div className="mf-chat-compose-box flex-1 rounded-xl p-2 flex flex-col relative min-h-[48px]">
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -880,63 +973,23 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
               className="mf-chat-draft bg-transparent border-none w-full text-sm outline-none resize-none flex-1 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none min-h-[44px] px-1 py-1"
             />
 
-            {/* Toolbar row */}
-            <div className="mf-chat-toolbar flex items-center gap-1.5 pt-2 mt-1 select-none">
-              {/* Attach */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAttachMenu(!showAttachMenu)
-                  setShowEmojiPicker(false)
-                  setShowTemplates(false)
-                }}
-                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                  showAttachMenu ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Paperclip className="w-4.5 h-4.5 rotate-45 shrink-0" />
-              </button>
-
-              {/* Quick templates */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowTemplates(!showTemplates)
-                  setShowEmojiPicker(false)
-                  setShowAttachMenu(false)
-                }}
-                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                  showTemplates ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Zap className="w-4.5 h-4.5 shrink-0" />
-              </button>
-
-              {/* Emoji */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEmojiPicker(!showEmojiPicker)
-                  setShowAttachMenu(false)
-                  setShowTemplates(false)
-                }}
-                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer ${
-                  showEmojiPicker ? 'text-[#00a884]' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Smile className="w-4.5 h-4.5 shrink-0" />
-              </button>
-
-              {/* Clock */}
-              <button
-                type="button"
-                onClick={() => alert('Agendamento de mensagens indisponível')}
-                className="p-1.5 rounded-md hover:bg-white/5 transition-colors duration-150 cursor-pointer text-slate-400 hover:text-slate-200 shrink-0"
-              >
-                <Clock className="w-4.5 h-4.5 shrink-0" />
-              </button>
-            </div>
           </div>
+        )}
+
+        {recordingState === 'idle' && (
+          <button
+            type="button"
+            onClick={() => {
+              setShowEmojiPicker(!showEmojiPicker)
+              setShowAttachMenu(false)
+              setShowTemplates(false)
+            }}
+            className={`mf-chat-compose-action shrink-0 mb-1 ${showEmojiPicker ? 'is-active' : ''}`}
+            aria-label="Adicionar emoji"
+            title="Adicionar emoji"
+          >
+            <Smile className="size-4" />
+          </button>
         )}
 
         {/* Floating Action Button */}
@@ -951,22 +1004,16 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
                   ? handleSend
                   : handleMicButtonClick
           }
-          disabled={sendMessage.isPending || sendAudio.isPending}
-          className={`mf-chat-send-action w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 cursor-pointer ${
-            activeMode === 'responder'
-              ? 'bg-[#00a884] hover:bg-[#009675] text-white'
-              : 'bg-[#e2a03f] hover:bg-[#c98629] text-white'
-          } disabled:opacity-50`}
+          disabled={sendMessage.isPending || sendAudio.isPending || (recordingState === 'idle' && !draft.trim())}
+          className={`mf-chat-send-action w-9 h-9 rounded-full flex items-center justify-center shrink-0 mb-1 transition-all duration-200 cursor-pointer ${activeMode === 'nota' ? 'is-note' : ''} disabled:opacity-40 disabled:cursor-not-allowed`}
+          aria-label={recordingState === 'recording' ? 'Parar gravação' : recordingState === 'preview' ? 'Enviar áudio' : 'Enviar mensagem'}
+          title={recordingState === 'recording' ? 'Parar gravação' : recordingState === 'preview' ? 'Enviar áudio' : 'Enviar mensagem'}
         >
           {recordingState === 'recording' ? (
             <Square className="w-4 h-4 fill-current" />
           ) : recordingState === 'preview' ? (
             <Send className="w-5 h-5 fill-current ml-0.5" />
-          ) : draft.trim() ? (
-            <Send className="w-5 h-5 fill-current ml-0.5" />
-          ) : (
-            <Mic className="w-5 h-5" />
-          )}
+          ) : <Send className="w-4 h-4 fill-current ml-0.5" />}
         </button>
       </div>
 
@@ -974,6 +1021,17 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
         <div className="mf-chat-error absolute bottom-[110px] left-4 right-4 text-xs rounded-lg px-3 py-2 z-50">
           {micError}
         </div>
+      )}
+
+      {isScheduling && (
+        <EventModal
+          mode="create"
+          initialDate={new Date()}
+          initialHour={9}
+          initialTitle="Reunião com lead"
+          initialLeadId={leadId}
+          onClose={() => setIsScheduling(false)}
+        />
       )}
     </div>
   )
