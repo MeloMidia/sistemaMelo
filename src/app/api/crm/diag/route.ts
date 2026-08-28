@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEvolutionBaseUrl } from '@/lib/evolution-url'
 
-const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
+const BASE_URL = getEvolutionBaseUrl()
 const API_KEY  = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       // Fetch findLabels raw response to see all fields (may include chats)
       let findLabelsRaw: unknown = null
       try {
-        const lRes = await fetch(`${process.env.EVOLUTION_API_URL?.replace(/\/$/, '')}/label/findLabels/${process.env.EVOLUTION_INSTANCE_NAME}`, {
+        const lRes = await fetch(`${getEvolutionBaseUrl()}/label/findLabels/${process.env.EVOLUTION_INSTANCE_NAME}`, {
           headers: { apikey: process.env.EVOLUTION_API_KEY ?? '' },
         })
         const lData = await lRes.json()

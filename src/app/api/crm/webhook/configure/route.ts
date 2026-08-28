@@ -2,8 +2,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getEvolutionBaseUrl } from '@/lib/evolution-url'
 
-const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
+const BASE_URL = getEvolutionBaseUrl()
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 

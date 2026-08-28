@@ -1,7 +1,8 @@
 // src/lib/evolution-client.ts
 import { normalizePhone } from '@/lib/phone'
+import { getEvolutionBaseUrl } from '@/lib/evolution-url'
 
-const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
+const BASE_URL = getEvolutionBaseUrl()
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
@@ -88,7 +89,7 @@ export async function findMessages(phone: string, explicitJid?: string): Promise
       : data && typeof data === 'object' && 'messages' in data && Array.isArray(data.messages)
         ? data.messages
         : []
-    const page_items = messages.filter((item: any): item is Record<string, unknown> => {
+    const page_items = messages.filter((item: unknown): item is Record<string, unknown> => {
       return Boolean(item) && typeof item === 'object' && !Array.isArray(item)
     })
     all.push(...page_items)

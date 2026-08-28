@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { findLabels } from '@/lib/evolution-client'
+import { getEvolutionBaseUrl } from '@/lib/evolution-url'
 import { WA_COLORS, STAGE_PRIORITY, LABEL_TO_STAGE, LABEL_ID_TO_STAGE, LABEL_ID_TO_NAME } from '@/lib/wa-label-map'
 
 // Aumenta o timeout da Vercel para esta rota
 export const maxDuration = 60
 
-const BASE_URL = (process.env.EVOLUTION_API_URL ?? '').replace(/\/$/, '')
+const BASE_URL = getEvolutionBaseUrl()
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
