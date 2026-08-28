@@ -34,11 +34,11 @@ function Avatar({ conversation, size = 'md' }: { conversation: CrmConversation; 
     const pixels = size === 'sm' ? 36 : 40
     // External WhatsApp avatar URLs are not stable enough for next/image optimization.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={conversation.profilePicUrl} alt="" width={pixels} height={pixels} className={`${dimension} rounded-full object-cover shrink-0 bg-slate-800`} />
+    return <img src={conversation.profilePicUrl} alt="" width={pixels} height={pixels} className={`${dimension} mf-conversation-avatar rounded-full object-cover shrink-0`} />
   }
 
   return (
-    <div className={`${dimension} rounded-full shrink-0 bg-emerald-500/15 text-emerald-300 flex items-center justify-center font-semibold`}>
+    <div className={`${dimension} mf-conversation-avatar rounded-full shrink-0 flex items-center justify-center font-semibold`}>
       {displayName.slice(0, 1).toUpperCase()}
     </div>
   )
@@ -145,12 +145,12 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
                 <Avatar conversation={conversation} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className={`truncate text-sm ${conversation.isUnread ? 'font-semibold text-white' : 'font-medium text-slate-200'}`}>{getLeadDisplayName(conversation)}</p>
+                    <p className={`mf-inbox-contact truncate text-sm ${conversation.isUnread ? 'font-semibold' : 'font-medium'}`}>{getLeadDisplayName(conversation)}</p>
                     {lastMessage && <time className={`ml-auto shrink-0 text-[10px] ${conversation.isUnread ? 'text-emerald-400' : 'text-slate-500'}`}>{formatConversationTime(lastMessage.createdAt)}</time>}
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     {lastMessage?.direction === 'OUTBOUND' && <CheckCheck className="size-3.5 shrink-0 text-sky-400" />}
-                    <p className={`truncate text-xs ${conversation.isUnread ? 'font-medium text-slate-300' : 'text-slate-500'}`}>{lastMessage ? preview(lastMessage.content) : 'Sem mensagens'}</p>
+                    <p className={`mf-inbox-preview truncate text-xs ${conversation.isUnread ? 'font-medium' : ''}`}>{lastMessage ? preview(lastMessage.content) : 'Sem mensagens'}</p>
                     {conversation.isUnread && <span className="ml-auto size-2 rounded-full bg-emerald-400 shrink-0" />}
                   </div>
                 </div>
@@ -164,11 +164,16 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
         {selected ? (
           <>
             <header className="mf-inbox-chat-header h-[73px] shrink-0 flex items-center gap-3 px-4 md:px-5 border-b">
-              <button onClick={() => setSelectedId(null)} className="md:hidden text-slate-400 hover:text-white text-sm">Voltar</button>
+              <button onClick={() => setSelectedId(null)} className="mf-inbox-back md:hidden text-sm">Voltar</button>
               <Avatar conversation={selected} size="sm" />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-white truncate">{getLeadDisplayName(selected)}</h2>
-                <p className="text-xs text-slate-500 truncate">{formatPhoneNumber(selected.phone)}</p>
+                <h2 className="mf-inbox-contact text-sm font-semibold truncate">{getLeadDisplayName(selected)}</h2>
+                <p className="mf-inbox-phone text-xs truncate">{formatPhoneNumber(selected.phone)}</p>
+              </div>
+              <div className="mf-inbox-chat-tabs ml-auto hidden sm:flex items-center self-stretch">
+                <button type="button">Logs</button>
+                <button type="button">Anotações</button>
+                <button type="button" className="is-active" aria-current="page">Chat</button>
               </div>
             </header>
             <LeadConversaTab leadId={selected.id} />
