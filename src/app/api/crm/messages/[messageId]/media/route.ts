@@ -26,11 +26,11 @@ function serveBuffer(buffer: Buffer, mimeType: string, rangeHeader: string | nul
   if (rangeHeader) {
     const match = rangeHeader.match(/bytes=(\d*)-(\d*)/)
     if (match) {
-      const start  = match[1] ? parseInt(match[1]) : 0
-      const end    = match[2] ? parseInt(match[2]) : buffer.length - 1
+      const start   = match[1] ? parseInt(match[1]) : 0
+      const end     = match[2] ? parseInt(match[2]) : buffer.length - 1
       const safeEnd = Math.min(end, buffer.length - 1)
-      const chunk  = buffer.slice(start, safeEnd + 1)
-      return new Response(chunk, {
+      const chunk   = buffer.slice(start, safeEnd + 1)
+      return new Response(new Uint8Array(chunk), {
         status: 206,
         headers: {
           'Content-Type': mimeType,
@@ -43,7 +43,7 @@ function serveBuffer(buffer: Buffer, mimeType: string, rangeHeader: string | nul
     }
   }
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': mimeType,
       'Content-Length': buffer.length.toString(),
