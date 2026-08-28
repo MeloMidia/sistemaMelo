@@ -92,7 +92,7 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
 
   return (
     <div className="mf-inbox flex-1 min-h-0 flex overflow-hidden">
-      <aside className={`mf-inbox-rail w-full md:w-[360px] shrink-0 flex flex-col border-r ${selected ? 'hidden md:flex' : 'flex'}`}>
+      <aside className={`mf-inbox-rail w-full md:w-[360px] shrink-0 min-h-0 flex flex-col border-r ${selected ? 'hidden md:flex' : 'flex'}`}>
         <div className="mf-inbox-heading px-5 pt-5 pb-4 border-b">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
@@ -160,7 +160,7 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
         </div>
       </aside>
 
-      <section className={`flex-1 min-w-0 flex flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
+      <section className={`flex-1 min-w-0 min-h-0 flex flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
         {selected ? (
           <>
             <header className="mf-inbox-chat-header h-[73px] shrink-0 flex items-center gap-3 px-4 md:px-5 border-b">

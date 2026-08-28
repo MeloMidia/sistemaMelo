@@ -315,6 +315,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-inbox {
   background: #f5f6f7 !important;
   color: #18211e !important;
+  min-height: 0;
 }
 .mf-inbox-rail,
 .mf-inbox-heading,

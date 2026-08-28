@@ -583,7 +583,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   })
 
   return (
-    <div ref={containerRef} className="mf-chat-thread flex-1 flex flex-col h-full relative overflow-hidden">
+    <div ref={containerRef} className="mf-chat-thread flex-1 min-h-0 flex flex-col h-full relative overflow-hidden">
       {/* Messages list */}
       <div
         className="mf-chat-scroll flex-1 overflow-y-auto p-4 relative flex flex-col"

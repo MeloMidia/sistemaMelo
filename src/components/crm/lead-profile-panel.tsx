@@ -173,7 +173,7 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
   const displayName = getLeadDisplayName(lead)
 
   return (
-    <aside className="mf-lead-profile hidden xl:flex w-[336px] shrink-0 flex-col overflow-y-auto">
+    <aside className="mf-lead-profile hidden xl:flex w-[336px] shrink-0 min-h-0 flex-col overflow-y-auto">
       <div className="mf-profile-header">
         <Avatar lead={lead} />
         <div className="min-w-0 flex-1">
