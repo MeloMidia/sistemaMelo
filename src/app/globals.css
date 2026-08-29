@@ -184,8 +184,8 @@
 }
 
 /* Shared product shell */
-.mf-app-shell { background: var(--mf-paper) !important; color: var(--mf-ink); }
-.mf-main { background: var(--mf-paper); }
+.mf-app-shell { background: var(--mf-paper) !important; color: var(--mf-ink); height: 100dvh; min-height: 0; }
+.mf-main { background: var(--mf-paper); min-height: 0; }
 .mf-workspace { background: var(--mf-paper) !important; }
 .mf-workspace > * { min-width: 0; }
 h1, h2, h3 { text-wrap: balance; }

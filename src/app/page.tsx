@@ -107,13 +107,13 @@ export default function HomePage() {
   return (
     <div
       data-theme={theme}
-      className="min-h-screen flex overflow-hidden mf-app-shell"
+      className="h-dvh min-h-0 flex overflow-hidden mf-app-shell"
       style={{ background: pageBg }}
     >
       {/* Ambient glow — matiz índigo/navy */}
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="nm-sidebar mf-sidebar shrink-0 flex flex-col z-40 relative transition-[width] duration-200"
+        className="nm-sidebar mf-sidebar shrink-0 min-h-0 flex flex-col z-40 relative transition-[width] duration-200"
         style={{ width: expanded ? 220 : 64 }}
       >
         {/* Logo + toggle */}
@@ -234,7 +234,7 @@ export default function HomePage() {
       </aside>
 
       {/* ── Main ─────────────────────────────────────────────────── */}
-      <main className="mf-main flex-1 flex flex-col overflow-hidden relative min-w-0"
+      <main className="mf-main flex-1 min-h-0 flex flex-col overflow-hidden relative min-w-0"
         style={{ background: pageBg }}>
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
