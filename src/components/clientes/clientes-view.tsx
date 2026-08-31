@@ -5,7 +5,7 @@ import { Megaphone, Zap, Calendar, Layers, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useColumns, useUpdateTask, useExpirePromos } from '@/hooks/api'
 import type { Task } from '@/types'
-import { isChurnColumnTitle } from '@/lib/clientes'
+import { isChurnColumnTitle, toDateOnlyString, todayBrazilDateString } from '@/lib/clientes'
 
 function Toggle({
   checked,
@@ -78,13 +78,8 @@ function ClienteCard({ task }: { task: Task }) {
     updateTask.mutate({ id: task.id, promocaoAte: date || null })
   }
 
-  // promocaoAte guarda só a data (dia de calendário), sem hora. Comparar/formatar
-  // via new Date(...).toLocaleDateString() usa o fuso do navegador e pode voltar
-  // um dia (ex: "2026-08-31" vira 30/08 pra quem está em UTC-3) — por isso tudo
-  // aqui trabalha direto na string "YYYY-MM-DD", sem conversão de fuso.
-  const promoDateRaw = task.promocaoAte ? task.promocaoAte.slice(0, 10) : null
-  const todayBrazil = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
-  const promoExpired = promoDateRaw ? promoDateRaw < todayBrazil : false
+  const promoDateRaw = task.promocaoAte ? toDateOnlyString(task.promocaoAte) : null
+  const promoExpired = promoDateRaw ? promoDateRaw < todayBrazilDateString() : false
   const promoDateStr = promoDateRaw
     ? `${promoDateRaw.slice(8, 10)}/${promoDateRaw.slice(5, 7)}`
     : null

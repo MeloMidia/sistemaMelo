@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
+import { checkPromoExpirations } from '@/lib/promo-notify'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const BATCH_SIZE = 8
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
 
   if (!authed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Roda junto com o cron diário, independente de ter campanha em massa
+  // pra processar — isolado em try/catch pra nunca derrubar o envio abaixo.
+  try {
+    await checkPromoExpirations()
+  } catch (err) {
+    console.error('Erro ao checar promoções vencendo:', err)
   }
 
   // Aceita campaignId opcional para disparar campanha específica

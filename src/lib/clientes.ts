@@ -38,3 +38,26 @@ export const CHURN_REASONS = [
 export type ChurnReason = (typeof CHURN_REASONS)[number]
 
 export const DEFAULT_ENCERRADO_COLUMN_TITLE = 'Encerrado'
+
+/**
+ * Datas de promoção (Task.promocaoAte) guardam só o dia (meia-noite UTC),
+ * não um instante — comparar/formatar via new Date(...).toLocaleDateString()
+ * usa o fuso de quem está rodando o código e pode voltar/adiantar um dia.
+ * Por isso todo cálculo de "venceu"/"vence em N dias" trabalha em cima da
+ * string "YYYY-MM-DD" (dia de calendário no fuso do Brasil), sem Date.
+ */
+export function todayBrazilDateString(): string {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+}
+
+/** Extrai "YYYY-MM-DD" de uma data/ISO string, sem conversão de fuso. */
+export function toDateOnlyString(value: string | Date): string {
+  return typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
+}
+
+/** Diferença em dias (inteiro) entre dois "YYYY-MM-DD". Positivo = `to` no futuro. */
+export function daysBetweenDateStrings(fromStr: string, toStr: string): number {
+  const from = new Date(`${fromStr}T00:00:00Z`)
+  const to = new Date(`${toStr}T00:00:00Z`)
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000)
+}
