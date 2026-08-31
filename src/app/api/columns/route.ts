@@ -3,6 +3,22 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+const NEGOTIATIONS_SOURCE = 'negotiations'
+const NEGOTIATION_STAGES = ['Não atribuídas', 'Em negociação', 'Ganho', 'Perdido']
+
+async function ensureNegotiationBoard() {
+  const existingCount = await prisma.column.count({ where: { source: NEGOTIATIONS_SOURCE } })
+  if (existingCount > 0) return
+
+  await prisma.column.createMany({
+    data: NEGOTIATION_STAGES.map((title, index) => ({
+      title,
+      order: (index + 1) * 1000,
+      source: NEGOTIATIONS_SOURCE,
+    })),
+  })
+}
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -10,11 +26,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const source = searchParams.get('source') || 'kanban'
 
+  if (source === NEGOTIATIONS_SOURCE) await ensureNegotiationBoard()
+
   const columns = await prisma.column.findMany({
-    where: { source } as object,
+    where: { source },
     include: {
       tasks: {
-        where: { source } as object,
+        where: { source },
         orderBy: { order: 'asc' },
       },
     },
@@ -44,7 +62,7 @@ export async function POST(request: Request) {
       title,
       order: newOrder,
       source: columnSource,
-    } as any,
+    },
   })
 
   return NextResponse.json(column)

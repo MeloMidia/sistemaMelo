@@ -18,14 +18,24 @@ import { useColumns, useCreateColumn, useReorderTasks, useReorderColumns } from 
 import { KanbanColumn } from './kanban-column'
 import { TaskCard } from './task-card'
 import type { Task, Column } from '@/types'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, TrendingUp } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 
-export function KanbanBoard() {
-  const { data: columns, isLoading } = useColumns()
-  const createColumn = useCreateColumn()
+export function KanbanBoard({
+  source = 'kanban',
+  title,
+  description,
+  taskLabel = 'cliente',
+}: {
+  source?: string
+  title?: string
+  description?: string
+  taskLabel?: string
+}) {
+  const { data: columns, isLoading } = useColumns(source)
+  const createColumn = useCreateColumn(source)
   const reorderTasks = useReorderTasks()
   const reorderColumns = useReorderColumns()
   const queryClient = useQueryClient()
@@ -54,7 +64,7 @@ export function KanbanBoard() {
     if (activeData?.type !== 'task') return
 
     // Always read current state from cache — activeData.task is stale after first move
-    const currentColumns = queryClient.getQueryData<Column[]>(['columns', 'kanban'])
+    const currentColumns = queryClient.getQueryData<Column[]>(['columns', source])
     if (!currentColumns) return
 
     const activeTaskId = active.id as string
@@ -91,14 +101,14 @@ export function KanbanBoard() {
 
     if (overColumnId !== activeColumnId) {
       // Dragging over a DIFFERENT column
-      queryClient.setQueryData<Column[]>(['columns', 'kanban'], (old) => {
+      queryClient.setQueryData<Column[]>(['columns', source], (old) => {
         if (!old) return old
         return old.map((col) => {
           if (col.id === activeColumnId) {
             return { ...col, tasks: col.tasks.filter(t => t.id !== activeTaskId) }
           }
           if (col.id === overColumnId) {
-            let newTasks = [...col.tasks]
+            const newTasks = [...col.tasks]
             if (isOverTask) {
               const overIdx = col.tasks.findIndex(t => t.id === over.id)
               newTasks.splice(overIdx >= 0 ? overIdx : newTasks.length, 0, { ...activeTaskData!, columnId: overColumnId! })
@@ -112,7 +122,7 @@ export function KanbanBoard() {
       })
     } else if (isOverTask) {
       // Reordering within the SAME column
-      queryClient.setQueryData<Column[]>(['columns', 'kanban'], (old) => {
+      queryClient.setQueryData<Column[]>(['columns', source], (old) => {
         if (!old) return old
         return old.map((col) => {
           if (col.id === activeColumnId) {
@@ -126,7 +136,7 @@ export function KanbanBoard() {
         })
       })
     }
-  }, [queryClient])
+  }, [queryClient, source])
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
@@ -146,7 +156,7 @@ export function KanbanBoard() {
           const reordered = arrayMove(columns, oldIndex, newIndex)
           const items = reordered.map((col, i) => ({ id: col.id, order: (i + 1) * 1000 }))
 
-          queryClient.setQueryData<Column[]>(['columns', 'kanban'], reordered)
+          queryClient.setQueryData<Column[]>(['columns', source], reordered)
           reorderColumns.mutate(items)
         }
       }
@@ -154,7 +164,7 @@ export function KanbanBoard() {
     }
 
     if (activeData?.type === 'task') {
-      const currentColumns = queryClient.getQueryData<Column[]>(['columns', 'kanban'])
+      const currentColumns = queryClient.getQueryData<Column[]>(['columns', source])
       if (!currentColumns) return
 
       const items: { id: string; columnId: string; order: number }[] = []
@@ -168,7 +178,7 @@ export function KanbanBoard() {
         reorderTasks.mutate(items)
       }
     }
-  }, [columns, queryClient, reorderTasks, reorderColumns])
+  }, [columns, queryClient, reorderTasks, reorderColumns, source])
 
   const handleAddColumn = () => {
     if (newColumnTitle.trim()) {
@@ -199,11 +209,27 @@ export function KanbanBoard() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="mf-workspace flex-1 overflow-x-auto p-6" style={{ background: 'var(--nm-bg)' }}>
-        <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+      <div className={`mf-workspace flex-1 min-h-0 ${title ? 'flex flex-col overflow-hidden' : 'overflow-x-auto p-6'}`} style={{ background: 'var(--nm-bg)' }}>
+        {title && (
+          <header className="mf-negotiations-header shrink-0 flex items-center justify-between gap-4 px-6 py-5" aria-labelledby="negotiations-title">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="mf-negotiations-mark size-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+                <TrendingUp className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="mf-eyebrow mb-1">Pipeline comercial</p>
+                <h1 id="negotiations-title" className="text-xl font-bold tracking-tight" style={{ color: 'var(--mf-ink)' }}>{title}</h1>
+                {description && <p className="text-xs mt-1" style={{ color: 'var(--mf-muted)' }}>{description}</p>}
+              </div>
+            </div>
+            <span className="mf-negotiations-count shrink-0 text-xs font-semibold tabular-nums">{(columns ?? []).reduce((total, column) => total + column.tasks.length, 0)} negociações</span>
+          </header>
+        )}
+        <div className={title ? 'flex-1 min-h-0 overflow-x-auto p-6 pt-3' : ''}>
+          <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {(columns || []).map((column) => (
-              <KanbanColumn key={column.id} column={column} />
+              <KanbanColumn key={column.id} column={column} source={source} taskLabel={taskLabel} />
             ))}
 
             {/* Add column */}
@@ -269,7 +295,8 @@ export function KanbanBoard() {
               </button>
             )}
           </div>
-        </SortableContext>
+          </SortableContext>
+        </div>
       </div>
 
       <DragOverlay>

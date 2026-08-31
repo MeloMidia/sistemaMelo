@@ -487,6 +487,45 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-chat-thread .mf-chat-popover { bottom: 76px !important; }
 .mf-chat-thread .mf-chat-error { bottom: 76px !important; }
 
+.mf-negotiations-header {
+  background: var(--mf-surface);
+  border-bottom: 1px solid var(--mf-line);
+}
+.mf-negotiations-mark {
+  background: var(--mf-success-soft);
+  color: var(--mf-success);
+}
+.mf-negotiations-count {
+  background: var(--mf-well);
+  border: 1px solid var(--mf-line);
+  border-radius: 999px;
+  color: var(--mf-muted);
+  padding: 6px 10px;
+}
+.mf-profile-negotiations { display: grid; gap: 8px; }
+.mf-profile-negotiations-empty { align-items: center; color: var(--mf-faint); display: flex; flex-direction: column; font-size: 11px; gap: 5px; padding: 8px 0 4px; text-align: center; }
+.mf-profile-negotiation-card { background: var(--mf-well); border: 1px solid var(--mf-line); border-left: 2px solid var(--mf-success); border-radius: 8px; padding: 9px 10px; }
+.mf-profile-negotiation-card > div { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.mf-profile-negotiation-card strong { color: var(--mf-ink); font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-profile-negotiation-card span { color: var(--mf-success); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.mf-profile-negotiation-card p { color: var(--mf-muted); font-size: 10px; margin-top: 4px; }
+.mf-profile-negotiation-create { align-items: center; background: var(--mf-surface); border: 1px solid var(--mf-line-strong); border-radius: 8px; color: var(--mf-ink); cursor: pointer; display: flex; font-size: 11px; font-weight: 700; gap: 6px; justify-content: center; min-height: 32px; transition: border-color 150ms ease, color 150ms ease; width: 100%; }
+.mf-profile-negotiation-create:hover { border-color: var(--mf-success); color: var(--mf-success); }
+.mf-negotiation-dialog { background: var(--mf-surface) !important; border: 1px solid var(--mf-line) !important; box-shadow: var(--mf-shadow-float) !important; }
+.mf-negotiation-dialog-header { align-items: flex-start; border-bottom: 1px solid var(--mf-line); display: flex; flex-direction: row; justify-content: space-between; padding: 20px 22px; }
+.mf-negotiation-dialog-header [data-slot="dialog-title"] { color: var(--mf-ink); font-size: 17px; font-weight: 700; letter-spacing: -.025em; }
+.mf-negotiation-dialog-header [data-slot="dialog-description"] { color: var(--mf-muted); font-size: 12px; line-height: 1.45; margin-top: 5px; }
+.mf-negotiation-form { display: grid; gap: 14px; grid-template-columns: 1fr; max-height: min(62vh, 540px); overflow-y: auto; padding: 20px 22px; }
+.mf-negotiation-form label, .mf-negotiation-field-label { color: var(--mf-muted); display: grid; font-size: 12px; font-weight: 600; gap: 6px; }
+.mf-negotiation-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.mf-negotiation-tags button { background: transparent; border: 1px solid color-mix(in srgb, var(--tag-color) 30%, var(--mf-line)); border-radius: 6px; color: var(--mf-muted); cursor: pointer; font-size: 11px; font-weight: 600; padding: 5px 7px; }
+.mf-negotiation-tags button.is-selected { background: color-mix(in srgb, var(--tag-color) 14%, transparent); color: var(--tag-color); }
+.mf-negotiation-total { align-self: end; background: var(--mf-success-soft); border-radius: 8px; color: var(--mf-success); display: flex; flex-direction: column; gap: 3px; padding: 9px 10px; }
+.mf-negotiation-total span { font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.mf-negotiation-total strong { font-size: 14px; font-weight: 700; }
+.mf-negotiation-dialog-footer { background: var(--mf-well); border-top-color: var(--mf-line); margin: 0; padding: 14px 22px; }
+@media (min-width: 640px) { .mf-negotiation-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* Keep the WhatsApp workspace in the same theme system as the rest of the app. */
 [data-theme="dark"] .mf-inbox {
   background: var(--mf-paper) !important;

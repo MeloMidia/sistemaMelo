@@ -15,6 +15,7 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   leads        Lead[]
+  negotiations Negotiation[]
 }
 
 model Column {
@@ -52,6 +53,7 @@ model Task {
   leadId          String?
   lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   kanbanTaskId    String?
+  negotiation     Negotiation?
 }
 
 model Tag {
@@ -139,6 +141,7 @@ model Lead {
   campaignLeads    BulkCampaignLead[]
   followUpLogs     FollowUpLog[]
   tasks            Task[]
+  negotiations     Negotiation[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -180,7 +183,8 @@ model CrmTag {
   name        String
   color       String
   waLabelId   String?   @unique
-  leads       LeadTag[]
+  leads        LeadTag[]
+  negotiations NegotiationTag[]
 }
 
 model LeadTag {
@@ -190,6 +194,38 @@ model LeadTag {
   tag    CrmTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([leadId, tagId])
+}
+
+model Negotiation {
+  id            String           @id @default(cuid())
+  leadId        String
+  lead          Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  taskId        String           @unique
+  task          Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  responsibleId String?
+  responsible   User?            @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+  negotiatedAt  DateTime
+  service       String
+  quantity      Int              @default(1)
+  unitPrice     Float
+  discount      Float            @default(0)
+  totalValue    Float
+  notes         String?
+  tags          NegotiationTag[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([leadId, negotiatedAt])
+  @@index([responsibleId])
+}
+
+model NegotiationTag {
+  negotiationId String
+  tagId         String
+  negotiation   Negotiation @relation(fields: [negotiationId], references: [id], onDelete: Cascade)
+  tag           CrmTag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([negotiationId, tagId])
 }
 
 model WhatsappConnection {

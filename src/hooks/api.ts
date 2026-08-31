@@ -100,6 +100,7 @@ export function useCreateTask() {
       dueDate?: string
       isPriorityToday?: boolean
       columnId: string
+      logoUrl?: string
       source?: string
       assignee?: string | null
       leadId?: string | null

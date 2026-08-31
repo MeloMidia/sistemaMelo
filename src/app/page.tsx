@@ -9,7 +9,7 @@ import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Kanban, Menu, ChevronLeft, Sun, Moon,
+  Briefcase, Kanban, Menu, ChevronLeft, Sun, Moon, TrendingUp,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
@@ -19,7 +19,7 @@ import { AgendaView } from '@/components/agenda/agenda-view'
 import { ClientesView } from '@/components/clientes/clientes-view'
 import { CarteiraView } from '@/components/clientes/carteira-view'
 
-type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
 
 const OPERACIONAL = [
   { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#2854DF' },
@@ -31,7 +31,8 @@ const OPERACIONAL = [
 ] as const
 
 const COMERCIAL = [
-  { id: 'crm',       icon: MessageSquare, label: 'CRM',       color: '#22c55e' },
+  { id: 'crm',          icon: MessageSquare, label: 'WhatsApp',    color: '#22c55e' },
+  { id: 'negotiations', icon: TrendingUp,    label: 'Negociações', color: '#5ca347' },
   { id: 'dashboard', icon: BarChart,      label: 'Dashboard', color: '#0ea5e9' },
   { id: 'metricas',  icon: Users,         label: 'Métricas',  color: '#a855f7' },
   { id: 'agenda',    icon: Calendar,      label: 'Agenda',    color: '#f97316' },
@@ -200,7 +201,7 @@ export default function HomePage() {
                   aria-current={activeTab === 'crm' && crmView === 'pipeline' ? 'page' : undefined}
                 >
                   <Kanban className="size-3.5 shrink-0" aria-hidden="true" />
-                  Kanban
+                  CRM
                 </button>
               )}
             </div>
@@ -281,6 +282,7 @@ export default function HomePage() {
         {activeTab === 'metricas'     && <ClientesMetricas />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} view={crmView} onViewChange={setCrmView} />}
+        {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
     </div>

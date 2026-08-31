@@ -15,6 +15,36 @@ export interface CrmUser {
   name: string
 }
 
+export interface Negotiation {
+  id: string
+  leadId: string
+  negotiatedAt: string
+  service: string
+  quantity: number
+  unitPrice: number
+  discount: number
+  totalValue: number
+  notes: string | null
+  responsible: CrmUser | null
+  task: { id: string; columnId: string; title: string; dueDate: string | null }
+  tags: { tag: CrmTag }[]
+}
+
+export interface Negotiation {
+  id: string
+  leadId: string
+  negotiatedAt: string
+  service: string
+  quantity: number
+  unitPrice: number
+  discount: number
+  totalValue: number
+  notes: string | null
+  responsible: CrmUser | null
+  task: { id: string; columnId: string; title: string; dueDate: string | null }
+  tags: { tag: CrmTag }[]
+}
+
 export interface Message {
   id: string
   leadId: string

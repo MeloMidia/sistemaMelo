@@ -19,9 +19,11 @@ import {
 
 interface KanbanColumnProps {
   column: ColumnType
+  source?: string
+  taskLabel?: string
 }
 
-export function KanbanColumn({ column }: KanbanColumnProps) {
+export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
@@ -70,8 +72,8 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
         columnId: column.id,
         dueDate: newTaskDueDate || undefined,
         logoUrl: newTaskLogo || undefined,
-        source: 'kanban',
-      } as any)
+        source,
+      })
       setNewTaskTitle('')
       setNewTaskLogo(null)
       setNewTaskDueDate('')
@@ -87,6 +89,13 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
   }
 
   const taskIds = column.tasks.map((t) => t.id)
+
+  const isNegotiationBoard = source === 'negotiations'
+  const stageTone = isNegotiationBoard && column.title.toLocaleLowerCase('pt-BR') === 'ganho'
+    ? '#4fa24a'
+    : isNegotiationBoard && column.title.toLocaleLowerCase('pt-BR') === 'perdido'
+      ? '#e05252'
+      : null
 
   // Refined accent colors with better visibility and glassmorphism styling
   const accentColors = [
@@ -112,7 +121,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
           : isOver
             ? '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark), 0 0 0 2px #6366f160'
             : '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)',
-        border: '1px solid var(--nm-border)',
+        border: stageTone ? `1px solid ${stageTone}` : '1px solid var(--nm-border)',
         transition: 'box-shadow 0.2s ease, opacity 0.15s ease',
         opacity: isDragging ? 0.55 : 1,
       }}
@@ -181,7 +190,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
 
         {column.tasks.length === 0 && !isAddingTask && (
           <div className="flex items-center justify-center h-20 text-slate-600 text-sm">
-            Nenhum cliente
+            {taskLabel === 'negociação' ? 'Nenhuma negociação' : 'Nenhum cliente'}
           </div>
         )}
       </div>
@@ -197,7 +206,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
                 if (e.key === 'Enter') handleAddTask()
                 if (e.key === 'Escape') { setIsAddingTask(false); setNewTaskTitle(''); setNewTaskLogo(null); setNewTaskDueDate('') }
               }}
-              placeholder="Nome do cliente..."
+              placeholder={`Nome ${taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
               autoFocus
               className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
             />
@@ -249,7 +258,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
             className="flex items-center gap-2 w-full p-2.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.04] cursor-pointer text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
-            Novo cliente
+            Nova {taskLabel}
           </button>
         )}
       </div>
