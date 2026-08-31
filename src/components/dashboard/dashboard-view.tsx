@@ -1,84 +1,50 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { Loader2, Target, Pencil } from 'lucide-react'
-import { getDateRange, type DateRange, type PeriodKey } from '@/lib/date-range'
+import { useState } from 'react'
+import {
+  Activity,
+  BadgeDollarSign,
+  CalendarCheck2,
+  CircleAlert,
+  CircleCheckBig,
+  Loader2,
+  MessageCircleMore,
+  Radio,
+  Target,
+  UserRoundCheck,
+  UserRoundPlus,
+} from 'lucide-react'
+import { type DateRange, type PeriodKey } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
 import { FunnelChart } from './funnel-chart'
 import { DailyLineChart } from './daily-line-chart'
-import { TriGoalBar } from './tri-goal-bar'
-import { MeetingsStatusCard } from './meetings-status-card'
-import { EditMetricsModal } from './edit-metrics-modal'
 
-type SdrLog = DashboardData['logs'][number]
+type MetricTotals = DashboardData['metrics']
 
-type MetricTotals = {
-  leadsTrafego: number
-  leadsIndicacao: number
-  reunioesAgendadas: number
-  reunioesRealizadas: number
-  vendasQtd: number
-  faturamento: number
-  investimentoTrafego: number
+const EMPTY_METRICS: MetricTotals = {
+  newLeads: 0,
+  inboundMessages: 0,
+  outboundMessages: 0,
+  contactedLeads: 0,
+  meetingsScheduled: 0,
+  meetingsCompleted: 0,
+  meetingsNoShow: 0,
+  meetingsNotHeld: 0,
+  salesCount: 0,
+  revenue: 0,
+  salesWithoutValue: 0,
+  leadToSaleRate: 0,
+  meetingShowRate: 0,
+  pipelineOpen: 0,
 }
 
-type SdrTotals = {
-  leadsWhatsapp: number
-  agendadas: number
-  realizadas: number
-  faltaLead: number
-  naoRealizada: number
-}
-
-type AgendaStats = DashboardData['agenda']
-
-// Agendadas/Realizadas: total de eventos reais da Agenda + ajustes manuais lançados no SdrDailyLog.
-function buildSdrTotals(logs: SdrLog[], agenda: AgendaStats | undefined): SdrTotals {
-  const manual = logs.reduce(
-    (acc, log) => ({
-      leadsWhatsapp: acc.leadsWhatsapp + log.leadsWhatsapp,
-      agendadas: acc.agendadas + log.agendadas,
-      realizadas: acc.realizadas + log.realizadas,
-      faltaLead: acc.faltaLead + log.faltaLead,
-      naoRealizada: acc.naoRealizada + log.naoRealizada,
-    }),
-    { leadsWhatsapp: 0, agendadas: 0, realizadas: 0, faltaLead: 0, naoRealizada: 0 }
-  )
-  return {
-    leadsWhatsapp: manual.leadsWhatsapp,
-    faltaLead: manual.faltaLead + (agenda?.totalFaltas ?? 0),
-    agendadas: (agenda?.totalAgendadas ?? 0) + manual.agendadas,
-    realizadas: (agenda?.totalRealizadas ?? 0) + manual.realizadas,
-    naoRealizada: manual.naoRealizada + (agenda?.totalNaoRealizadas ?? 0),
-  }
-}
-
-function buildDailyChartData(logs: SdrLog[], agenda: AgendaStats | undefined) {
-  const byDay = new Map<string, { date: Date; leadsWhatsapp: number; agendadas: number; realizadas: number; naoRealizada: number }>()
-
-  for (const log of logs) {
-    const date = new Date(log.date)
-    const key = date.toISOString()
-    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0, naoRealizada: 0 }
-    entry.leadsWhatsapp += log.leadsWhatsapp
-    entry.naoRealizada += log.naoRealizada
-    byDay.set(key, entry)
-  }
-
-  for (const day of agenda?.daily ?? []) {
-    const date = new Date(day.date)
-    const key = date.toISOString()
-    const entry = byDay.get(key) ?? { date, leadsWhatsapp: 0, agendadas: 0, realizadas: 0, naoRealizada: 0 }
-    entry.agendadas += day.agendadas
-    entry.realizadas += day.realizadas
-    entry.naoRealizada += day.naoRealizadas
-    byDay.set(key, entry)
-  }
-
-  return Array.from(byDay.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+function defaultCustomRange(): DateRange {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - 7)
+  return { start, end }
 }
 
 function calcDelta(current: number, previous: number | null): KpiDelta | undefined {
@@ -90,98 +56,54 @@ function calcDelta(current: number, previous: number | null): KpiDelta | undefin
   }
 }
 
-const EMPTY_METRICS: MetricTotals = {
-  leadsTrafego: 0,
-  leadsIndicacao: 0,
-  reunioesAgendadas: 0,
-  reunioesRealizadas: 0,
-  vendasQtd: 0,
-  faturamento: 0,
-  investimentoTrafego: 0,
+function formatMoney(value: number) {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function defaultCustomRange(): DateRange {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(end.getDate() - 7)
-  return { start, end }
+function formatNumber(value: number) {
+  return value.toLocaleString('pt-BR')
 }
 
 export function DashboardView() {
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [showComparison, setShowComparison] = useState(true)
   const [customRange, setCustomRange] = useState<DateRange>(defaultCustomRange)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const queryClient = useQueryClient()
 
-  const { data: currentData, isLoading } = useDashboardData(period, customRange)
-  const { data: prevData } = useDashboardPrev(period, showComparison, customRange)
+  const { data: currentData, isLoading, isFetching } = useDashboardData(period, customRange)
+  const { data: previousData } = useDashboardPrev(period, showComparison, customRange)
 
-  const currentMetrics: MetricTotals = currentData?.metrics ?? EMPTY_METRICS
-  const sdrLogs: SdrLog[] = currentData?.logs ?? []
-  const prevMetrics: MetricTotals | null = prevData?.metrics ?? null
-  const prevSdrTotals: SdrTotals | null = prevData ? buildSdrTotals(prevData.logs, prevData.agenda) : null
-
-  const onSuccess = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-  }, [queryClient])
-
-  const sdr = buildSdrTotals(sdrLogs, currentData?.agenda)
-  const cac = currentMetrics.vendasQtd > 0
-    ? currentMetrics.investimentoTrafego / currentMetrics.vendasQtd
-    : 0
-  const taxaLeadVenda = sdr.leadsWhatsapp > 0
-    ? (currentMetrics.vendasQtd / sdr.leadsWhatsapp) * 100
-    : 0
-  const prevCac = prevMetrics && prevMetrics.vendasQtd > 0
-    ? prevMetrics.investimentoTrafego / prevMetrics.vendasQtd
-    : null
-
-  const formatMoney = (v: number) =>
-    `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const formatNum = (v: number) => v.toLocaleString('pt-BR')
-
-  const GOAL_1 = 50000
-  const GOAL_2 = 65000
-  const GOAL_3 = 80000
-  let salesActiveGoal = GOAL_1
-  if (currentMetrics.faturamento >= GOAL_2) salesActiveGoal = GOAL_3
-  else if (currentMetrics.faturamento >= GOAL_1) salesActiveGoal = GOAL_2
-  const leftToNextGoal = Math.max(0, salesActiveGoal - currentMetrics.faturamento)
-  const salesPercentageText = (currentMetrics.faturamento / GOAL_1) * 100
+  const metrics = currentData?.metrics ?? EMPTY_METRICS
+  const previous = previousData?.metrics ?? null
+  const pipeline = currentData?.pipeline ?? []
+  const maxPipelineStage = Math.max(...pipeline.map((stage) => stage.total), 1)
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="flex flex-1 items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2854DF]" />
       </div>
     )
   }
 
   return (
-    <div className="mf-workspace flex-1 overflow-y-auto p-5 lg:p-8 custom-scrollbar">
-      <EditMetricsModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSaved={onSuccess}
-        currentFaturamento={currentMetrics.faturamento}
-        currentVendasQtd={currentMetrics.vendasQtd}
-      />
-      <div className="max-w-[1440px] mx-auto space-y-6 pb-10">
-
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mf-workspace custom-scrollbar flex-1 overflow-y-auto p-5 lg:p-8">
+      <div className="mx-auto max-w-[1440px] space-y-6 pb-10">
+        <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="mf-eyebrow mb-2">Painel comercial</p>
             <h1 className="text-3xl font-bold tracking-[-0.045em] text-[#151817]">Ritmo de vendas</h1>
-            <p className="text-sm text-[#6C716E] mt-1">Acompanhe o que move a operação neste período.</p>
+            <p className="mt-1 text-sm text-[#6C716E]">
+              Leitura automática do CRM, WhatsApp e Agenda no período selecionado.
+            </p>
           </div>
-          <div className="hidden lg:flex items-center gap-2 text-xs text-[#6C716E] bg-white border border-[#E6E8E3] rounded-full px-3 py-1.5 shadow-sm">
-            <span className="size-2 rounded-full bg-[#35A66F]" /> Dados atualizados em tempo real
+
+          <div className="flex items-center gap-2 self-start rounded-full border border-[#D7E6DD] bg-[#F5FBF7] px-3 py-1.5 text-xs font-medium text-[#286A4B] xl:self-auto">
+            <span className={`size-2 rounded-full bg-[#35A66F] ${isFetching ? 'animate-pulse' : ''}`} />
+            Atualiza automaticamente a cada 30 segundos
           </div>
         </header>
 
-        {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2">
+        <div className="flex flex-col justify-between gap-3 border-y border-[#EDF0EB] py-3 sm:flex-row sm:items-end">
           <PeriodSelector
             period={period}
             showComparison={showComparison}
@@ -190,187 +112,213 @@ export function DashboardView() {
             onComparisonChange={setShowComparison}
             onCustomRangeChange={setCustomRange}
           />
-          <button
-            onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#151817] hover:bg-[#2B302D] text-white text-xs font-semibold cursor-pointer transition-colors shrink-0"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Editar métricas
-          </button>
+          <p className="flex items-center gap-1.5 text-xs text-[#6C716E]">
+            <Radio className="h-3.5 w-3.5 text-[#35A66F]" />
+            Sem lançamento manual de métricas
+          </p>
         </div>
 
-        {/* Goals */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-[#151817] tracking-tight flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#2854DF]" />
-            Metas de Vendas & KPIs de Escala
-          </h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <div className="mf-hero rounded-3xl p-6 relative overflow-hidden group h-full flex flex-col justify-center">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#2854DF] opacity-[0.18] blur-3xl rounded-full group-hover:opacity-[0.25] transition-opacity" />
-                <div className="flex justify-between items-end mb-6 relative z-10">
-                  <div>
-                    <h3 className="text-slate-400 text-sm font-medium mb-1">META DE VENDAS (Faturamento)</h3>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-semibold text-white tracking-tight">{formatMoney(currentMetrics.faturamento)}</span>
-                      <span className="text-sm font-medium text-slate-500">/ Meta: {formatMoney(salesActiveGoal)}</span>
-                    </div>
-                  </div>
-                  <span className="text-xl font-bold text-[#AFC0FF]">
-                    {salesPercentageText.toFixed(0)}%
-                  </span>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_0.8fr]">
+          <div className="mf-hero relative overflow-hidden rounded-3xl p-6 sm:p-7">
+            <div className="absolute -right-12 -top-16 size-56 rounded-full bg-[#35A66F]/20 blur-3xl" />
+            <div className="absolute bottom-0 right-0 h-32 w-2/3 bg-[radial-gradient(ellipse_at_bottom_right,rgba(40,84,223,0.26),transparent_72%)]" />
+            <div className="relative flex h-full flex-col justify-between gap-7">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#AFC0FF]">Faturamento confirmado</p>
+                  <p className="mt-3 text-4xl font-bold tracking-[-0.055em] text-white tabular-nums sm:text-5xl">
+                    {formatMoney(metrics.revenue)}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Soma dos valores dos leads movidos para <strong className="font-semibold text-slate-200">Fechados</strong>.
+                  </p>
                 </div>
-                <div className="relative z-10 w-full pb-6">
-                  <div className="h-4 w-full rounded-full shadow-inner flex overflow-hidden border border-white/5">
-                    <div className="h-full bg-slate-900 relative flex-shrink-0" style={{ width: '62.5%' }}>
-                      <div className="h-full bg-[#2854DF] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min((currentMetrics.faturamento / GOAL_1) * 100, 100)}%` }} />
-                    </div>
-                    <div className="w-px h-full bg-white/25 flex-shrink-0" />
-                    <div className="h-full bg-slate-900 relative flex-shrink-0" style={{ width: '18.75%' }}>
-                      <div className="h-full bg-[#7997F0] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_1) / (GOAL_2 - GOAL_1) * 100, 0), 100)}%` }} />
-                    </div>
-                    <div className="w-px h-full bg-white/25 flex-shrink-0" />
-                    <div className="h-full bg-slate-900 relative flex-1">
-                      <div className="h-full bg-[#B8C7FA] transition-all duration-1000 ease-out absolute left-0 top-0" style={{ width: `${Math.min(Math.max((currentMetrics.faturamento - GOAL_2) / (GOAL_3 - GOAL_2) * 100, 0), 100)}%` }} />
-                    </div>
-                  </div>
-                  <div className="relative mt-1.5 text-[10px] w-full">
-                    <span className="absolute left-0 text-emerald-500/70 font-medium">0</span>
-                    <span className="absolute text-emerald-500/70 font-medium" style={{ left: 'calc(62.5% - 10px)' }}>50K</span>
-                    <span className="absolute text-slate-400/70 font-medium" style={{ left: 'calc(81.25% - 10px)' }}>65K</span>
-                    <span className="absolute right-0 text-yellow-600/70 font-medium">80K ✦</span>
-                  </div>
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] text-[#AFC0FF]">
+                  <BadgeDollarSign className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4 sm:max-w-md">
+                <div>
+                  <p className="text-xs text-slate-400">Vendas fechadas</p>
+                  <p className="mt-1 text-2xl font-semibold text-white tabular-nums">{formatNumber(metrics.salesCount)}</p>
+                </div>
+                <div className="border-l border-white/10 pl-4">
+                  <p className="text-xs text-slate-400">Conversão do período</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#9CE2B8] tabular-nums">{metrics.leadToSaleRate.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
-
-            <div className="lg:col-span-1 mf-card rounded-3xl p-6 flex flex-col justify-center items-center text-center relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-500 to-yellow-400 opacity-[0.05] blur-3xl rounded-full group-hover:opacity-[0.1] transition-opacity" />
-              <h3 className="text-slate-400 text-sm font-medium mb-2">
-                {leftToNextGoal === 0
-                  ? '🏆 Meta de 80K Atingida!'
-                  : `Falta para a Meta (${salesActiveGoal >= 1000 ? `${salesActiveGoal / 1000}K` : salesActiveGoal})`}
-              </h3>
-              <span className="text-3xl font-bold text-white tracking-tight">
-                {leftToNextGoal === 0 ? formatMoney(currentMetrics.faturamento) : formatMoney(leftToNextGoal)}
-              </span>
-              {leftToNextGoal === 0 && (
-                <span className="text-sm text-yellow-400 mt-2 font-medium">✨ Todas as metas concluídas! ✨</span>
-              )}
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TriGoalBar title="Total de Vendas" currentValue={currentMetrics.vendasQtd} goal1={19} goal2={25} goal3={31} formatValue={formatNum} />
-            <TriGoalBar title="Leads WhatsApp" currentValue={sdr.leadsWhatsapp} goal1={225} goal2={295} goal3={368} formatValue={formatNum} />
-            <TriGoalBar title="Reuniões Agendadas" currentValue={sdr.agendadas} goal1={90} goal2={118} goal3={147} formatValue={formatNum} />
-            <TriGoalBar title="Reuniões Realizadas" currentValue={sdr.realizadas} goal1={63} goal2={83} goal3={103} formatValue={formatNum} />
+          <div className="mf-card rounded-3xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mf-label">Funil aberto agora</p>
+                <p className="mt-1 text-sm text-[#6C716E]">Leads ainda em negociação</p>
+              </div>
+              <Activity className="h-5 w-5 text-[#2854DF]" />
+            </div>
+            <p className="mt-6 text-5xl font-bold tracking-[-0.055em] text-[#151817] tabular-nums">{formatNumber(metrics.pipelineOpen)}</p>
+            <div className="mt-6 space-y-3 border-t border-[#EDF0EB] pt-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#6C716E]">Mensagens recebidas</span>
+                <strong className="font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.inboundMessages)}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#6C716E]">Leads atendidos</span>
+                <strong className="font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.contactedLeads)}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#6C716E]">Reuniões realizadas</span>
+                <strong className="font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.meetingsCompleted)}</strong>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Sales KPIs */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-slate-200">Vendas & Faturamento</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-[#151817]">O que aconteceu no período</h2>
+              <p className="mt-0.5 text-xs text-[#6C716E]">Cada indicador vem de um evento real registrado no sistema.</p>
+            </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard
-              title="Faturamento"
-              value={formatMoney(currentMetrics.faturamento)}
-              rawValue={currentMetrics.faturamento}
-              colorVariant="amber"
-              delta={calcDelta(currentMetrics.faturamento, prevMetrics?.faturamento ?? null)}
+              title="Novos leads"
+              value={formatNumber(metrics.newLeads)}
+              subtitle="Criados automaticamente no CRM"
+              icon={<UserRoundPlus className="h-4 w-4" />}
+              colorVariant="blue"
+              delta={calcDelta(metrics.newLeads, previous?.newLeads ?? null)}
+            />
+            <KpiCard
+              title="Conversas recebidas"
+              value={formatNumber(metrics.inboundMessages)}
+              subtitle="Mensagens inbound do WhatsApp"
+              icon={<MessageCircleMore className="h-4 w-4" />}
+              colorVariant="blue"
+              delta={calcDelta(metrics.inboundMessages, previous?.inboundMessages ?? null)}
+            />
+            <KpiCard
+              title="Reuniões agendadas"
+              value={formatNumber(metrics.meetingsScheduled)}
+              subtitle="Eventos vinculados a leads"
+              icon={<CalendarCheck2 className="h-4 w-4" />}
+              colorVariant="default"
+              delta={calcDelta(metrics.meetingsScheduled, previous?.meetingsScheduled ?? null)}
             />
             <KpiCard
               title="Vendas fechadas"
-              value={formatNum(currentMetrics.vendasQtd)}
-              rawValue={currentMetrics.vendasQtd}
+              value={formatNumber(metrics.salesCount)}
+              subtitle="Entrada na etapa Fechados"
+              icon={<CircleCheckBig className="h-4 w-4" />}
               colorVariant="amber"
-              delta={calcDelta(currentMetrics.vendasQtd, prevMetrics?.vendasQtd ?? null)}
-            />
-            <KpiCard
-              title="Taxa lead→venda"
-              value={`${taxaLeadVenda.toFixed(1)}%`}
-              colorVariant="amber"
-              subtitle="Vendas / Leads WA"
-            />
-            <KpiCard
-              title="CAC médio"
-              value={formatMoney(cac)}
-              colorVariant="amber"
-              delta={calcDelta(cac, prevCac)}
+              delta={calcDelta(metrics.salesCount, previous?.salesCount ?? null)}
             />
           </div>
         </section>
 
-        {/* SDR KPIs */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-slate-200">Métricas SDR</h2>
-            <span className="text-[11px] text-indigo-400 font-medium uppercase tracking-wider">Reuniões & Leads</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <KpiCard
-              title="Leads WhatsApp"
-              value={formatNum(sdr.leadsWhatsapp)}
-              colorVariant="blue"
-              delta={calcDelta(sdr.leadsWhatsapp, prevSdrTotals?.leadsWhatsapp ?? null)}
-            />
-            <KpiCard
-              title="Agendadas"
-              value={formatNum(sdr.agendadas)}
-              colorVariant="blue"
-              delta={calcDelta(sdr.agendadas, prevSdrTotals?.agendadas ?? null)}
-            />
-            <KpiCard
-              title="Realizadas"
-              value={formatNum(sdr.realizadas)}
-              colorVariant="blue"
-              delta={calcDelta(sdr.realizadas, prevSdrTotals?.realizadas ?? null)}
-            />
-            <KpiCard
-              title="Faltas"
-              value={formatNum(sdr.faltaLead)}
-              colorVariant="red"
-              delta={calcDelta(sdr.faltaLead, prevSdrTotals?.faltaLead ?? null)}
-            />
-            <KpiCard
-              title="Não realizadas"
-              value={formatNum(sdr.naoRealizada)}
-              colorVariant="red"
-              delta={calcDelta(sdr.naoRealizada, prevSdrTotals?.naoRealizada ?? null)}
-            />
-          </div>
-        </section>
-
-
-        {/* Reuniões — status rápido */}
-        {(() => {
-          const range = getDateRange(period, customRange)
-          return <MeetingsStatusCard start={range.start} end={range.end} />
-        })()}
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="mf-card rounded-2xl p-5">
-            <h3 className="text-sm font-semibold text-slate-200 mb-1">Funil de conversão</h3>
-            <p className="text-xs text-slate-500 mb-4">WA → Agendadas → Realizadas → Vendas</p>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-[#151817]">Saúde das reuniões</h2>
+                <p className="mt-1 text-xs text-[#6C716E]">Status calculado a partir da Agenda.</p>
+              </div>
+              <Target className="h-5 w-5 text-[#2854DF]" />
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-[#EDF0EB]">
+              <div className="pr-4">
+                <p className="text-2xl font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.meetingsCompleted)}</p>
+                <p className="mt-1 text-xs text-[#6C716E]">Realizadas</p>
+              </div>
+              <div className="px-4">
+                <p className="text-2xl font-semibold text-[#BC4C4B] tabular-nums">{formatNumber(metrics.meetingsNoShow)}</p>
+                <p className="mt-1 text-xs text-[#6C716E]">Faltas</p>
+              </div>
+              <div className="pl-4">
+                <p className="text-2xl font-semibold text-[#2854DF] tabular-nums">{metrics.meetingShowRate.toFixed(1)}%</p>
+                <p className="mt-1 text-xs text-[#6C716E]">Comparecimento</p>
+              </div>
+            </div>
+            {metrics.meetingsNotHeld > 0 && (
+              <p className="mt-5 flex items-center gap-1.5 rounded-xl bg-[#FFF7ED] px-3 py-2 text-xs text-[#9A5B16]">
+                <CircleAlert className="h-3.5 w-3.5" />
+                {formatNumber(metrics.meetingsNotHeld)} reunião(ões) marcada(s) como não realizada(s).
+              </p>
+            )}
+          </div>
+
+          <div className="mf-card rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-[#151817]">Qualidade do registro</h2>
+                <p className="mt-1 text-xs text-[#6C716E]">O painel só soma valores confirmados.</p>
+              </div>
+              <UserRoundCheck className="h-5 w-5 text-[#35A66F]" />
+            </div>
+            <div className="mt-6 rounded-2xl bg-[#F5FBF7] p-4">
+              <p className="text-3xl font-bold tracking-[-0.04em] text-[#1C573A] tabular-nums">{formatNumber(metrics.salesWithoutValue)}</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#467359]">
+                venda(s) fechada(s) sem valor informado. Elas entram na quantidade de vendas, mas não no faturamento.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.85fr_1.35fr]">
+          <div className="mf-card rounded-2xl p-5">
+            <h2 className="text-base font-semibold text-[#151817]">Funil de conversão</h2>
+            <p className="mb-4 mt-1 text-xs text-[#6C716E]">Leads novos → Agenda → Realizadas → Fechadas</p>
             <FunnelChart
-              leadsWhatsapp={sdr.leadsWhatsapp}
-              agendadas={sdr.agendadas}
-              realizadas={sdr.realizadas}
-              vendas={currentMetrics.vendasQtd}
+              novosLeads={metrics.newLeads}
+              agendadas={metrics.meetingsScheduled}
+              realizadas={metrics.meetingsCompleted}
+              vendas={metrics.salesCount}
             />
           </div>
           <div className="mf-card rounded-2xl p-5">
-            <h3 className="text-sm font-semibold text-slate-200 mb-1">Evolução diária</h3>
-            <p className="text-xs text-slate-500 mb-4">Leads, agendamentos e realizações por dia</p>
-            <DailyLineChart data={buildDailyChartData(sdrLogs, currentData?.agenda)} />
+            <h2 className="text-base font-semibold text-[#151817]">Evolução diária</h2>
+            <p className="mb-4 mt-1 text-xs text-[#6C716E]">Novos leads, agenda, reuniões realizadas e vendas.</p>
+            <DailyLineChart data={currentData?.daily ?? []} />
           </div>
-        </div>
+        </section>
 
+        <section className="mf-card rounded-2xl p-5">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#151817]">Mapa atual do pipeline</h2>
+              <p className="mt-1 text-xs text-[#6C716E]">Fotografia em tempo real das colunas do Kanban de leads.</p>
+            </div>
+            <span className="rounded-full bg-[#F2F3F0] px-2.5 py-1 text-xs font-semibold text-[#526158]">{formatNumber(pipeline.length)} etapas</span>
+          </div>
+          {pipeline.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#6C716E]">As etapas do CRM aparecerão aqui assim que o pipeline for carregado.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {pipeline.map((stage) => (
+                <div key={stage.id} className="rounded-xl border border-[#E8ECE7] bg-[#FBFCFA] p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#262B28]">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: stage.color }} />
+                      <span className="truncate">{stage.name}</span>
+                    </span>
+                    <strong className="text-sm text-[#151817] tabular-nums">{formatNumber(stage.total)}</strong>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#E9EEE9]">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-500"
+                      style={{ width: `${(stage.total / maxPipelineStage) * 100}%`, backgroundColor: stage.color }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#7E8681]">{stage.isClosed ? 'Vendas confirmadas' : 'Leads na etapa'}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )

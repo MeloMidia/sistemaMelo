@@ -50,6 +50,7 @@ export function useCreateLead() {
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
       qc.invalidateQueries({ queryKey: ['crm-conversations'] })
       qc.invalidateQueries({ queryKey: ['crm-leads-lite'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -66,7 +67,10 @@ export function useCreateStage() {
       if (!res.ok) throw new Error('Failed to create stage')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -79,7 +83,10 @@ export function useDeleteStage() {
       if (!res.ok) throw new Error(data.error || 'Failed to delete stage')
       return data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -95,7 +102,10 @@ export function useUpdateStage() {
       if (!res.ok) throw new Error('Failed to update stage')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -127,7 +137,10 @@ export function useMoveAllLeads() {
       if (!res.ok) throw new Error('Failed to move leads')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 
@@ -251,6 +264,7 @@ export function useUpdateLead() {
       })
     },
     onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       if (variables.temperature !== undefined) {
         qc.invalidateQueries({ queryKey: ['agenda-events'] })
       }
@@ -289,6 +303,7 @@ export function useSendMessage(leadId: string | null) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -310,6 +325,7 @@ export function useSendAudioMessage(leadId: string | null) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -331,6 +347,7 @@ export function useSendMediaMessage(leadId: string | null) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -724,6 +741,7 @@ export function useCrmStream() {
           qc.invalidateQueries({ queryKey: ['crm-stages'] })
           qc.invalidateQueries({ queryKey: ['crm-by-label'] })
           qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+          qc.invalidateQueries({ queryKey: ['dashboard'] })
           if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
         } else if (event.type === 'message-status') {
           qc.invalidateQueries({ queryKey: ['crm-conversations'] })

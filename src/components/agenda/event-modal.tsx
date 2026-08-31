@@ -12,19 +12,10 @@ import {
   useDeleteAgendaEventSeries,
   useEventCategories,
 } from '@/hooks/agenda-api'
-import { useLeadsLite } from '@/hooks/crm-api'
+import { useLeadsLite, useStages, useUpdateLead } from '@/hooks/crm-api'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 import { WEEKDAY_LABELS } from '@/lib/agenda-date'
-import { addSaleMetric } from '@/app/actions/metrics'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
-
-const STATUS_OPTIONS: { value: AgendaEventStatus; label: string }[] = [
-  { value: 'AGENDADA', label: 'Agendada' },
-  { value: 'REALIZADA', label: 'Realizada' },
-  { value: 'FALTA', label: 'Falta' },
-  { value: 'NAO_REALIZADA', label: 'Não realizada' },
-  { value: 'CANCELADA', label: 'Cancelada' },
-]
 
 interface EventModalProps {
   mode: 'create' | 'edit'
@@ -71,6 +62,8 @@ export function EventModal({
 }: EventModalProps) {
   const { data: categories } = useEventCategories()
   const { data: leads } = useLeadsLite()
+  const { data: stages } = useStages()
+  const updateLead = useUpdateLead()
   const createEvent = useCreateAgendaEvent()
   const updateEvent = useUpdateAgendaEvent()
   const deleteEvent = useDeleteAgendaEvent()
@@ -145,42 +138,6 @@ export function EventModal({
     })
   }
 
-  useEffect(() => {
-    if (mode !== 'create' || !leadId || !leads) return
-    const lead = leads.find((l) => l.id === leadId)
-    const note = lead?.notes ?? ''
-    if (note && (description === '' || description === autoFilledNote)) {
-      setDescription(note)
-      setAutoFilledNote(note)
-    }
-  }, [leadId, leads]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!categoryId || !categories) return
-    const cat = categories.find((c) => c.id === categoryId)
-    if (!cat) return
-    const n = cat.name.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    if (n.includes('nao realizada') || n.includes('nao-realizada')) {
-      setStatus('NAO_REALIZADA')
-    } else if (n.includes('falta')) {
-      setStatus('FALTA')
-    } else if (n.includes('realizada')) {
-      setStatus('REALIZADA')
-    } else if (n.includes('cancelada')) {
-      setStatus('CANCELADA')
-    } else {
-      setStatus('AGENDADA')
-    }
-  }, [categoryId, categories])
-
-  // Reset sale question when status leaves REALIZADA
-  useEffect(() => {
-    if (status !== 'REALIZADA') {
-      setConvertedToSale(null)
-      setSaleValue('')
-    }
-  }, [status])
-
   // Fire confetti when celebration activates
   useEffect(() => {
     if (!showCelebration) return
@@ -213,12 +170,45 @@ export function EventModal({
 
   function handleLeadIdChange(value: string) {
     setLeadId(value)
-    if (!value) setStatus('AGENDADA')
+    if (!value) {
+      setStatus('AGENDADA')
+      setConvertedToSale(null)
+      setSaleValue('')
+      return
+    }
+
+    if (mode !== 'create') return
+    const note = leads?.find((lead) => lead.id === value)?.notes ?? ''
+    if (note && (description === '' || description === autoFilledNote)) {
+      setDescription(note)
+      setAutoFilledNote(note)
+    }
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategoryId(value)
+    const category = categories?.find((item) => item.id === value)
+    const normalized = category?.name.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '') ?? ''
+    const nextStatus: AgendaEventStatus = normalized.includes('nao realizada') || normalized.includes('nao-realizada')
+      ? 'NAO_REALIZADA'
+      : normalized.includes('falta')
+        ? 'FALTA'
+        : normalized.includes('realizada')
+          ? 'REALIZADA'
+          : normalized.includes('cancelada')
+            ? 'CANCELADA'
+            : 'AGENDADA'
+
+    setStatus(nextStatus)
+    if (nextStatus !== 'REALIZADA') {
+      setConvertedToSale(null)
+      setSaleValue('')
+    }
   }
 
   const isPending =
     createEvent.isPending || updateEvent.isPending || deleteEvent.isPending ||
-    createSeries.isPending || updateSeries.isPending || deleteSeries.isPending
+    createSeries.isPending || updateSeries.isPending || deleteSeries.isPending || updateLead.isPending
 
   function buildIso(time: string): string {
     return new Date(`${dateValue}T${time}:00`).toISOString()
@@ -228,10 +218,22 @@ export function EventModal({
     if (showSaleQuestion && convertedToSale === true && saleValue) {
       const val = parseFloat(saleValue.replace(',', '.'))
       if (!isNaN(val) && val > 0) {
-        await addSaleMetric(val)
-        setCelebrationValue(val)
-        setShowCelebration(true)
-        return
+        const closedStage = stages?.find((stage) => stage.name.trim().toLocaleLowerCase('pt-BR') === 'fechados')
+        if (!leadId || !closedStage) {
+          setError(!leadId
+            ? 'Vincule um lead para registrar a venda.'
+            : 'A etapa Fechados não foi encontrada no pipeline.')
+          return
+        }
+        try {
+          await updateLead.mutateAsync({ id: leadId, stageId: closedStage.id, value: val })
+          setCelebrationValue(val)
+          setShowCelebration(true)
+          return
+        } catch (error) {
+          setError(error instanceof Error ? error.message : 'Não foi possível registrar a venda no CRM.')
+          return
+        }
       }
     }
     onClose()
@@ -258,8 +260,12 @@ export function EventModal({
       setError('Informe o valor da venda')
       return
     }
+    if (showSaleQuestion && convertedToSale === true && !leadId) {
+      setError('Vincule o lead antes de registrar uma venda')
+      return
+    }
 
-    const payload = { title: title.trim(), description: description.trim() || null, startsAt, endsAt, categoryId: categoryId || null, leadId: leadId || null }
+    const payload = { title: title.trim(), description: description.trim() || null, startsAt, endsAt, categoryId: categoryId || null, leadId: leadId || null, status }
 
     if (mode === 'create' && repeatOn) {
       if (repeatWeekdays.size === 0) {
@@ -479,7 +485,7 @@ export function EventModal({
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Categoria</label>
             <select
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
             >
               <option value="" className="bg-[#0c0e17]">Sem categoria</option>
@@ -707,7 +713,7 @@ export function EventModal({
                 <p className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-emerald-400">
                   R$ {celebrationValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">adicionado ao faturamento do dashboard</p>
+                <p className="text-xs text-slate-400 mt-1">incluído automaticamente no painel</p>
               </div>
               <button
                 type="button"

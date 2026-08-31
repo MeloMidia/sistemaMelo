@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { isClosedCrmStage } from '@/lib/crm-pipeline'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -14,9 +15,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'toStageId inválido' }, { status: 400 })
   }
 
+  const targetStage = await prisma.leadStage.findUnique({
+    where: { id: toStageId },
+    select: { name: true },
+  })
+  if (!targetStage) {
+    return NextResponse.json({ error: 'Etapa de destino não encontrada' }, { status: 404 })
+  }
+
   const result = await prisma.lead.updateMany({
     where: { stageId: fromStageId },
-    data: { stageId: toStageId },
+    data: {
+      stageId: toStageId,
+      closedAt: isClosedCrmStage(targetStage.name) ? new Date() : null,
+    },
   })
 
   return NextResponse.json({ count: result.count })

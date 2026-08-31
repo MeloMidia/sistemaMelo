@@ -4,7 +4,7 @@ import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface FunnelChartProps {
-  leadsWhatsapp: number
+  novosLeads: number
   agendadas: number
   realizadas: number
   vendas: number
@@ -12,15 +12,15 @@ interface FunnelChartProps {
 
 const COLORS = ['#277C91', '#4A9B8F', '#8ABFA2', '#B7791F']
 
-export function FunnelChart({ leadsWhatsapp, agendadas, realizadas, vendas }: FunnelChartProps) {
+export function FunnelChart({ novosLeads, agendadas, realizadas, vendas }: FunnelChartProps) {
   const data = [
-    { name: 'Leads WA', value: leadsWhatsapp },
+    { name: 'Novos leads', value: novosLeads },
     { name: 'Agendadas', value: agendadas },
     { name: 'Realizadas', value: realizadas },
     { name: 'Vendas', value: vendas },
   ]
 
-  if (leadsWhatsapp === 0 && agendadas === 0 && realizadas === 0 && vendas === 0) {
+  if (novosLeads === 0 && agendadas === 0 && realizadas === 0 && vendas === 0) {
     return (
       <div className="flex items-center justify-center h-44 text-slate-500 text-sm">
         Nenhum dado no período

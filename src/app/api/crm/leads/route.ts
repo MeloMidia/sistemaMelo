@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { normalizePhone } from '@/lib/phone'
-import { ensureCrmPipeline } from '@/lib/crm-pipeline'
+import { ensureCrmPipeline, isClosedCrmStage } from '@/lib/crm-pipeline'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -31,12 +31,17 @@ export async function POST(request: Request) {
 
   const entryStage = await ensureCrmPipeline()
   const requestedStageId = typeof body.stageId === 'string' ? body.stageId : entryStage.id
-  const stage = await prisma.leadStage.findUnique({ where: { id: requestedStageId }, select: { id: true } })
+  const stage = await prisma.leadStage.findUnique({ where: { id: requestedStageId }, select: { id: true, name: true } })
   if (!stage) return NextResponse.json({ error: 'A etapa selecionada não existe.' }, { status: 400 })
 
   try {
     const lead = await prisma.lead.create({
-      data: { name, phone, stageId: stage.id },
+      data: {
+        name,
+        phone,
+        stageId: stage.id,
+        ...(isClosedCrmStage(stage.name) && { closedAt: new Date() }),
+      },
       include: {
         assignedTo: { select: { id: true, name: true } },
         tags: { include: { tag: true } },

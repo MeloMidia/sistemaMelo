@@ -20,7 +20,7 @@ export function useAgendaEvents(start: Date, end: Date) {
 export function useCreateAgendaEvent() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (data: { title: string; description?: string | null; startsAt: string; endsAt: string; categoryId?: string | null; leadId?: string | null }) => {
+    mutationFn: async (data: { title: string; description?: string | null; startsAt: string; endsAt: string; categoryId?: string | null; leadId?: string | null; status?: AgendaEventStatus }) => {
       const res = await fetch('/api/agenda/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

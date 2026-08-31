@@ -15,24 +15,26 @@ import { formatDateLabel } from '@/lib/date-range'
 
 interface DayPoint {
   date: Date | string
-  leadsWhatsapp: number
+  novosLeads: number
   agendadas: number
   realizadas: number
-  naoRealizada: number
+  faltas: number
+  vendas: number
 }
 
 interface DailyLineChartProps {
   data: DayPoint[]
 }
 
-type FilterKey = 'all' | 'agendadas' | 'leadswa' | 'realizadas' | 'faltas'
+type FilterKey = 'all' | 'agendadas' | 'novos-leads' | 'realizadas' | 'faltas' | 'vendas'
 
 const FILTERS: { key: FilterKey; label: string; color: string }[] = [
-  { key: 'all',       label: 'Todas',      color: '#6C716E' },
-  { key: 'agendadas', label: 'Agendadas',  color: '#2854DF' },
-  { key: 'leadswa',   label: 'Leads WA',   color: '#5E82F2' },
-  { key: 'realizadas',label: 'Realizadas', color: '#16805D' },
-  { key: 'faltas',    label: 'Faltas',     color: '#BC4C4B' },
+  { key: 'all',         label: 'Todas',       color: '#6C716E' },
+  { key: 'novos-leads', label: 'Novos leads',  color: '#5E82F2' },
+  { key: 'agendadas',   label: 'Agendadas',    color: '#2854DF' },
+  { key: 'realizadas',  label: 'Realizadas',   color: '#16805D' },
+  { key: 'faltas',      label: 'Faltas',       color: '#BC4C4B' },
+  { key: 'vendas',      label: 'Vendas',       color: '#C98720' },
 ]
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,10 +56,11 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
 
   const chartData = data.map(d => ({
     date: formatDateLabel(d.date),
-    'Leads WA': d.leadsWhatsapp,
+    'Novos leads': d.novosLeads,
     Agendadas: d.agendadas,
     Realizadas: d.realizadas,
-    Faltas: d.naoRealizada,
+    Faltas: d.faltas,
+    Vendas: d.vendas,
   }))
 
   const show = (key: FilterKey) => filter === 'all' || filter === key
@@ -101,7 +104,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
 
       {data.length === 0 ? (
           <div className="flex items-center justify-center h-52 text-[#6C716E] text-sm">
-          Nenhum lançamento no período selecionado
+          Nenhuma movimentação no período selecionado
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
@@ -139,10 +142,10 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
             />
             <Legend content={<CustomLegend />} />
 
-            {show('leadswa') && (
+            {show('novos-leads') && (
               <Line
                 type="monotone"
-                dataKey="Leads WA"
+                dataKey="Novos leads"
                 stroke="#5E82F2"
                 strokeWidth={2.5}
                 dot={false}
@@ -178,6 +181,16 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0 }}
                 strokeDasharray="5 3"
+              />
+            )}
+            {show('vendas') && (
+              <Line
+                type="monotone"
+                dataKey="Vendas"
+                stroke="#C98720"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
               />
             )}
           </LineChart>

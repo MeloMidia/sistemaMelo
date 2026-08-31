@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { isClosedCrmStage } from '@/lib/crm-pipeline'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -36,11 +37,33 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const followUpChanged = followUpColumn !== undefined
 
   try {
+    const currentLead = stageId !== undefined
+      ? await prisma.lead.findUnique({ where: { id }, select: { stageId: true } })
+      : null
+
+    if (stageId !== undefined && !currentLead) {
+      return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+    }
+
+    const targetStage = stageId && stageId !== currentLead?.stageId
+      ? await prisma.leadStage.findUnique({ where: { id: stageId }, select: { name: true } })
+      : null
+
+    if (stageId !== undefined && stageId !== null && stageId !== currentLead?.stageId && !targetStage) {
+      return NextResponse.json({ error: 'A etapa informada não existe' }, { status: 400 })
+    }
+
+    const stageChanged = stageId !== undefined && stageId !== currentLead?.stageId
+    const closingUpdate = stageChanged
+      ? { closedAt: isClosedCrmStage(targetStage?.name) ? new Date() : null }
+      : {}
+
     const lead = await prisma.lead.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(stageId !== undefined && { stageId }),
+        ...closingUpdate,
         ...(assignedToId !== undefined && { assignedToId }),
         ...(value !== undefined && { value }),
         ...(temperature !== undefined && { temperature }),

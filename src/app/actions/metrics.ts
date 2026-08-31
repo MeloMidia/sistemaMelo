@@ -1,99 +1,174 @@
 'use server'
 
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isClosedCrmStage } from '@/lib/crm-pipeline'
+import { normalizeDateToBrazilDay } from '@/lib/date-range'
 import { prisma } from '@/lib/prisma'
 
-export async function getDashboardData(startDate?: Date, endDate?: Date) {
-  const where =
-    startDate && endDate
-      ? { date: { gte: new Date(startDate), lte: new Date(endDate) } }
-      : {}
+type DashboardDateRange = { start: Date; end: Date }
+type DailyPoint = {
+  date: Date
+  novosLeads: number
+  agendadas: number
+  realizadas: number
+  faltas: number
+  vendas: number
+}
 
-  const metrics = await prisma.dashboardMetric.findMany({ where })
-  const goal = await prisma.dashboardGoal.findFirst()
+function toValidRange(startDate?: Date, endDate?: Date): DashboardDateRange {
+  const end = endDate ? new Date(endDate) : new Date()
+  const start = startDate ? new Date(startDate) : new Date(end)
 
-  const aggregated = metrics.reduce(
-    (acc, curr) => ({
-      leadsTrafego: acc.leadsTrafego + curr.leadsTrafego,
-      leadsIndicacao: acc.leadsIndicacao + curr.leadsIndicacao,
-      reunioesAgendadas: acc.reunioesAgendadas + curr.reunioesAgendadas,
-      reunioesRealizadas: acc.reunioesRealizadas + curr.reunioesRealizadas,
-      vendasQtd: acc.vendasQtd + curr.vendasQtd,
-      faturamento: acc.faturamento + curr.faturamento,
-      investimentoTrafego: acc.investimentoTrafego + curr.investimentoTrafego,
-    }),
-    {
-      leadsTrafego: 0,
-      leadsIndicacao: 0,
-      reunioesAgendadas: 0,
-      reunioesRealizadas: 0,
-      vendasQtd: 0,
-      faturamento: 0,
-      investimentoTrafego: 0,
-    }
-  )
-
-  let currentGoal = goal
-  if (!currentGoal) {
-    try {
-      currentGoal = await prisma.dashboardGoal.create({ data: {} })
-    } catch {
-      currentGoal = await prisma.dashboardGoal.findFirst()
-    }
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error('Período inválido para o dashboard.')
   }
 
-  return { metrics: aggregated, goals: currentGoal! }
+  return start <= end ? { start, end } : { start: end, end: start }
 }
 
-export async function addDashboardMetric(data: {
-  leadsTrafego: number
-  leadsIndicacao: number
-  reunioesAgendadas: number
-  reunioesRealizadas: number
-  vendasQtd: number
-  faturamento: number
-  investimentoTrafego: number
-}) {
-  const newMetric = await prisma.dashboardMetric.create({
-    data: {
-      leadsTrafego: Number(data.leadsTrafego),
-      leadsIndicacao: Number(data.leadsIndicacao),
-      reunioesAgendadas: Number(data.reunioesAgendadas),
-      reunioesRealizadas: Number(data.reunioesRealizadas),
-      vendasQtd: Number(data.vendasQtd),
-      faturamento: Number(data.faturamento),
-      investimentoTrafego: Number(data.investimentoTrafego),
+function addToDay(
+  days: Map<string, DailyPoint>,
+  date: Date,
+  field: Exclude<keyof DailyPoint, 'date'>
+) {
+  const day = normalizeDateToBrazilDay(date)
+  const key = day.toISOString()
+  const entry: DailyPoint = days.get(key) ?? {
+    date: day,
+    novosLeads: 0,
+    agendadas: 0,
+    realizadas: 0,
+    faltas: 0,
+    vendas: 0,
+  }
+
+  entry[field] += 1
+  days.set(key, entry)
+}
+
+/**
+ * Consolida somente eventos reais da operação: CRM, WhatsApp e Agenda.
+ * DashboardMetric e SdrDailyLog ficam preservados como legado, mas não entram
+ * mais na visualização comercial para evitar qualquer lançamento manual.
+ */
+export async function getDashboardData(startDate?: Date, endDate?: Date) {
+  const session = await getServerSession(authOptions)
+  if (!session) throw new Error('Unauthorized')
+
+  const { start, end } = toValidRange(startDate, endDate)
+  const inRange = { gte: start, lte: end }
+
+  const [createdLeads, closedLeads, events, messageCounts, contactedLeads, stages] = await Promise.all([
+    prisma.lead.findMany({
+      where: { createdAt: inRange },
+      select: { createdAt: true },
+    }),
+    prisma.lead.findMany({
+      where: { closedAt: inRange },
+      select: { closedAt: true, value: true },
+    }),
+    prisma.agendaEvent.findMany({
+      where: {
+        leadId: { not: null },
+        startsAt: inRange,
+      },
+      select: { startsAt: true, status: true },
+    }),
+    prisma.message.groupBy({
+      by: ['direction'],
+      where: {
+        createdAt: inRange,
+        NOT: { whatsappMessageId: { startsWith: 'note-' } },
+      },
+      _count: { _all: true },
+    }),
+    prisma.message.findMany({
+      where: {
+        direction: 'OUTBOUND',
+        createdAt: inRange,
+        NOT: { whatsappMessageId: { startsWith: 'note-' } },
+      },
+      distinct: ['leadId'],
+      select: { leadId: true },
+    }),
+    prisma.leadStage.findMany({
+      orderBy: { order: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        _count: { select: { leads: true } },
+      },
+    }),
+  ])
+
+  const days = new Map<string, DailyPoint>()
+
+  for (const lead of createdLeads) addToDay(days, lead.createdAt, 'novosLeads')
+
+  let meetingsScheduled = 0
+  let meetingsCompleted = 0
+  let meetingsNoShow = 0
+  let meetingsNotHeld = 0
+  for (const event of events) {
+    if (event.status === 'CANCELADA') continue
+
+    meetingsScheduled += 1
+    addToDay(days, event.startsAt, 'agendadas')
+    if (event.status === 'REALIZADA') {
+      meetingsCompleted += 1
+      addToDay(days, event.startsAt, 'realizadas')
+    }
+    if (event.status === 'FALTA') {
+      meetingsNoShow += 1
+      addToDay(days, event.startsAt, 'faltas')
+    }
+    if (event.status === 'NAO_REALIZADA') meetingsNotHeld += 1
+  }
+
+  let revenue = 0
+  let salesWithoutValue = 0
+  for (const sale of closedLeads) {
+    if (sale.closedAt) addToDay(days, sale.closedAt, 'vendas')
+    if (typeof sale.value === 'number' && Number.isFinite(sale.value)) revenue += sale.value
+    else salesWithoutValue += 1
+  }
+
+  const inboundMessages = messageCounts.find((item) => item.direction === 'INBOUND')?._count._all ?? 0
+  const outboundMessages = messageCounts.find((item) => item.direction === 'OUTBOUND')?._count._all ?? 0
+  const salesCount = closedLeads.length
+  const newLeads = createdLeads.length
+  const closedStageIds = new Set(stages.filter((stage) => isClosedCrmStage(stage.name)).map((stage) => stage.id))
+
+  return {
+    period: { start, end },
+    generatedAt: new Date(),
+    metrics: {
+      newLeads,
+      inboundMessages,
+      outboundMessages,
+      contactedLeads: contactedLeads.length,
+      meetingsScheduled,
+      meetingsCompleted,
+      meetingsNoShow,
+      meetingsNotHeld,
+      salesCount,
+      revenue,
+      salesWithoutValue,
+      leadToSaleRate: newLeads > 0 ? (salesCount / newLeads) * 100 : 0,
+      meetingShowRate: meetingsScheduled > 0 ? (meetingsCompleted / meetingsScheduled) * 100 : 0,
+      pipelineOpen: stages
+        .filter((stage) => !closedStageIds.has(stage.id))
+        .reduce((total, stage) => total + stage._count.leads, 0),
     },
-  })
-  return { success: true, metric: newMetric }
-}
-
-export async function overwriteDashboardMetrics(data: {
-  leadsTrafego: number
-  leadsIndicacao: number
-  reunioesAgendadas: number
-  reunioesRealizadas: number
-  vendasQtd: number
-  faturamento: number
-  investimentoTrafego: number
-}) {
-  await prisma.dashboardMetric.deleteMany()
-  const newMetric = await prisma.dashboardMetric.create({
-    data: {
-      leadsTrafego: Number(data.leadsTrafego),
-      leadsIndicacao: Number(data.leadsIndicacao),
-      reunioesAgendadas: Number(data.reunioesAgendadas),
-      reunioesRealizadas: Number(data.reunioesRealizadas),
-      vendasQtd: Number(data.vendasQtd),
-      faturamento: Number(data.faturamento),
-      investimentoTrafego: Number(data.investimentoTrafego),
-    },
-  })
-  return { success: true, metric: newMetric }
-}
-
-export async function addSaleMetric(value: number) {
-  await prisma.dashboardMetric.create({
-    data: { vendasQtd: 1, faturamento: Number(value) },
-  })
-  return { success: true }
+    daily: Array.from(days.values()).sort((a, b) => a.date.getTime() - b.date.getTime()),
+    pipeline: stages.map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      color: stage.color,
+      total: stage._count.leads,
+      isClosed: closedStageIds.has(stage.id),
+    })),
+  }
 }

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title, description, startsAt, endsAt, categoryId, leadId } = await request.json()
+  const { title, description, startsAt, endsAt, categoryId, leadId, status } = await request.json()
   if (!title || !startsAt || !endsAt) {
     return NextResponse.json({ error: 'Título, início e fim são obrigatórios' }, { status: 400 })
   }
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
         endsAt: end,
         categoryId: categoryId || null,
         leadId: leadId || null,
+        ...(status !== undefined && { status }),
       },
       include: {
         category: true,

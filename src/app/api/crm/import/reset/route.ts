@@ -19,7 +19,7 @@ export async function POST() {
   if (!firstStage) return NextResponse.json({ error: 'Nenhum stage encontrado' }, { status: 500 })
 
   const { count: leadsReset } = await prisma.lead.updateMany({
-    data: { stageId: firstStage.id },
+    data: { stageId: firstStage.id, closedAt: null },
   })
 
   return NextResponse.json({ leadsReset, tagsRemoved, resetTo: firstStage.name })
