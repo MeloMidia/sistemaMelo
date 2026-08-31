@@ -141,6 +141,7 @@ model Lead {
   followUpMovedAt  DateTime?
   closedAt         DateTime?
   lastReadAt       DateTime?
+  stageEnteredAt   DateTime?
   messages         Message[]
   tags             LeadTag[]
   events           AgendaEvent[]
@@ -153,6 +154,7 @@ model Lead {
 
   @@index([closedAt])
   @@index([createdAt])
+  @@index([stageEnteredAt])
 }
 
 model FollowUpLog {

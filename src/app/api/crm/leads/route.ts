@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         name,
         phone,
         stageId: stage.id,
+        stageEnteredAt: new Date(),
         ...(isClosedCrmStage(stage.name) && { closedAt: new Date() }),
       },
       include: {

@@ -363,7 +363,14 @@ export async function applyLabelAssociation(data: unknown) {
       const currentPriority = STAGE_PRIORITY[currentStage?.name ?? ''] ?? 0
       const newPriority = STAGE_PRIORITY[targetStageName] ?? 0
       if (newPriority > currentPriority) {
-        await prisma.lead.update({ where: { id: lead.id }, data: { stageId: targetStage.id } })
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            stageId: targetStage.id,
+            // Primeira entrada no funil (lead não tinha etapa antes da label).
+            ...(!lead.stageId && { stageEnteredAt: new Date() }),
+          },
+        })
       }
     }
   }

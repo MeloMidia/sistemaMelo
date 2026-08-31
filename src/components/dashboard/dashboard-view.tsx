@@ -8,7 +8,6 @@ import {
   CircleAlert,
   CircleCheckBig,
   Loader2,
-  MessageCircleMore,
   Radio,
   Target,
   UserRoundCheck,
@@ -204,10 +203,6 @@ export function DashboardView() {
             <p className="mt-6 text-5xl font-bold tracking-[-0.055em] text-[#151817] tabular-nums">{formatNumber(metrics.pipelineOpen)}</p>
             <div className="mt-6 space-y-3 border-t border-[#EDF0EB] pt-4">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#6C716E]">Mensagens recebidas</span>
-                <strong className="font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.inboundMessages)}</strong>
-              </div>
-              <div className="flex items-center justify-between text-xs">
                 <span className="text-[#6C716E]">Leads atendidos</span>
                 <strong className="font-semibold text-[#151817] tabular-nums">{formatNumber(metrics.contactedLeads)}</strong>
               </div>
@@ -226,22 +221,14 @@ export function DashboardView() {
               <p className="mt-0.5 text-xs text-[#6C716E]">Cada indicador vem de um evento real registrado no sistema.</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <KpiCard
               title="Novos leads"
               value={formatNumber(metrics.newLeads)}
-              subtitle="Criados automaticamente no CRM"
+              subtitle="Adicionados manualmente ao funil"
               icon={<UserRoundPlus className="h-4 w-4" />}
               colorVariant="blue"
               delta={calcDelta(metrics.newLeads, previous?.newLeads ?? null)}
-            />
-            <KpiCard
-              title="Conversas recebidas"
-              value={formatNumber(metrics.inboundMessages)}
-              subtitle="Mensagens inbound do WhatsApp"
-              icon={<MessageCircleMore className="h-4 w-4" />}
-              colorVariant="blue"
-              delta={calcDelta(metrics.inboundMessages, previous?.inboundMessages ?? null)}
             />
             <KpiCard
               title="Reuniões agendadas"

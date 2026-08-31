@@ -61,8 +61,8 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
 
   const [createdLeads, closedLeads, events, messageCounts, contactedLeads, stages] = await Promise.all([
     prisma.lead.findMany({
-      where: { createdAt: inRange },
-      select: { createdAt: true },
+      where: { stageEnteredAt: inRange },
+      select: { stageEnteredAt: true },
     }),
     prisma.lead.findMany({
       where: { closedAt: inRange },
@@ -105,7 +105,10 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
 
   const days = new Map<string, DailyPoint>()
 
-  for (const lead of createdLeads) addToDay(days, lead.createdAt, 'novosLeads')
+  // stageEnteredAt vem garantido não-nulo pelo filtro do where acima.
+  for (const lead of createdLeads) {
+    if (lead.stageEnteredAt) addToDay(days, lead.stageEnteredAt, 'novosLeads')
+  }
 
   let meetingsScheduled = 0
   let meetingsCompleted = 0

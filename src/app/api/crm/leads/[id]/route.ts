@@ -57,12 +57,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const closingUpdate = stageChanged
       ? { closedAt: isClosedCrmStage(targetStage?.name) ? new Date() : null }
       : {}
+    // Primeira entrada no funil: lead não tinha etapa e passou a ter.
+    // Não regrava se for só uma troca entre etapas já existentes.
+    const enteringFunnel = stageChanged && !currentLead?.stageId && !!stageId
 
     const lead = await prisma.lead.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(stageId !== undefined && { stageId }),
+        ...(enteringFunnel && { stageEnteredAt: new Date() }),
         ...closingUpdate,
         ...(assignedToId !== undefined && { assignedToId }),
         ...(value !== undefined && { value }),
