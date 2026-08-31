@@ -36,23 +36,23 @@ export function FunnelChart({ novosLeads, agendadas, realizadas, vendas }: Funne
           type="category"
           dataKey="name"
           width={82}
-          tick={{ fill: '#94a3b8', fontSize: 12 }}
+          tick={{ fill: 'var(--mf-muted)', fontSize: 12 }}
           axisLine={false}
           tickLine={false}
         />
         <Tooltip
-          cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+          cursor={{ fill: 'var(--mf-signal-soft)' }}
           contentStyle={{
-            background: '#0f111a',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--mf-surface)',
+            border: '1px solid var(--mf-line-strong)',
             borderRadius: 8,
           }}
-          labelStyle={{ color: '#e2e8f0', fontSize: 12 }}
-          itemStyle={{ color: '#94a3b8', fontSize: 12 }}
+          labelStyle={{ color: 'var(--mf-ink)', fontSize: 12 }}
+          itemStyle={{ color: 'var(--mf-muted)', fontSize: 12 }}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           formatter={(value: any) => [value, '']}
         />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#94a3b8', fontSize: 12 }}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: 'var(--mf-muted)', fontSize: 12 }}>
           {data.map((_, index) => (
             <Cell key={index} fill={COLORS[index]} />
           ))}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
@@ -54,6 +54,19 @@ export default function HomePage() {
   const [crmView, setCrmView]             = useState<CrmView>('inbox')
   const [theme, setTheme]                 = useState<'dark' | 'light'>('light')
   const { data: session } = useSession()
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = theme
+
+    let themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+    if (!themeColor) {
+      themeColor = document.createElement('meta')
+      themeColor.name = 'theme-color'
+      document.head.appendChild(themeColor)
+    }
+    themeColor.content = theme === 'dark' ? '#0e1211' : '#f5f6f3'
+  }, [theme])
 
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'

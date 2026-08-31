@@ -79,21 +79,21 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
               style={
                 isActive
                   ? {
-                      backgroundColor: opt.key === 'all' ? '#F2F3F0' : `${opt.color}18`,
-                      borderColor: opt.key === 'all' ? '#E6E8E3' : `${opt.color}50`,
-                      color: opt.key === 'all' ? '#151817' : opt.color,
+                      backgroundColor: opt.key === 'all' ? 'var(--mf-well)' : `color-mix(in srgb, ${opt.color} 14%, transparent)`,
+                      borderColor: opt.key === 'all' ? 'var(--mf-line)' : `color-mix(in srgb, ${opt.color} 45%, transparent)`,
+                      color: opt.key === 'all' ? 'var(--mf-ink)' : opt.color,
                     }
                   : {
                       backgroundColor: 'transparent',
                       borderColor: 'transparent',
-                      color: '#6C716E',
+                      color: 'var(--mf-muted)',
                     }
               }
             >
               {opt.key !== 'all' && (
                 <span
                   className="w-2 h-2 rounded-full inline-block shrink-0"
-                  style={{ backgroundColor: isActive ? opt.color : '#C5C9C5' }}
+                  style={{ backgroundColor: isActive ? opt.color : 'var(--mf-faint)' }}
                 />
               )}
               {opt.label}
@@ -111,34 +111,34 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
           <LineChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke="#E6E8E3"
+              stroke="var(--mf-line)"
               horizontal
               vertical={false}
             />
             <XAxis
               dataKey="date"
-              tick={{ fill: '#6C716E', fontSize: 11 }}
+              tick={{ fill: 'var(--mf-muted)', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fill: '#6C716E', fontSize: 11 }}
+              tick={{ fill: 'var(--mf-muted)', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={40}
             />
             <Tooltip
               contentStyle={{
-                background: '#FFFFFF',
-                border: '1px solid #E6E8E3',
+                background: 'var(--mf-surface)',
+                border: '1px solid var(--mf-line-strong)',
                 borderRadius: 10,
                 padding: '10px 14px',
-                boxShadow: '0 12px 28px rgba(23,49,40,0.10)',
+                boxShadow: 'var(--mf-shadow-float)',
               }}
-              labelStyle={{ color: '#151817', fontSize: 12, fontWeight: 600, marginBottom: 6 }}
-              itemStyle={{ fontSize: 12, color: '#6C716E' }}
-              cursor={{ stroke: '#B8C7FA', strokeWidth: 1, strokeDasharray: '4 2' }}
+              labelStyle={{ color: 'var(--mf-ink)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}
+              itemStyle={{ fontSize: 12, color: 'var(--mf-muted)' }}
+              cursor={{ stroke: 'var(--mf-signal)', strokeWidth: 1, strokeDasharray: '4 2' }}
             />
             <Legend content={<CustomLegend />} />
 
