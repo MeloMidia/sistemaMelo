@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const manrope = Manrope({
+const sora = localFont({
+  src: "./fonts/Sora-VariableFont_wght.ttf",
   variable: "--font-heading",
-  subsets: ["latin"],
+  weight: "100 800",
   display: "swap",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const inter = localFont({
+  src: "./fonts/Inter-VariableFont_opsz,wght.ttf",
   variable: "--font-mono-ui",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "100 900",
   display: "swap",
 });
 
@@ -27,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${manrope.variable} ${ibmPlexMono.variable} h-full`}>
+    <html lang="pt-BR" className={`${sora.variable} ${inter.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>
