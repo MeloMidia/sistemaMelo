@@ -18,8 +18,10 @@ export function isClosedCrmStage(name: string | null | undefined) {
 }
 
 /**
- * Mantém o CRM utilizável depois de uma limpeza de base: há sempre uma etapa
- * de entrada e leads legados sem etapa voltam a aparecer no quadro.
+ * Garante que o CRM sempre tem uma etapa de entrada ("Novos leads"), criando
+ * o pipeline padrão se a base estiver vazia. NÃO reatribui leads sem etapa —
+ * `stageId: null` é um estado válido (contato ainda fora do funil, aguardando
+ * ser adicionado manualmente).
  */
 export async function ensureCrmPipeline() {
   let entryStage = await prisma.leadStage.findFirst({
@@ -63,11 +65,6 @@ export async function ensureCrmPipeline() {
   }
 
   if (!entryStage) throw new Error('Não foi possível preparar o pipeline do CRM.')
-
-  await prisma.lead.updateMany({
-    where: { stageId: null },
-    data: { stageId: entryStage.id },
-  })
 
   return entryStage
 }

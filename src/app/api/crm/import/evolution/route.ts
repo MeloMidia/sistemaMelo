@@ -237,9 +237,8 @@ export async function POST() {
       }
     }
 
-    // ── 4. Stage padrão para novos leads ────────────────────────────────────
-    const defaultStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
-    if (!defaultStage) throw new Error('Nenhum LeadStage encontrado no CRM — crie pelo menos um.')
+    // Leads importados nascem sem etapa — só entram no funil quando alguém
+    // adicionar manualmente pela conversa (ver src/lib/crm-pipeline.ts).
 
     // ── 5. Importar chats → Lead ─────────────────────────────────────────────
     // Agrupar chats: remoteJid → phone (resolvido ou null)
@@ -291,7 +290,6 @@ export async function POST() {
               phone:   entry.phone,
               waLid:   entry.remoteJid,
               name:    entry.name,
-              stageId: defaultStage.id,
             },
           })
           waLidToLeadId.set(entry.remoteJid, lead.id)
@@ -347,7 +345,6 @@ export async function POST() {
             phone:   syntheticPhone,
             waLid:   chat.remoteJid,
             name:    pushName,
-            stageId: defaultStage.id,
           },
         })
         waLidToLeadId.set(chat.remoteJid, lead.id)

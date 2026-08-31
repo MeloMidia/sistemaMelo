@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
 import { fetchProfilePictureUrl } from '@/lib/evolution-client'
 import { LABEL_TO_STAGE, LABEL_ID_TO_STAGE, STAGE_PRIORITY } from '@/lib/wa-label-map'
-import { ensureCrmPipeline } from '@/lib/crm-pipeline'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -244,13 +243,13 @@ async function findOrCreateLead(raw: UnknownRecord, remoteJid: string, fromMe: b
     ? `lid:${remoteJid.replace('@lid', '')}`
     : normalizePhone(remoteJid)
 
-  const entryStage = await ensureCrmPipeline()
+  // Contato novo entra sem etapa — só passa a aparecer no Kanban quando
+  // alguém adicionar manualmente ao funil pela conversa.
   const newLead = await prisma.lead.create({
     data: {
       phone,
       waLid: remoteJid.endsWith('@lid') ? remoteJid : undefined,
       name: pushName ?? 'Contato WhatsApp',
-      stageId: entryStage.id,
     },
   })
 

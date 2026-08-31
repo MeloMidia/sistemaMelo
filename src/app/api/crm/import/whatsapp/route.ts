@@ -143,7 +143,6 @@ async function runImport() {
   ])
 
   const stageByName = new Map(dbStages.map((s) => [s.name, s]))
-  const defaultStage = dbStages[0]
 
   // Criar stage "Perdido" se não existir
   if (!stageByName.has('Perdido')) {
@@ -229,7 +228,9 @@ async function runImport() {
     .filter((p) => !existingByPhone.has(p))
     .map((p) => {
       const e = toImport.get(p)!
-      return { phone: p, name: e.name, waLid: e.waLid, stageId: defaultStage.id }
+      // Sem etapa: só entra no funil quando alguém adicionar manualmente
+      // (ou quando a label do WhatsApp promover ele na Fase 5, abaixo).
+      return { phone: p, name: e.name, waLid: e.waLid, stageId: null }
     })
 
   if (newLeads.length > 0) {

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import type { Lead, Negotiation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
-import { useAttachTag, useCreateCrmTag, useCrmTags, useCrmUsers, useDetachTag, useUpdateLead } from '@/hooks/crm-api'
+import { useAttachTag, useCreateCrmTag, useCrmTags, useCrmUsers, useDetachTag, useStages, useUpdateLead } from '@/hooks/crm-api'
 import { useColumns } from '@/hooks/api'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -123,6 +123,7 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
   })
   const { data: tags = [] } = useCrmTags()
   const { data: users = [] } = useCrmUsers()
+  const { data: stages = [] } = useStages()
   const { data: negotiationColumns = [] } = useColumns('negotiations')
   const negotiationsQuery = useQuery<Negotiation[]>({
     queryKey: ['crm-lead-negotiations', leadId],
@@ -281,6 +282,25 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
       </div>
 
       <div className="mf-profile-content">
+        <section className="mf-profile-block">
+          <div className="mf-profile-block-heading"><span>Estágio</span></div>
+          <select
+            value={lead.stageId ?? ''}
+            onChange={(event) => {
+              const stageId = event.target.value || null
+              updateLead.mutate({ id: lead.id, stageId }, { onSuccess: refreshProfile })
+            }}
+            disabled={updateLead.isPending}
+            className="mf-profile-input"
+            aria-label="Estágio do lead no funil"
+          >
+            <option value="">Sem estágio (fora do funil)</option>
+            {stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>{stage.name}</option>
+            ))}
+          </select>
+        </section>
+
         <section className="mf-profile-block">
           <div className="mf-profile-block-heading">
             <span>Etiquetas</span>
