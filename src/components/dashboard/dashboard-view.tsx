@@ -64,6 +64,14 @@ function formatNumber(value: number) {
   return value.toLocaleString('pt-BR')
 }
 
+function formatGoalLabel(value: number) {
+  return value % 1000 === 0 ? `${value / 1000}K` : formatMoney(value)
+}
+
+const REVENUE_GOAL_1 = 50000
+const REVENUE_GOAL_2 = 65000
+const REVENUE_GOAL_3 = 80000
+
 export function DashboardView() {
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [showComparison, setShowComparison] = useState(true)
@@ -76,6 +84,13 @@ export function DashboardView() {
   const previous = previousData?.metrics ?? null
   const pipeline = currentData?.pipeline ?? []
   const maxPipelineStage = Math.max(...pipeline.map((stage) => stage.total), 1)
+
+  const revenueActiveGoal =
+    metrics.revenue >= REVENUE_GOAL_2 ? REVENUE_GOAL_3 : metrics.revenue >= REVENUE_GOAL_1 ? REVENUE_GOAL_2 : REVENUE_GOAL_1
+  const revenueGoalPercent = revenueActiveGoal > 0 ? Math.min((metrics.revenue / revenueActiveGoal) * 100, 100) : 0
+  const revenueFillPercent = Math.min((metrics.revenue / REVENUE_GOAL_3) * 100, 100)
+  const revenueMarker1 = (REVENUE_GOAL_1 / REVENUE_GOAL_3) * 100
+  const revenueMarker2 = (REVENUE_GOAL_2 / REVENUE_GOAL_3) * 100
 
   if (isLoading) {
     return (
@@ -135,6 +150,33 @@ export function DashboardView() {
                 </div>
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] text-[#AFC0FF]">
                   <BadgeDollarSign className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="w-full sm:max-w-md">
+                <div className="mb-2 flex items-baseline justify-between gap-2">
+                  <span className="text-xs text-slate-400">
+                    Meta atual <strong className="font-semibold text-white">{formatMoney(revenueActiveGoal)}</strong>
+                  </span>
+                  <span className="text-xs font-semibold text-[#9CE2B8] tabular-nums">{revenueGoalPercent.toFixed(0)}%</span>
+                </div>
+                <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#2854DF] to-[#35A66F] transition-[width] duration-700 ease-out"
+                    style={{ width: `${revenueFillPercent}%` }}
+                  />
+                  <div className="absolute top-0 h-full w-px bg-white/25" style={{ left: `${revenueMarker1}%` }} />
+                  <div className="absolute top-0 h-full w-px bg-white/25" style={{ left: `${revenueMarker2}%` }} />
+                </div>
+                <div className="relative mt-1.5 h-4 w-full text-[10px] font-medium text-slate-500">
+                  <span className="absolute left-0">R$ 0</span>
+                  <span className="absolute" style={{ left: `calc(${revenueMarker1}% - 14px)` }}>
+                    {formatGoalLabel(REVENUE_GOAL_1)}
+                  </span>
+                  <span className="absolute" style={{ left: `calc(${revenueMarker2}% - 14px)` }}>
+                    {formatGoalLabel(REVENUE_GOAL_2)}
+                  </span>
+                  <span className="absolute right-0">{formatGoalLabel(REVENUE_GOAL_3)}</span>
                 </div>
               </div>
 
