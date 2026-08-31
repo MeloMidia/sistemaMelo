@@ -5,6 +5,7 @@ import { Megaphone, Zap, Calendar, Layers, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useColumns, useUpdateTask, useExpirePromos } from '@/hooks/api'
 import type { Task } from '@/types'
+import { isChurnColumnTitle } from '@/lib/clientes'
 
 function Toggle({
   checked,
@@ -213,13 +214,11 @@ export function ClientesView() {
     expirePromos.mutate()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const COLUNAS_EXCLUIDAS = ['encerrado', 'cancelado', 'inativo', 'churned']
-
   const allTasks: Task[] = columns
     ? columns
-        .filter((col) => !COLUNAS_EXCLUIDAS.some((ex) => col.title.toLowerCase().includes(ex)))
+        .filter((col) => !isChurnColumnTitle(col.title))
         .flatMap((col) => col.tasks)
-        .filter((t) => !t.completedAt)
+        .filter((t) => !t.churnedAt)
     : []
 
   const somenteAds   = allTasks.filter((t) => t.adsAtivo && !t.promocaoAtiva)

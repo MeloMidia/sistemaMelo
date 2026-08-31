@@ -22,6 +22,8 @@ import { Plus, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
+import { useChurnDragHandler } from '@/hooks/use-churn-drag'
+import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
 
 const SOURCE = 'mentoria'
 
@@ -31,6 +33,7 @@ export function MentoriaBoard() {
   const reorderTasks = useReorderTasks()
   const reorderColumns = useReorderColumns()
   const queryClient = useQueryClient()
+  const { pendingChurn, interceptDragEnd, confirmChurn, cancelChurn, isSaving: isSavingChurn } = useChurnDragHandler(SOURCE)
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
@@ -113,6 +116,8 @@ export function MentoriaBoard() {
     }
 
     if (activeData?.type === 'task') {
+      if (interceptDragEnd(activeTask, active.id as string)) return
+
       const currentColumns = queryClient.getQueryData<Column[]>(['columns', SOURCE])
       if (!currentColumns) return
 
@@ -127,7 +132,7 @@ export function MentoriaBoard() {
         reorderTasks.mutate(items)
       }
     }
-  }, [columns, queryClient, reorderTasks, reorderColumns])
+  }, [columns, queryClient, reorderTasks, reorderColumns, activeTask, interceptDragEnd])
 
   const handleAddColumn = () => {
     if (newColumnTitle.trim()) {
@@ -239,6 +244,15 @@ export function MentoriaBoard() {
           </div>
         ) : null}
       </DragOverlay>
+
+      {pendingChurn && (
+        <ChurnReasonModal
+          clientName={pendingChurn.taskTitle}
+          onConfirm={confirmChurn}
+          onCancel={cancelChurn}
+          isSaving={isSavingChurn}
+        />
+      )}
     </DndContext>
   )
 }

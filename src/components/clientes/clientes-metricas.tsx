@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { useColumns } from '@/hooks/api'
-import type { Task } from '@/types'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer,
@@ -10,25 +9,62 @@ import {
 import {
   Users, UserPlus, UserMinus, Percent, ChevronLeft, ChevronRight,
   ArrowUpRight, Zap, Megaphone, BookOpen, AlertTriangle, Loader2,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, X,
 } from 'lucide-react'
+import { isChurnColumnTitle } from '@/lib/clientes'
+import type { Task } from '@/types'
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
-const EXCLUIDAS   = ['encerrado', 'cancelado', 'inativo', 'churned']
 const MESES_ABR   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const MESES_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const ETAPA_CORES = ['#2854DF','#5E82F2','#7997F0','#A7B9F5','#C98720','#16805D','#BC4C4B']
+type PeriodMode = 'month' | 'custom' | 'total'
+type ClienteTask = Task & { origem: 'Processos' | 'Mentoria' }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
-function isExcluded(t: string) { return EXCLUIDAS.some(ex => t.toLowerCase().includes(ex)) }
 function startOf(y: number, m: number) { return new Date(y, m, 1) }
 function endOf(y: number, m: number)   { return new Date(y, m + 1, 0, 23, 59, 59, 999) }
+function startOfDay(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+function endOfDay(value: string) {
+  const date = startOfDay(value)
+  date.setHours(23, 59, 59, 999)
+  return date
+}
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+function formatRange(start: Date, end: Date) {
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const startFormat = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+  const endFormat = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+  return `${startFormat.format(start)} – ${endFormat.format(end)}`
+}
 function inRange(d: string | null | undefined, s: Date, e: Date) {
   if (!d) return false; const dt = new Date(d); return dt >= s && dt <= e
 }
 
 /* ── Custom Tooltip ─────────────────────────────────────────────────────── */
-function ChartTip({ active, payload, label }: any) {
+interface ChartTipPayloadItem {
+  dataKey?: unknown
+  name?: unknown
+  value?: unknown
+  fill?: string
+}
+function ChartTip({ active, payload, label }: { active?: boolean; payload?: readonly ChartTipPayloadItem[]; label?: string | number }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
@@ -37,11 +73,11 @@ function ChartTip({ active, payload, label }: any) {
       borderRadius: 10, padding: '10px 14px',
     }}>
       <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 6 }}>{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+      {payload.map((p, index) => (
+        <div key={`${String(p.dataKey ?? p.name ?? 'value')}-${index}`} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
           <span style={{ width:8, height:8, borderRadius:'50%', background:p.fill, flexShrink:0 }} />
-          <span style={{ color:'#fff', fontSize:13, fontWeight:700 }}>{p.value}</span>
-          <span style={{ color:'rgba(255,255,255,0.38)', fontSize:11 }}>{p.name}</span>
+          <span style={{ color:'#fff', fontSize:13, fontWeight:700 }}>{String(p.value ?? '')}</span>
+          <span style={{ color:'rgba(255,255,255,0.38)', fontSize:11 }}>{String(p.name ?? '')}</span>
         </div>
       ))}
     </div>
@@ -51,8 +87,9 @@ function ChartTip({ active, payload, label }: any) {
 /* ── Featured KPI card (primeiro, destaque com gradiente) ───────────────── */
 function FeaturedCard({
   label, value, sub, delta, icon: Icon,
-}: { label: string; value: number; sub: string; delta: number; icon: React.ElementType }) {
-  const up = delta >= 0
+}: { label: string; value: number; sub: string; delta?: number; icon: React.ElementType }) {
+  const hasDelta = delta !== undefined
+  const up = (delta ?? 0) >= 0
   return (
     <div
       className="mf-metrics-inverse rounded-2xl p-6 flex flex-col justify-between min-h-[160px]"
@@ -74,10 +111,14 @@ function FeaturedCard({
       <div>
         <p className="text-[52px] font-extrabold text-white leading-none tracking-tight">{value}</p>
         <p className="text-[12px] text-white/60 mt-2 font-medium">{label}</p>
-        <div className={`flex items-center gap-1 mt-2 text-[11px] font-semibold ${up ? 'text-emerald-400' : 'text-red-400'}`}>
-          {up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-          {delta > 0 ? `+${delta}` : delta} {sub}
-        </div>
+        {hasDelta ? (
+          <div className={`flex items-center gap-1 mt-2 text-[11px] font-semibold ${up ? 'text-emerald-400' : 'text-red-400'}`}>
+            {up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+            {(delta ?? 0) > 0 ? `+${delta}` : delta} {sub}
+          </div>
+        ) : (
+          <p className="text-[11px] text-white/45 mt-2">{sub}</p>
+        )}
       </div>
     </div>
   )
@@ -85,17 +126,22 @@ function FeaturedCard({
 
 /* ── Regular KPI card ───────────────────────────────────────────────────── */
 function KpiCard({
-  label, value, sub, delta, icon: Icon, color,
-}: { label: string; value: string | number; sub: string; delta?: number; icon: React.ElementType; color: string }) {
+  label, value, sub, delta, icon: Icon, color, onClick, active,
+}: { label: string; value: string | number; sub: string; delta?: number; icon: React.ElementType; color: string; onClick?: () => void; active?: boolean }) {
   const hasD = delta !== undefined
   const up   = hasD && delta! >= 0
+  const Tag = onClick ? 'button' : 'div'
+  const tagExtraProps = onClick ? { type: 'button' as const, onClick } : {}
   return (
-    <div
-      className="rounded-2xl p-5 flex flex-col justify-between min-h-[160px] flex-1"
+    <Tag
+      {...tagExtraProps}
+      className={`rounded-2xl p-5 flex flex-col justify-between min-h-[160px] flex-1 text-left w-full ${onClick ? 'cursor-pointer' : ''}`}
       style={{
         background: 'var(--nm-bg)',
-        boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
-        border: '1px solid var(--nm-border)',
+        boxShadow: active
+          ? `-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark), 0 0 0 2px ${color}60`
+          : '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
+        border: `1px solid ${active ? color + '60' : 'var(--nm-border)'}`,
       }}
     >
       <div className="flex items-start justify-between">
@@ -116,107 +162,178 @@ function KpiCard({
         )}
         {!hasD && <p className="text-[10px] text-white/30 mt-1.5">{sub}</p>}
       </div>
-    </div>
+    </Tag>
   )
 }
 
 /* ── Main ───────────────────────────────────────────────────────────────── */
 export function ClientesMetricas() {
-  const today   = new Date()
+  const [today] = useState(() => new Date())
   const todayMs = today.getTime()
 
   const [selYear,  setSelYear]  = useState(today.getFullYear())
   const [selMonth, setSelMonth] = useState(today.getMonth())
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('month')
+  const [customStart, setCustomStart] = useState(() => toDateInputValue(startOf(today.getFullYear(), today.getMonth())))
+  const [customEnd, setCustomEnd] = useState(() => toDateInputValue(today))
 
   const { data: kanbanCols,   isLoading: loadK } = useColumns('kanban')
   const { data: mentoriaCols, isLoading: loadM } = useColumns('mentoria')
 
   /* ── Tasks ──────────────────────────────────────────────────────────── */
-  const kanbanTasks = useMemo(() => {
+  // Todos os cards de cada quadro, com a origem marcada — sem filtrar coluna por título:
+  // churnedAt agora é o sinal confiável de saída, então o histórico precisa enxergar
+  // também quem está na coluna Encerrado (senão a saída some das métricas).
+  const kanbanAllTasks = useMemo<ClienteTask[]>(() => {
     if (!kanbanCols) return []
-    return kanbanCols.filter(c => !isExcluded(c.title)).flatMap(c => c.tasks)
+    return kanbanCols.flatMap(c => c.tasks).map(t => ({ ...t, origem: 'Processos' as const }))
   }, [kanbanCols])
 
-  const mentoriaTasks = useMemo(() => {
+  const mentoriaTasks = useMemo<ClienteTask[]>(() => {
     if (!mentoriaCols) return []
-    return mentoriaCols.flatMap(c => c.tasks)
+    return mentoriaCols.flatMap(c => c.tasks).map(t => ({ ...t, origem: 'Mentoria' as const }))
   }, [mentoriaCols])
 
+  // "Clientes" = cards dos dois quadros combinados — usado nas métricas de entrada/saída/churn.
+  const clienteTasks = useMemo(() => [...kanbanAllTasks, ...mentoriaTasks], [kanbanAllTasks, mentoriaTasks])
+
+  // Ativos só do Processos, sem os encerrados — usado nas seções ADS & Promoção e Por Etapa,
+  // que são conceitos específicos daquele quadro.
+  const kanbanAtivos = useMemo(() => kanbanAllTasks.filter(t => !t.churnedAt), [kanbanAllTasks])
+
   /* ── Date ranges ─────────────────────────────────────────────────────── */
-  const start    = startOf(selYear, selMonth)
-  const end      = endOf(selYear, selMonth)
-  const prevStart = startOf(selYear, selMonth - 1)
-  const prevEnd   = endOf(selYear, selMonth - 1)
+  const totalStart = useMemo(() => {
+    const timestamps = clienteTasks
+      .map((task) => new Date(task.createdAt).getTime())
+      .filter(Number.isFinite)
+    return timestamps.length ? new Date(Math.min(...timestamps)) : startOf(today.getFullYear(), today.getMonth())
+  }, [clienteTasks, today])
+
+  const periodRange = useMemo(() => {
+    const todayEnd = endOfDay(toDateInputValue(today))
+
+    if (periodMode === 'total') {
+      return { start: totalStart, end: todayEnd, prevStart: null, prevEnd: null, label: 'Todo o histórico' }
+    }
+
+    const rawStart = periodMode === 'custom' && customStart
+      ? startOfDay(customStart)
+      : startOf(selYear, selMonth)
+    const rawEnd = periodMode === 'custom' && customEnd
+      ? endOfDay(customEnd)
+      : endOf(selYear, selMonth)
+    const [start, end] = rawStart <= rawEnd ? [rawStart, rawEnd] : [startOfDay(customEnd), endOfDay(customStart)]
+    const span = end.getTime() - start.getTime()
+    const prevEnd = new Date(start.getTime() - 1)
+    const prevStart = new Date(prevEnd.getTime() - span)
+
+    return {
+      start,
+      end,
+      prevStart,
+      prevEnd,
+      label: periodMode === 'custom' ? formatRange(start, end) : `${MESES_FULL[selMonth]} ${selYear}`,
+    }
+  }, [customEnd, customStart, periodMode, selMonth, selYear, today, totalStart])
+
+  const { start, end, prevStart, prevEnd, label: periodLabel } = periodRange
+  const hasComparison = Boolean(prevStart && prevEnd)
 
   /* ── KPI ─────────────────────────────────────────────────────────────── */
-  const ativosAgora = useMemo(() => kanbanTasks.filter(t => !t.completedAt), [kanbanTasks])
+  const ativosAgora = useMemo(() => clienteTasks.filter(t => !t.churnedAt), [clienteTasks])
   const totalAtivos = ativosAgora.length
 
-  const entradasMes      = useMemo(() => kanbanTasks.filter(t => inRange(t.createdAt,   start, end)),      [kanbanTasks, start, end])
-  const saidasMes        = useMemo(() => kanbanTasks.filter(t => inRange(t.completedAt, start, end)),      [kanbanTasks, start, end])
-  const prevEntradasMes  = useMemo(() => kanbanTasks.filter(t => inRange(t.createdAt,   prevStart, prevEnd)), [kanbanTasks, prevStart, prevEnd])
-  const prevSaidasMes    = useMemo(() => kanbanTasks.filter(t => inRange(t.completedAt, prevStart, prevEnd)), [kanbanTasks, prevStart, prevEnd])
+  const entradasPeriodo = useMemo(
+    () => clienteTasks.filter(task => inRange(task.createdAt, start, end)),
+    [clienteTasks, start, end],
+  )
+  const saidasPeriodo = useMemo(
+    () => clienteTasks.filter(task => inRange(task.churnedAt, start, end)),
+    [clienteTasks, start, end],
+  )
+  const prevEntradasPeriodo = useMemo(
+    () => (prevStart && prevEnd
+      ? clienteTasks.filter(task => inRange(task.createdAt, prevStart, prevEnd))
+      : []),
+    [clienteTasks, prevStart, prevEnd],
+  )
+  const prevSaidasPeriodo = useMemo(
+    () => (prevStart && prevEnd
+      ? clienteTasks.filter(task => inRange(task.churnedAt, prevStart, prevEnd))
+      : []),
+    [clienteTasks, prevStart, prevEnd],
+  )
 
-  const crescimento     = entradasMes.length - saidasMes.length
-  const prevCrescimento = prevEntradasMes.length - prevSaidasMes.length
+  const crescimento = entradasPeriodo.length - saidasPeriodo.length
 
-  const ativosInicioMes = useMemo(() =>
-    kanbanTasks.filter(t => {
-      const cr = new Date(t.createdAt)
-      const cp = t.completedAt ? new Date(t.completedAt) : null
-      return cr <= prevEnd && (!cp || cp > prevEnd)
-    }).length,
-  [kanbanTasks, prevEnd])
+  const ativosInicioPeriodo = useMemo(() => {
+    const reference = new Date(start.getTime() - 1)
+    return clienteTasks.filter(task => {
+      const createdAt = new Date(task.createdAt)
+      const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
+      return createdAt <= reference && (!churnedAt || churnedAt > reference)
+    }).length
+  }, [clienteTasks, start])
 
-  const churnRate     = ativosInicioMes > 0 ? +((saidasMes.length / ativosInicioMes) * 100).toFixed(1) : 0
-  const prevChurnBase = useMemo(() =>
-    kanbanTasks.filter(t => {
-      const cr = new Date(t.createdAt)
-      const cp = t.completedAt ? new Date(t.completedAt) : null
-      return cr <= endOf(selYear, selMonth - 2) && (!cp || cp > endOf(selYear, selMonth - 2))
-    }).length,
-  [kanbanTasks, selYear, selMonth])
-  const prevChurnRate = prevChurnBase > 0 ? +((prevSaidasMes.length / prevChurnBase) * 100).toFixed(1) : 0
+  const churnBase = periodMode === 'total' ? clienteTasks.length : ativosInicioPeriodo
+  const churnRate = churnBase > 0 ? +((saidasPeriodo.length / churnBase) * 100).toFixed(1) : 0
+
+  const prevChurnBase = useMemo(() => {
+    if (!prevStart) return 0
+    const reference = new Date(prevStart.getTime() - 1)
+    return clienteTasks.filter(task => {
+      const createdAt = new Date(task.createdAt)
+      const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
+      return createdAt <= reference && (!churnedAt || churnedAt > reference)
+    }).length
+  }, [clienteTasks, prevStart])
+  const prevChurnRate = hasComparison && prevChurnBase > 0
+    ? +((prevSaidasPeriodo.length / prevChurnBase) * 100).toFixed(1)
+    : null
 
   /* ── Gráfico de barras: últimos 6 meses ──────────────────────────────── */
   const barData = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
-      let m = selMonth - (5 - i), y = selYear
+      let m = end.getMonth() - (5 - i), y = end.getFullYear()
       while (m < 0) { m += 12; y-- }
       const s = startOf(y, m), e = endOf(y, m)
       return {
         mes: MESES_ABR[m],
-        Entradas: kanbanTasks.filter(t => inRange(t.createdAt,   s, e)).length,
-        Saídas:   kanbanTasks.filter(t => inRange(t.completedAt, s, e)).length,
+        Entradas: clienteTasks.filter(t => inRange(t.createdAt, s, e)).length,
+        Saídas:   clienteTasks.filter(t => inRange(t.churnedAt, s, e)).length,
       }
     })
-  }, [kanbanTasks, selYear, selMonth])
+  }, [clienteTasks, end])
 
-  /* ── Por etapa ───────────────────────────────────────────────────────── */
+  /* ── Por etapa (Processos) ─────────────────────────────────────────────── */
   const porEtapa = useMemo(() => {
     if (!kanbanCols) return []
     return kanbanCols
-      .filter(c => !isExcluded(c.title))
-      .map(c => ({ name: c.title, count: c.tasks.filter(t => !t.completedAt).length }))
+      .filter(c => !isChurnColumnTitle(c.title))
+      .map(c => ({ name: c.title, count: c.tasks.filter(t => !t.churnedAt).length }))
       .filter(c => c.count > 0)
       .sort((a, b) => b.count - a.count)
       .slice(0, 6)
   }, [kanbanCols])
   const maxEtapa = Math.max(...porEtapa.map(e => e.count), 1)
 
-  /* ── ADS & Promoção ──────────────────────────────────────────────────── */
-  const adsAtivos   = ativosAgora.filter(t =>  t.adsAtivo).length
-  const promoAtivas = ativosAgora.filter(t =>  t.promocaoAtiva).length
-  const ambos       = ativosAgora.filter(t =>  t.adsAtivo && t.promocaoAtiva).length
-  const semAtivacao = ativosAgora.filter(t => !t.adsAtivo && !t.promocaoAtiva).length
+  /* ── ADS & Promoção (Processos) ────────────────────────────────────────── */
+  const adsAtivos   = kanbanAtivos.filter(t =>  t.adsAtivo).length
+  const promoAtivas = kanbanAtivos.filter(t =>  t.promocaoAtiva).length
+  const ambos       = kanbanAtivos.filter(t =>  t.adsAtivo && t.promocaoAtiva).length
+  const semAtivacao = kanbanAtivos.filter(t => !t.adsAtivo && !t.promocaoAtiva).length
 
   /* ── Contratos vencendo ──────────────────────────────────────────────── */
   const in60 = todayMs + 60 * 24 * 60 * 60 * 1000
   const vencendo = useMemo(() =>
     mentoriaTasks
-      .filter(t => { if (!t.dueDate || t.completedAt) return false; const d = new Date(t.dueDate).getTime(); return d >= todayMs && d <= in60 })
+      .filter(t => { if (!t.dueDate || t.churnedAt) return false; const d = new Date(t.dueDate).getTime(); return d >= todayMs && d <= in60 })
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
   [mentoriaTasks, todayMs, in60])
+
+  /* ── Lista expandível — quem entrou / quem saiu ───────────────────────── */
+  const [expandedKpi, setExpandedKpi] = useState<'entradas' | 'saidas' | null>(null)
+  const expandedList = expandedKpi === 'entradas' ? entradasPeriodo : expandedKpi === 'saidas' ? saidasPeriodo : []
 
   /* ── Nav mês ─────────────────────────────────────────────────────────── */
   const isNow = selYear === today.getFullYear() && selMonth === today.getMonth()
@@ -231,13 +348,17 @@ export function ClientesMetricas() {
   )
 
   /* ── Delta ativos vs mês anterior ─────────────────────────────────────── */
-  const deltaAtivos = totalAtivos - ativosInicioMes
+  const deltaAtivos = hasComparison ? totalAtivos - ativosInicioPeriodo : undefined
+  const periodSummary = periodMode === 'total'
+    ? 'Dados de todo o histórico'
+    : `Período: ${periodLabel}`
+  const comparisonLabel = hasComparison ? 'vs período anterior' : 'todo o histórico'
 
   return (
     <div className="mf-workspace mf-metrics flex-1 overflow-y-auto p-5 lg:p-8 space-y-5" style={{ background: 'var(--nm-bg)' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="mf-eyebrow mb-2">Visão de carteira</p>
           <h1 className="text-[20px] font-extrabold text-white tracking-tight"
@@ -245,12 +366,75 @@ export function ClientesMetricas() {
             Dashboard de Clientes
           </h1>
           <p className="text-[12px] text-white/40 mt-0.5">
-            Visão consolidada — Processos + Mentoria
+            {periodSummary} — Processos + Mentoria
           </p>
         </div>
 
+        <div className="flex flex-col gap-2 rounded-xl p-2"
+          style={{
+            background: 'var(--nm-bg)',
+            boxShadow: '-4px -4px 10px var(--nm-light), 4px 4px 10px var(--nm-dark)',
+            border: '1px solid var(--nm-border)',
+          }}>
+          <div className="grid grid-cols-3 gap-1 rounded-lg p-1" style={{ background: 'rgba(127,127,127,0.08)' }} role="group" aria-label="Tipo de período">
+            {([
+              ['month', 'Mês'],
+              ['custom', 'Datas'],
+              ['total', 'Total'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPeriodMode(mode)}
+                aria-pressed={periodMode === mode}
+                className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                  periodMode === mode
+                    ? 'bg-indigo-500 text-white shadow-sm'
+                    : 'text-white/45 hover:text-white hover:bg-white/[0.06]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {periodMode === 'custom' && (
+            <div className="flex items-center gap-2">
+              <label className="flex min-w-0 items-center gap-1.5 text-[10px] text-white/45">
+                <span>De</span>
+                <input
+                  type="date"
+                  value={customStart}
+                  max={customEnd || undefined}
+                  onChange={(event) => setCustomStart(event.target.value)}
+                  className="min-w-0 rounded-md border px-2 py-1 text-[11px] font-medium text-white outline-none"
+                  style={{ background: 'var(--nm-bg)', borderColor: 'var(--nm-border)', colorScheme: 'dark' }}
+                  required
+                />
+              </label>
+              <label className="flex min-w-0 items-center gap-1.5 text-[10px] text-white/45">
+                <span>Até</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  min={customStart || undefined}
+                  max={toDateInputValue(today)}
+                  onChange={(event) => setCustomEnd(event.target.value)}
+                  className="min-w-0 rounded-md border px-2 py-1 text-[11px] font-medium text-white outline-none"
+                  style={{ background: 'var(--nm-bg)', borderColor: 'var(--nm-border)', colorScheme: 'dark' }}
+                  required
+                />
+              </label>
+            </div>
+          )}
+
+          {periodMode === 'total' && (
+            <p className="px-1 py-0.5 text-[11px] font-medium text-white/55">{periodLabel}</p>
+          )}
+        </div>
+
         {/* Month picker */}
-        <div className="flex items-center gap-1 rounded-xl px-1 py-1"
+        <div className={`flex items-center gap-1 rounded-xl px-1 py-1 ${periodMode === 'month' ? '' : 'hidden'}`}
           style={{
             background: 'var(--nm-bg)',
             boxShadow: '-4px -4px 10px var(--nm-light), 4px 4px 10px var(--nm-dark)',
@@ -278,34 +462,102 @@ export function ClientesMetricas() {
           label="Clientes ativos"
           value={totalAtivos}
           delta={deltaAtivos}
-          sub="vs mês anterior"
+          sub={hasComparison ? comparisonLabel : 'base ativa neste momento'}
           icon={Users}
         />
         <KpiCard
-          label={`Entradas — ${MESES_ABR[selMonth]}`}
-          value={entradasMes.length}
-          sub={`${entradasMes.length - prevEntradasMes.length >= 0 ? '+' : ''}${entradasMes.length - prevEntradasMes.length} vs mês ant.`}
-          delta={entradasMes.length - prevEntradasMes.length}
+          label={periodMode === 'total' ? 'Entradas totais' : 'Entradas no período'}
+          value={entradasPeriodo.length}
+          sub={hasComparison ? comparisonLabel : 'Criadas desde o início'}
+          delta={hasComparison ? entradasPeriodo.length - prevEntradasPeriodo.length : undefined}
           icon={UserPlus}
           color="#10b981"
+          active={expandedKpi === 'entradas'}
+          onClick={() => setExpandedKpi(k => k === 'entradas' ? null : 'entradas')}
         />
         <KpiCard
-          label={`Saídas — ${MESES_ABR[selMonth]}`}
-          value={saidasMes.length}
-          sub={`${saidasMes.length - prevSaidasMes.length >= 0 ? '+' : ''}${saidasMes.length - prevSaidasMes.length} vs mês ant.`}
-          delta={saidasMes.length > 0 ? -(saidasMes.length - prevSaidasMes.length) : undefined}
+          label={periodMode === 'total' ? 'Saídas totais' : 'Saídas no período'}
+          value={saidasPeriodo.length}
+          sub={hasComparison ? comparisonLabel : 'Encerradas desde o início'}
+          delta={hasComparison && saidasPeriodo.length > 0
+            ? -(saidasPeriodo.length - prevSaidasPeriodo.length)
+            : undefined}
           icon={UserMinus}
           color="#f43f5e"
+          active={expandedKpi === 'saidas'}
+          onClick={() => setExpandedKpi(k => k === 'saidas' ? null : 'saidas')}
         />
         <KpiCard
           label="Churn rate"
           value={`${churnRate}%`}
-          sub={`${churnRate > prevChurnRate ? '+' : ''}${(churnRate - prevChurnRate).toFixed(1)}% vs mês ant.`}
-          delta={prevChurnRate !== churnRate ? -(churnRate - prevChurnRate) : undefined}
+          sub={hasComparison && prevChurnRate !== null ? comparisonLabel : 'Saídas sobre a base do período'}
+          delta={hasComparison && prevChurnRate !== null && prevChurnRate !== churnRate
+            ? -(churnRate - prevChurnRate)
+            : undefined}
           icon={Percent}
           color="#f59e0b"
         />
       </div>
+
+      {/* ── Lista expandível: quem entrou / quem saiu ──────────────────────── */}
+      {expandedKpi && (
+        <div className="rounded-2xl p-5"
+          style={{
+            background: 'var(--nm-bg)',
+            boxShadow: '-5px -5px 14px var(--nm-light), 5px 5px 14px var(--nm-dark)',
+            border: '1px solid var(--nm-border)',
+          }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-[14px] font-bold text-white">
+                {expandedKpi === 'entradas' ? 'Quem entrou' : 'Quem saiu'}
+              </p>
+              <p className="text-[11px] text-white/35 mt-0.5">{periodLabel} · Processos + Mentoria</p>
+            </div>
+            <button
+              onClick={() => setExpandedKpi(null)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+              aria-label="Fechar lista"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {expandedList.length === 0 ? (
+            <p className="text-[12px] text-white/25 text-center py-8">
+              Ninguém {expandedKpi === 'entradas' ? 'entrou' : 'saiu'} nesse período.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-0.5">
+              {expandedList.map(t => {
+                const eventDate = expandedKpi === 'entradas' ? t.createdAt : t.churnedAt
+                return (
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{
+                        background: expandedKpi === 'entradas' ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)',
+                        color: expandedKpi === 'entradas' ? '#10b981' : '#f43f5e',
+                      }}>
+                      {t.title.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-white truncate">{t.title}</p>
+                      <p className="text-[10px] text-white/35">
+                        {t.origem}
+                        {expandedKpi === 'saidas' && t.churnReason ? ` · ${t.churnReason}` : ''}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-white/35 shrink-0">
+                      {eventDate ? new Date(eventDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Middle Row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -336,7 +588,7 @@ export function ClientesMetricas() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
               <XAxis dataKey="mes" tick={{ fill:'rgba(255,255,255,0.38)', fontSize:11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill:'rgba(255,255,255,0.38)', fontSize:11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <RTooltip content={<ChartTip />} cursor={{ fill:'rgba(255,255,255,0.03)' }} />
+              <RTooltip content={ChartTip} cursor={{ fill:'rgba(255,255,255,0.03)' }} />
               <Bar dataKey="Entradas" name="Entradas" fill="#6366f1" radius={[5,5,0,0]} maxBarSize={28} />
               <Bar dataKey="Saídas"   name="Saídas"   fill="#f43f5e" radius={[5,5,0,0]} maxBarSize={28} />
             </BarChart>
@@ -351,7 +603,7 @@ export function ClientesMetricas() {
             border: '1px solid var(--nm-border)',
           }}>
           <p className="text-[14px] font-bold text-white">ADS & Promoção</p>
-          <p className="text-[11px] text-white/35 mt-0.5 mb-5">{totalAtivos} clientes ativos</p>
+          <p className="text-[11px] text-white/35 mt-0.5 mb-5">{kanbanAtivos.length} clientes ativos — Processos</p>
 
           <div className="space-y-4">
             {/* ADS */}
@@ -364,14 +616,14 @@ export function ClientesMetricas() {
                   <span className="text-[12px] font-semibold text-white">ADS</span>
                 </div>
                 <span className="text-[18px] font-bold text-white">{adsAtivos}
-                  <span className="text-[11px] text-white/30 font-normal ml-1">/ {totalAtivos}</span>
+                  <span className="text-[11px] text-white/30 font-normal ml-1">/ {kanbanAtivos.length}</span>
                 </span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
                 <div className="h-full rounded-full bg-emerald-500 transition-all duration-700"
-                  style={{ width: totalAtivos ? `${(adsAtivos/totalAtivos)*100}%` : '0%' }} />
+                  style={{ width: kanbanAtivos.length ? `${(adsAtivos/kanbanAtivos.length)*100}%` : '0%' }} />
               </div>
-              <p className="text-[10px] text-white/25 mt-1">{totalAtivos ? ((adsAtivos/totalAtivos)*100).toFixed(0) : 0}% da base</p>
+              <p className="text-[10px] text-white/25 mt-1">{kanbanAtivos.length ? ((adsAtivos/kanbanAtivos.length)*100).toFixed(0) : 0}% da base</p>
             </div>
 
             {/* Promoção */}
@@ -384,14 +636,14 @@ export function ClientesMetricas() {
                   <span className="text-[12px] font-semibold text-white">Promoção</span>
                 </div>
                 <span className="text-[18px] font-bold text-white">{promoAtivas}
-                  <span className="text-[11px] text-white/30 font-normal ml-1">/ {totalAtivos}</span>
+                  <span className="text-[11px] text-white/30 font-normal ml-1">/ {kanbanAtivos.length}</span>
                 </span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
                 <div className="h-full rounded-full bg-amber-500 transition-all duration-700"
-                  style={{ width: totalAtivos ? `${(promoAtivas/totalAtivos)*100}%` : '0%' }} />
+                  style={{ width: kanbanAtivos.length ? `${(promoAtivas/kanbanAtivos.length)*100}%` : '0%' }} />
               </div>
-              <p className="text-[10px] text-white/25 mt-1">{totalAtivos ? ((promoAtivas/totalAtivos)*100).toFixed(0) : 0}% da base</p>
+              <p className="text-[10px] text-white/25 mt-1">{kanbanAtivos.length ? ((promoAtivas/kanbanAtivos.length)*100).toFixed(0) : 0}% da base</p>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 pt-3" style={{ borderTop:'1px solid var(--nm-border)' }}>
@@ -508,7 +760,7 @@ export function ClientesMetricas() {
           }}>
           <div>
             <p className="text-[13px] font-semibold text-white/60">Crescimento Líquido</p>
-            <p className="text-[11px] text-white/30 mt-0.5">entradas − saídas no mês</p>
+            <p className="text-[11px] text-white/30 mt-0.5">entradas − saídas no período</p>
           </div>
           <div>
             <p className={`text-[56px] font-extrabold leading-none tracking-tight ${crescimento >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -516,10 +768,10 @@ export function ClientesMetricas() {
             </p>
             <div className={`flex items-center gap-1.5 mt-3 text-[12px] font-semibold ${crescimento >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
               {crescimento >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {crescimento >= 0 ? 'Crescimento positivo' : 'Retração no mês'}
+              {crescimento >= 0 ? 'Crescimento positivo' : 'Retração no período'}
             </div>
             <p className="text-[10px] text-white/25 mt-1">
-              {entradasMes.length} entrada{entradasMes.length !== 1 ? 's' : ''} · {saidasMes.length} saída{saidasMes.length !== 1 ? 's' : ''}
+              {entradasPeriodo.length} entrada{entradasPeriodo.length !== 1 ? 's' : ''} · {saidasPeriodo.length} saída{saidasPeriodo.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>

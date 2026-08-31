@@ -49,11 +49,17 @@ model Task {
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
   completedBy     String?
+  churnedAt       DateTime?
+  churnReason     String?
+  churnedBy       String?
   tags            TaskTag[]
   leadId          String?
   lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   kanbanTaskId    String?
   negotiation     Negotiation?
+
+  @@index([source, churnedAt])
+  @@index([source, createdAt])
 }
 
 model Tag {

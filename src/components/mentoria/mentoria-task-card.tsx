@@ -6,10 +6,12 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, Save, Plus, Users, ClipboardList, CheckCircle2, Clock
+  ImagePlus, Save, Plus, Users, ClipboardList, CheckCircle2, Clock, UserX
 } from 'lucide-react'
-import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
+import { useDeleteTask, useUpdateTask, useCreateTask, useCreateColumn, useKanbanCardTasks, useColumns } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
+import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
+import { isChurnColumnTitle, DEFAULT_ENCERRADO_COLUMN_TITLE } from '@/lib/clientes'
 
 interface MentoriaTaskCardProps {
   task: TaskType
@@ -47,6 +49,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [churnModalOpen, setChurnModalOpen] = useState(false)
   const [editModalMeetings, setEditModalMeetings] = useState(String(task.meetingsCount || 0))
 
   // Task creation modal state
@@ -61,8 +64,10 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
   const createTask = useCreateTask()
+  const createColumn = useCreateColumn('mentoria')
   const { data: columns } = useColumns('tasks')
   const { data: kanbanColumns } = useColumns()
+  const { data: mentoriaColumns } = useColumns('mentoria')
   const { data: cardTasks } = useKanbanCardTasks(task.id)
 
   const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
@@ -135,6 +140,13 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
 
   const handleTogglePriority = () => {
     updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })
+  }
+
+  const handleEncerrarContrato = async (reason: string) => {
+    const existing = mentoriaColumns?.find((c) => isChurnColumnTitle(c.title))
+    const columnId = existing ? existing.id : (await createColumn.mutateAsync(DEFAULT_ENCERRADO_COLUMN_TITLE)).id
+    updateTask.mutate({ id: task.id, columnId, churnedAt: new Date().toISOString(), churnReason: reason })
+    setChurnModalOpen(false)
   }
 
   const handleOpenModal = (e: React.MouseEvent) => {
@@ -363,10 +375,20 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
+                  setChurnModalOpen(true)
+                }}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
+                title="Encerrar contrato"
+              >
+                <UserX className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
                   setDeleteModalOpen(true)
                 }}
                 className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
-                title="Excluir"
+                title="Excluir cadastro (definitivo)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -616,8 +638,12 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white mb-2">Excluir Cliente</h3>
-            <p className="text-sm text-slate-400 mb-6">Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Excluir cadastro</h3>
+            <p className="text-sm text-slate-400 mb-6">
+              Isso apaga o cliente para sempre, sem deixar histórico — use só para corrigir um cadastro errado ou
+              duplicado. Se o cliente cancelou o contrato, use &quot;Encerrar contrato&quot; para manter o registro
+              da saída.
+            </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteModalOpen(false)}
@@ -639,7 +665,15 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
         </div>
       )}
 
-
+      {/* ── Modal de motivo de encerramento ──────────── */}
+      {churnModalOpen && (
+        <ChurnReasonModal
+          clientName={task.title}
+          onConfirm={handleEncerrarContrato}
+          onCancel={() => setChurnModalOpen(false)}
+          isSaving={updateTask.isPending || createColumn.isPending}
+        />
+      )}
     </>
   )
 }

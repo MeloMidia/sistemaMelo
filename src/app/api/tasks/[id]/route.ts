@@ -21,6 +21,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.order !== undefined) data.order = body.order
   if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null
   if (body.completedBy !== undefined) data.completedBy = body.completedBy
+  if (body.churnedAt !== undefined) data.churnedAt = body.churnedAt ? new Date(body.churnedAt) : null
+  if (body.churnReason !== undefined) data.churnReason = body.churnReason
+  if (body.churnedBy !== undefined) data.churnedBy = body.churnedBy
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl
   if (body.assignee !== undefined) data.assignee = body.assignee
   if (body.notes !== undefined) data.notes = body.notes

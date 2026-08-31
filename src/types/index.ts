@@ -19,6 +19,9 @@ export interface Task {
   createdAt: string
   completedAt: string | null
   completedBy: string | null
+  churnedAt: string | null
+  churnReason: string | null
+  churnedBy: string | null
   leadId: string | null
   kanbanTaskId: string | null
 }

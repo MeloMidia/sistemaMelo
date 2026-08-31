@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useColumns, useUpdateTask } from '@/hooks/api'
 import type { Task } from '@/types'
 import { Loader2, Users } from 'lucide-react'
+import { isChurnColumnTitle } from '@/lib/clientes'
 
 // ── Responsáveis ──────────────────────────────────────────────────────────────
 
@@ -27,8 +28,6 @@ const RESPONSAVEIS = [
 ] as const
 
 type ResponsavelId = 'Matheus' | 'Gustavo' | 'Henrique'
-
-const COLUNAS_EXCLUIDAS = ['encerrado', 'cancelado', 'inativo', 'churned']
 
 // ── Card draggável ────────────────────────────────────────────────────────────
 
@@ -207,9 +206,9 @@ export function CarteiraView() {
 
   const allTasks: Task[] = columns
     ? columns
-        .filter((col) => !COLUNAS_EXCLUIDAS.some((ex) => col.title.toLowerCase().includes(ex)))
+        .filter((col) => !isChurnColumnTitle(col.title))
         .flatMap((col) => col.tasks)
-        .filter((t) => !t.completedAt)
+        .filter((t) => !t.churnedAt)
     : []
 
   const getTasksByResponsavel = useCallback(

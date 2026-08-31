@@ -22,6 +22,8 @@ import { Plus, Loader2, TrendingUp } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
+import { useChurnDragHandler } from '@/hooks/use-churn-drag'
+import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
 
 export function KanbanBoard({
   source = 'kanban',
@@ -39,6 +41,7 @@ export function KanbanBoard({
   const reorderTasks = useReorderTasks()
   const reorderColumns = useReorderColumns()
   const queryClient = useQueryClient()
+  const { pendingChurn, interceptDragEnd, confirmChurn, cancelChurn, isSaving: isSavingChurn } = useChurnDragHandler(source)
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
@@ -164,6 +167,10 @@ export function KanbanBoard({
     }
 
     if (activeData?.type === 'task') {
+      // Cliente sendo movido para uma coluna de encerramento (só no board de clientes):
+      // intercepta e pede o motivo antes de confirmar a posição.
+      if (source === 'kanban' && interceptDragEnd(activeTask, active.id as string)) return
+
       const currentColumns = queryClient.getQueryData<Column[]>(['columns', source])
       if (!currentColumns) return
 
@@ -178,7 +185,7 @@ export function KanbanBoard({
         reorderTasks.mutate(items)
       }
     }
-  }, [columns, queryClient, reorderTasks, reorderColumns, source])
+  }, [columns, queryClient, reorderTasks, reorderColumns, source, activeTask, interceptDragEnd])
 
   const handleAddColumn = () => {
     if (newColumnTitle.trim()) {
@@ -306,6 +313,15 @@ export function KanbanBoard({
           </div>
         ) : null}
       </DragOverlay>
+
+      {source === 'kanban' && pendingChurn && (
+        <ChurnReasonModal
+          clientName={pendingChurn.taskTitle}
+          onConfirm={confirmChurn}
+          onCancel={cancelChurn}
+          isSaving={isSavingChurn}
+        />
+      )}
     </DndContext>
   )
 }
