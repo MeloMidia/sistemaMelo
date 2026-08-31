@@ -7,11 +7,14 @@ import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { useConnection, useCrmStream } from '@/hooks/crm-api'
 import { LeadConversaTab } from './lead-conversa-tab'
+import { LeadNotesTab } from './lead-notes-tab'
+import { LeadLogsTab } from './lead-logs-tab'
 import { LeadProfilePanel } from './lead-profile-panel'
 import { KanbanLeads } from './kanban-leads'
 
 type Filter = 'all' | 'unread'
 export type CrmView = 'inbox' | 'pipeline'
+type ChatTab = 'logs' | 'notes' | 'chat'
 
 function formatConversationTime(value: string) {
   const date = new Date(value)
@@ -63,6 +66,8 @@ export function CrmInbox({
   onViewChange?: (view: CrmView) => void
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(openLeadId ?? null)
+  const [chatTab, setChatTab] = useState<ChatTab>('chat')
+  const [chatTabSelectedId, setChatTabSelectedId] = useState<string | null>(selectedId)
   const [localView, setLocalView] = useState<CrmView>('inbox')
   const view = controlledView ?? localView
   const [filter, setFilter] = useState<Filter>('all')
@@ -114,6 +119,13 @@ export function CrmInbox({
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
   const unreadCount = conversations.filter((conversation) => conversation.isUnread).length
+
+  // Volta pra aba "Chat" ao trocar de conversa, sem usar efeito (ajuste de estado
+  // durante a renderização — ver https://react.dev/learn/you-might-not-need-an-effect).
+  if (selectedId !== chatTabSelectedId) {
+    setChatTabSelectedId(selectedId)
+    setChatTab('chat')
+  }
 
   function selectConversation(conversation: CrmConversation) {
     setSelectedId(conversation.id)
@@ -227,12 +239,35 @@ export function CrmInbox({
                 <p className="mf-inbox-phone text-xs truncate">{formatPhoneNumber(selected.phone)}</p>
               </div>
               <div className="mf-inbox-chat-tabs ml-auto hidden sm:flex items-center self-stretch">
-                <button type="button">Logs</button>
-                <button type="button">Anotações</button>
-                <button type="button" className="is-active" aria-current="page">Chat</button>
+                <button
+                  type="button"
+                  onClick={() => setChatTab('logs')}
+                  className={chatTab === 'logs' ? 'is-active' : ''}
+                  aria-current={chatTab === 'logs' ? 'page' : undefined}
+                >
+                  Logs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatTab('notes')}
+                  className={chatTab === 'notes' ? 'is-active' : ''}
+                  aria-current={chatTab === 'notes' ? 'page' : undefined}
+                >
+                  Anotações
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatTab('chat')}
+                  className={chatTab === 'chat' ? 'is-active' : ''}
+                  aria-current={chatTab === 'chat' ? 'page' : undefined}
+                >
+                  Chat
+                </button>
               </div>
             </header>
-            <LeadConversaTab leadId={selected.id} />
+            {chatTab === 'chat' && <LeadConversaTab leadId={selected.id} />}
+            {chatTab === 'notes' && <LeadNotesTab leadId={selected.id} />}
+            {chatTab === 'logs' && <LeadLogsTab leadId={selected.id} />}
           </>
         ) : (
           <div className="mf-inbox-empty flex-1 flex flex-col items-center justify-center text-center px-6">
