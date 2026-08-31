@@ -158,29 +158,6 @@ export async function findLabels(): Promise<WhatsappLabel[]> {
   }
 }
 
-export interface WhatsappGroup {
-  id: string
-  subject: string
-}
-
-/** Lista os grupos do WhatsApp conectados à instância — usado só pra achar o
- *  ID de um grupo específico (ex: pra configurar notificações). */
-export async function fetchGroups(): Promise<WhatsappGroup[]> {
-  const res = await evolutionRequest(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Evolution API retornou ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`)
-  }
-  const data = await res.json()
-  const groups = Array.isArray(data) ? data : []
-  return groups
-    .map((g: Record<string, unknown>) => ({
-      id: String(g.id ?? ''),
-      subject: String(g.subject ?? g.name ?? '(sem nome)'),
-    }))
-    .filter((g) => g.id)
-}
-
 export async function fetchProfilePictureUrl(phone: string): Promise<string | null> {
   try {
     const res = await evolutionRequest(`/chat/fetchProfilePictureUrl/${INSTANCE}`, {

@@ -29,13 +29,10 @@ export async function POST(request: Request) {
 
   // Roda junto com o cron diário, independente de ter campanha em massa
   // pra processar — isolado em try/catch pra nunca derrubar o envio abaixo.
-  // DEBUG TEMP: expõe o resultado na resposta pra diagnosticar o teste manual.
-  let promoDebug: unknown = null
   try {
-    promoDebug = await checkPromoExpirations()
+    await checkPromoExpirations()
   } catch (err) {
     console.error('Erro ao checar promoções vencendo:', err)
-    promoDebug = { error: err instanceof Error ? err.message : String(err) }
   }
 
   // Aceita campaignId opcional para disparar campanha específica
@@ -59,7 +56,7 @@ export async function POST(request: Request) {
       })
 
   if (!campaign) {
-    return NextResponse.json({ ok: true, message: 'Nada para processar', promoDebug })
+    return NextResponse.json({ ok: true, message: 'Nada para processar' })
   }
 
   // Marca como RUNNING se ainda estava SCHEDULED
