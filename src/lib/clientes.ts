@@ -16,6 +16,16 @@ export function isClientChurned(task: Pick<Task, 'churnedAt'>): boolean {
   return Boolean(task.churnedAt)
 }
 
+/**
+ * Cliente sem churnedAt mas sentado numa coluna de encerramento: uma saída
+ * legada, de antes desse campo existir. Sem data real de quando saiu — por
+ * isso não entra em nenhum recorte de "ativos", mas também não vira uma
+ * "saída" fabricada com data inventada.
+ */
+export function isLegacyChurn(task: Pick<Task, 'churnedAt'>, columnTitle: string): boolean {
+  return !task.churnedAt && isChurnColumnTitle(columnTitle)
+}
+
 export const CHURN_REASONS = [
   'Preço',
   'Insatisfação com o serviço',

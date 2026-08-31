@@ -11,7 +11,7 @@ import {
   ArrowUpRight, Zap, Megaphone, BookOpen, AlertTriangle, Loader2,
   TrendingUp, TrendingDown, X,
 } from 'lucide-react'
-import { isChurnColumnTitle } from '@/lib/clientes'
+import { isChurnColumnTitle, isLegacyChurn } from '@/lib/clientes'
 import type { Task } from '@/types'
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
@@ -19,7 +19,10 @@ const MESES_ABR   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 const MESES_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const ETAPA_CORES = ['#2854DF','#5E82F2','#7997F0','#A7B9F5','#C98720','#16805D','#BC4C4B']
 type PeriodMode = 'month' | 'custom' | 'total'
-type ClienteTask = Task & { origem: 'Processos' | 'Mentoria' }
+// isLegacyChurn: cliente sem churnedAt mas já sentado numa coluna de encerramento —
+// saída de antes desse campo existir. Sem data real, então não entra em nenhum
+// recorte de "ativos" (mas também não vira uma "saída" fabricada — ver lib/clientes.ts).
+type ClienteTask = Task & { origem: 'Processos' | 'Mentoria'; isLegacyChurn: boolean }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 function startOf(y: number, m: number) { return new Date(y, m, 1) }
@@ -55,6 +58,15 @@ function formatRange(start: Date, end: Date) {
 }
 function inRange(d: string | null | undefined, s: Date, e: Date) {
   if (!d) return false; const dt = new Date(d); return dt >= s && dt <= e
+}
+/** Quantos clientes já haviam entrado e ainda não tinham saído até uma data de referência. */
+function countAtivosEm(tasks: ClienteTask[], reference: Date) {
+  return tasks.filter(task => {
+    if (task.isLegacyChurn) return false
+    const createdAt = new Date(task.createdAt)
+    const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
+    return createdAt <= reference && (!churnedAt || churnedAt > reference)
+  }).length
 }
 
 /* ── Custom Tooltip ─────────────────────────────────────────────────────── */
@@ -186,12 +198,20 @@ export function ClientesMetricas() {
   // também quem está na coluna Encerrado (senão a saída some das métricas).
   const kanbanAllTasks = useMemo<ClienteTask[]>(() => {
     if (!kanbanCols) return []
-    return kanbanCols.flatMap(c => c.tasks).map(t => ({ ...t, origem: 'Processos' as const }))
+    return kanbanCols.flatMap(c => c.tasks.map(t => ({
+      ...t,
+      origem: 'Processos' as const,
+      isLegacyChurn: isLegacyChurn(t, c.title),
+    })))
   }, [kanbanCols])
 
   const mentoriaTasks = useMemo<ClienteTask[]>(() => {
     if (!mentoriaCols) return []
-    return mentoriaCols.flatMap(c => c.tasks).map(t => ({ ...t, origem: 'Mentoria' as const }))
+    return mentoriaCols.flatMap(c => c.tasks.map(t => ({
+      ...t,
+      origem: 'Mentoria' as const,
+      isLegacyChurn: isLegacyChurn(t, c.title),
+    })))
   }, [mentoriaCols])
 
   // "Clientes" = cards dos dois quadros combinados — usado nas métricas de entrada/saída/churn.
@@ -199,7 +219,7 @@ export function ClientesMetricas() {
 
   // Ativos só do Processos, sem os encerrados — usado nas seções ADS & Promoção e Por Etapa,
   // que são conceitos específicos daquele quadro.
-  const kanbanAtivos = useMemo(() => kanbanAllTasks.filter(t => !t.churnedAt), [kanbanAllTasks])
+  const kanbanAtivos = useMemo(() => kanbanAllTasks.filter(t => !t.churnedAt && !t.isLegacyChurn), [kanbanAllTasks])
 
   /* ── Date ranges ─────────────────────────────────────────────────────── */
   const totalStart = useMemo(() => {
@@ -240,8 +260,10 @@ export function ClientesMetricas() {
   const hasComparison = Boolean(prevStart && prevEnd)
 
   /* ── KPI ─────────────────────────────────────────────────────────────── */
-  const ativosAgora = useMemo(() => clienteTasks.filter(t => !t.churnedAt), [clienteTasks])
-  const totalAtivos = ativosAgora.length
+  // "Clientes ativos" é relativo ao FIM do período selecionado — em "Total" e no mês
+  // corrente isso coincide com "agora", mas num mês passado mostra a foto de então,
+  // não a contagem atual (senão o card fica igual em qualquer período escolhido).
+  const totalAtivos = useMemo(() => countAtivosEm(clienteTasks, end), [clienteTasks, end])
 
   const entradasPeriodo = useMemo(
     () => clienteTasks.filter(task => inRange(task.createdAt, start, end)),
@@ -266,27 +288,18 @@ export function ClientesMetricas() {
 
   const crescimento = entradasPeriodo.length - saidasPeriodo.length
 
-  const ativosInicioPeriodo = useMemo(() => {
-    const reference = new Date(start.getTime() - 1)
-    return clienteTasks.filter(task => {
-      const createdAt = new Date(task.createdAt)
-      const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
-      return createdAt <= reference && (!churnedAt || churnedAt > reference)
-    }).length
-  }, [clienteTasks, start])
+  const ativosInicioPeriodo = useMemo(
+    () => countAtivosEm(clienteTasks, new Date(start.getTime() - 1)),
+    [clienteTasks, start],
+  )
 
   const churnBase = periodMode === 'total' ? clienteTasks.length : ativosInicioPeriodo
   const churnRate = churnBase > 0 ? +((saidasPeriodo.length / churnBase) * 100).toFixed(1) : 0
 
-  const prevChurnBase = useMemo(() => {
-    if (!prevStart) return 0
-    const reference = new Date(prevStart.getTime() - 1)
-    return clienteTasks.filter(task => {
-      const createdAt = new Date(task.createdAt)
-      const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
-      return createdAt <= reference && (!churnedAt || churnedAt > reference)
-    }).length
-  }, [clienteTasks, prevStart])
+  const prevChurnBase = useMemo(
+    () => (prevStart ? countAtivosEm(clienteTasks, new Date(prevStart.getTime() - 1)) : 0),
+    [clienteTasks, prevStart],
+  )
   const prevChurnRate = hasComparison && prevChurnBase > 0
     ? +((prevSaidasPeriodo.length / prevChurnBase) * 100).toFixed(1)
     : null
@@ -327,7 +340,7 @@ export function ClientesMetricas() {
   const in60 = todayMs + 60 * 24 * 60 * 60 * 1000
   const vencendo = useMemo(() =>
     mentoriaTasks
-      .filter(t => { if (!t.dueDate || t.churnedAt) return false; const d = new Date(t.dueDate).getTime(); return d >= todayMs && d <= in60 })
+      .filter(t => { if (!t.dueDate || t.churnedAt || t.isLegacyChurn) return false; const d = new Date(t.dueDate).getTime(); return d >= todayMs && d <= in60 })
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
   [mentoriaTasks, todayMs, in60])
 
