@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const [lead, stage, responsible] = await Promise.all([
-    prisma.lead.findUnique({ where: { id: leadId } }),
+    prisma.lead.findUnique({ where: { id: leadId }, select: { id: true, name: true, phone: true, profilePicUrl: true } }),
     prisma.column.findFirst({ where: { id: stageId, source: 'negotiations' } }),
     body.responsibleId ? prisma.user.findUnique({ where: { id: body.responsibleId }, select: { id: true, name: true } }) : null,
   ])
@@ -70,6 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         order: (await tx.task.count({ where: { columnId: stage.id } }) + 1) * 1000,
         source: 'negotiations',
         assignee: responsible?.name ?? null,
+        logoUrl: lead.profilePicUrl ?? undefined,
         leadId,
       },
     })

@@ -223,16 +223,17 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
               )}
             </div>
 
-            {/* Contract end date */}
-            <div>
-              <label className="text-[11px] text-slate-500 font-medium mb-1 block">Encerramento do contrato</label>
-              <Input
-                type="date"
-                value={newTaskDueDate}
-                onChange={(e) => setNewTaskDueDate(e.target.value)}
-                className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] text-sm rounded-xl h-9"
-              />
-            </div>
+            {!isNegotiationBoard && (
+              <div>
+                <label className="text-[11px] text-slate-500 font-medium mb-1 block">Encerramento do contrato</label>
+                <Input
+                  type="date"
+                  value={newTaskDueDate}
+                  onChange={(e) => setNewTaskDueDate(e.target.value)}
+                  className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] text-sm rounded-xl h-9"
+                />
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button

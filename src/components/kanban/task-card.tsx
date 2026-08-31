@@ -6,7 +6,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, Save, Plus, ClipboardList,
+  ImagePlus, Plus, ClipboardList, User,
   CheckCircle2, Clock
 } from 'lucide-react'
 import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
@@ -40,6 +40,20 @@ function formatDateBR(date: Date | string | null | undefined) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })
 }
 
+function parseNegotiationPreview(description: string | null | undefined) {
+  if (!description) return { service: '', value: '' }
+
+  const parts = description.split(' · ').filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      service: parts[0],
+      value: parts.slice(1).join(' · '),
+    }
+  }
+
+  return { service: description, value: '' }
+}
+
 export function TaskCard({ task }: TaskCardProps) {
   // Card inline edit state
   const [isEditing, setIsEditing] = useState(false)
@@ -60,6 +74,10 @@ export function TaskCard({ task }: TaskCardProps) {
   const { data: columns } = useColumns('tasks')
   const { data: kanbanColumns } = useColumns()
   const { data: cardTasks } = useKanbanCardTasks(task.id)
+  const isNegotiationCard = task.source === 'negotiations'
+  const negotiationPreview = isNegotiationCard ? parseNegotiationPreview(task.description) : null
+  const negotiationService = negotiationPreview?.service || task.description || 'Negociação criada a partir do lead'
+  const negotiationValue = negotiationPreview?.value || ''
 
   // Task creation modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -112,9 +130,9 @@ export function TaskCard({ task }: TaskCardProps) {
     updateTask.mutate({
       id: task.id,
       title: editTitle.trim(),
-      dueDate: editDueDate ? parseDateLocal(editDueDate) : null,
+      dueDate: isNegotiationCard ? undefined : (editDueDate ? parseDateLocal(editDueDate) : null),
       logoUrl: editLogo,
-    } as any)
+    })
     setIsEditing(false)
   }
 
@@ -145,7 +163,7 @@ export function TaskCard({ task }: TaskCardProps) {
     setModalOpen(true)
   }
 
-  const dueDate = task.dueDate ? new Date(task.dueDate) : null
+  const dueDate = isNegotiationCard ? null : (task.dueDate ? new Date(task.dueDate) : null)
   const isOverdue = dueDate && dueDate < new Date()
 
   // Dynamic monogram colors for cards without logos
@@ -245,16 +263,17 @@ export function TaskCard({ task }: TaskCardProps) {
                   className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
 
-                {/* Due date edit */}
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">Encerramento do contrato</label>
-                  <Input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white [color-scheme:dark] rounded-lg"
-                  />
-                </div>
+                {!isNegotiationCard && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">Encerramento do contrato</label>
+                    <Input
+                      type="date"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white [color-scheme:dark] rounded-lg"
+                    />
+                  </div>
+                )}
 
                 {/* Save / Cancel */}
                 <div className="flex gap-2 pt-0.5">
@@ -281,10 +300,10 @@ export function TaskCard({ task }: TaskCardProps) {
                     <img
                       src={task.logoUrl}
                       alt={`${task.title} logo`}
-                      className="w-9 h-9 rounded-xl object-cover border border-white/[0.08] shrink-0"
+                      className={`${isNegotiationCard ? 'w-9 h-9 rounded-full' : 'w-9 h-9 rounded-xl'} object-cover border border-white/[0.08] shrink-0`}
                     />
                   ) : (
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 bg-gradient-to-br ${placeholderStyle}`}>
+                    <div className={`${isNegotiationCard ? 'w-9 h-9 rounded-full' : 'w-9 h-9 rounded-xl'} flex items-center justify-center text-xs font-bold shrink-0 bg-gradient-to-br ${placeholderStyle}`}>
                       {initial}
                     </div>
                   )}
@@ -293,35 +312,54 @@ export function TaskCard({ task }: TaskCardProps) {
                   </p>
                 </div>
 
-                {task.description && (
+                {isNegotiationCard ? (
+                  <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{negotiationService}</p>
+                ) : task.description ? (
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
-                )}
+                ) : null}
 
-                {/* Meta details / Badges row */}
-                <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                  {dueDate && (
-                    <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                      isOverdue
-                        ? 'bg-red-500/10 text-red-400 border-red-500/15'
-                        : 'bg-white/[0.04] text-slate-400 border-white/[0.03]'
-                    }`}>
-                      <Calendar className="w-3 h-3 shrink-0" />
-                      Enc. {formatDateBR(dueDate)}
-                    </span>
-                  )}
-                  {task.isPriorityToday && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
-                      <Star className="w-3 h-3 fill-current shrink-0" />
-                      Prioridade
-                    </span>
-                  )}
-                  {activeTasks.length > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
-                      <ClipboardList className="w-3 h-3 shrink-0" />
-                      {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
-                    </span>
-                  )}
-                </div>
+                {isNegotiationCard ? (
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-white/[0.03]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {task.assignee && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 border border-white/[0.05]">
+                          <User className="w-3 h-3 shrink-0" />
+                          {task.assignee}
+                        </span>
+                      )}
+                    </div>
+                    {negotiationValue && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 tabular-nums">
+                        {negotiationValue}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                    {dueDate && (
+                      <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                        isOverdue
+                          ? 'bg-red-500/10 text-red-400 border-red-500/15'
+                          : 'bg-white/[0.04] text-slate-400 border-white/[0.03]'
+                      }`}>
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        Enc. {formatDateBR(dueDate)}
+                      </span>
+                    )}
+                    {task.isPriorityToday && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
+                        <Star className="w-3 h-3 fill-current shrink-0" />
+                        Prioridade
+                      </span>
+                    )}
+                    {activeTasks.length > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
+                        <ClipboardList className="w-3 h-3 shrink-0" />
+                        {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
+                      </span>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -329,24 +367,36 @@ export function TaskCard({ task }: TaskCardProps) {
           {/* Action buttons — only in view mode */}
           {!isEditing && (
             <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={handleTogglePriority}
-                className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                  task.isPriorityToday
-                    ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
-                    : 'text-slate-600 hover:text-amber-400 hover:bg-amber-500/10'
-                }`}
-                title="Prioridade do dia"
-              >
-                <Star className={`w-3.5 h-3.5 ${task.isPriorityToday ? 'fill-current' : ''}`} />
-              </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
-                title="Editar"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
+              {isNegotiationCard ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+                  title="Editar"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleTogglePriority}
+                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                      task.isPriorityToday
+                        ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
+                        : 'text-slate-600 hover:text-amber-400 hover:bg-amber-500/10'
+                    }`}
+                    title="Prioridade do dia"
+                  >
+                    <Star className={`w-3.5 h-3.5 ${task.isPriorityToday ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-1.5 rounded-lg text-slate-600 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+                    title="Editar"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -384,20 +434,22 @@ export function TaskCard({ task }: TaskCardProps) {
                 <img
                   src={task.logoUrl}
                   alt={task.title}
-                  className="w-12 h-12 rounded-xl object-cover border border-white/[0.1] shrink-0"
+                  className={`${isNegotiationCard ? 'w-12 h-12 rounded-full' : 'w-12 h-12 rounded-xl'} object-cover border border-white/[0.1] shrink-0`}
                 />
               ) : (
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 bg-gradient-to-br ${placeholderStyle}`}>
+                <div className={`${isNegotiationCard ? 'w-12 h-12 rounded-full' : 'w-12 h-12 rounded-xl'} flex items-center justify-center text-sm font-bold shrink-0 bg-gradient-to-br ${placeholderStyle}`}>
                   {initial}
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold text-white leading-tight truncate">{task.title}</h2>
-                {task.description && (
+                {isNegotiationCard ? (
+                  <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{negotiationService}</p>
+                ) : task.description ? (
                   <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
-                )}
+                ) : null}
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {dueDate && (
+                  {!isNegotiationCard && dueDate && (
                     <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
                       isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'
                     }`}>
