@@ -78,10 +78,15 @@ function ClienteCard({ task }: { task: Task }) {
     updateTask.mutate({ id: task.id, promocaoAte: date || null })
   }
 
-  const promoDate = task.promocaoAte ? new Date(task.promocaoAte) : null
-  const promoExpired = promoDate ? promoDate < new Date() : false
-  const promoDateStr = promoDate
-    ? promoDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  // promocaoAte guarda só a data (dia de calendário), sem hora. Comparar/formatar
+  // via new Date(...).toLocaleDateString() usa o fuso do navegador e pode voltar
+  // um dia (ex: "2026-08-31" vira 30/08 pra quem está em UTC-3) — por isso tudo
+  // aqui trabalha direto na string "YYYY-MM-DD", sem conversão de fuso.
+  const promoDateRaw = task.promocaoAte ? task.promocaoAte.slice(0, 10) : null
+  const todayBrazil = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+  const promoExpired = promoDateRaw ? promoDateRaw < todayBrazil : false
+  const promoDateStr = promoDateRaw
+    ? `${promoDateRaw.slice(8, 10)}/${promoDateRaw.slice(5, 7)}`
     : null
 
   return (
