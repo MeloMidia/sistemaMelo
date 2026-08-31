@@ -198,6 +198,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   outline: 2px solid var(--mf-signal) !important;
   outline-offset: 2px;
 }
+
 .nm-sidebar, .mf-sidebar {
   background: var(--mf-surface) !important;
   border-right: 1px solid var(--mf-line);
@@ -943,6 +944,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 [data-theme="dark"] .text-slate-400 { color: var(--mf-muted) !important; }
 [data-theme="dark"] .mf-hero .text-slate-400,
 [data-theme="dark"] .mf-hero .text-slate-500 { color: rgba(240, 245, 240, 0.68) !important; }
+
+/* Native select menus need explicit option colors, especially on Windows/Chrome. */
+select { color-scheme: light; }
+select option,
+select optgroup,
+[data-theme="light"] select option,
+[data-theme="light"] select optgroup {
+  background-color: var(--mf-surface) !important;
+  color: var(--mf-ink) !important;
+}
+select option:disabled {
+  color: var(--mf-faint) !important;
+}
+select option:checked,
+[data-theme="light"] select option:checked,
+[data-theme="dark"] select option:checked {
+  background-color: var(--mf-signal) !important;
+  color: var(--primary-foreground) !important;
+}
+[data-theme="dark"] select { color-scheme: dark; }
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup {
+  background-color: color-mix(in srgb, var(--mf-surface) 86%, #000000) !important;
+  color: var(--mf-ink) !important;
+}
 
 /* Data and interaction polish */
 time, .tabular-nums, [data-recharts] { font-variant-numeric: tabular-nums; }

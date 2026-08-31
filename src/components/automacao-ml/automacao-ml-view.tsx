@@ -174,7 +174,7 @@ export function AutomacaoMLView() {
               >
                 <option value="" disabled>Selecione um cliente...</option>
                 {clients.map(c => (
-                  <option key={c.id} value={c.id} className="bg-[#07080c]">{c.name}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             )}

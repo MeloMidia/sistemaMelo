@@ -19,7 +19,12 @@ import { AgendaView } from '@/components/agenda/agenda-view'
 import { ClientesView } from '@/components/clientes/clientes-view'
 import { CarteiraView } from '@/components/clientes/carteira-view'
 
+type Theme = 'dark' | 'light'
 type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
+
+const THEME_STORAGE_KEY = 'nm-theme'
+const THEME_COOKIE_KEY = 'mf-theme'
+const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 const OPERACIONAL = [
   { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#2854DF' },
@@ -48,31 +53,83 @@ function SectionLabel({ label, expanded }: { label: string; expanded: boolean })
   )
 }
 
+function isTheme(value: string | null | undefined): value is Theme {
+  return value === 'dark' || value === 'light'
+}
+
+function readThemeCookie(): Theme | null {
+  if (typeof document === 'undefined') return null
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${THEME_COOKIE_KEY}=(dark|light)(?:;|$)`))
+  return isTheme(match?.[1]) ? match[1] : null
+}
+
+function readSavedTheme(): Theme {
+  if (typeof window === 'undefined') return 'light'
+
+  try {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+    if (isTheme(storedTheme)) return storedTheme
+  } catch {}
+
+  const cookieTheme = readThemeCookie()
+  if (cookieTheme) return cookieTheme
+
+  const documentTheme = document.documentElement.dataset.theme
+  return isTheme(documentTheme) ? documentTheme : 'light'
+}
+
+function applyTheme(theme: Theme) {
+  if (typeof document === 'undefined') return
+
+  document.documentElement.dataset.theme = theme
+  document.documentElement.style.colorScheme = theme
+
+  let themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+  if (!themeColor) {
+    themeColor = document.createElement('meta')
+    themeColor.name = 'theme-color'
+    document.head.appendChild(themeColor)
+  }
+  themeColor.content = theme === 'dark' ? '#0e1211' : '#f5f6f3'
+}
+
+function saveTheme(theme: Theme) {
+  if (typeof document === 'undefined') return
+
+  try { window.localStorage.setItem(THEME_STORAGE_KEY, theme) } catch {}
+  document.cookie = `${THEME_COOKIE_KEY}=${theme}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; samesite=lax`
+}
+
 export default function HomePage() {
   const [activeTab, setActiveTab]         = useState<ActiveTab>('kanban')
   const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
   const [crmView, setCrmView]             = useState<CrmView>('inbox')
-  const [theme, setTheme]                 = useState<'dark' | 'light'>('light')
+  const [theme, setTheme]                 = useState<Theme>('light')
+  const [themeLoaded, setThemeLoaded]     = useState(false)
   const { data: session } = useSession()
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    document.documentElement.style.colorScheme = theme
+    const savedTheme = readSavedTheme()
+    setTheme(savedTheme)
+    applyTheme(savedTheme)
+    setThemeLoaded(true)
+  }, [])
 
-    let themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
-    if (!themeColor) {
-      themeColor = document.createElement('meta')
-      themeColor.name = 'theme-color'
-      document.head.appendChild(themeColor)
-    }
-    themeColor.content = theme === 'dark' ? '#0e1211' : '#f5f6f3'
-  }, [theme])
+  useEffect(() => {
+    if (!themeLoaded) return
+    applyTheme(theme)
+    saveTheme(theme)
+  }, [theme, themeLoaded])
 
   function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
-    try { localStorage.setItem('nm-theme', next) } catch {}
+    setTheme((current) => {
+      const next = current === 'dark' ? 'light' : 'dark'
+      applyTheme(next)
+      saveTheme(next)
+      return next
+    })
   }
 
   function openLeadInCrm(leadId: string) {
@@ -130,7 +187,6 @@ export default function HomePage() {
 
   return (
     <div
-      data-theme={theme}
       className="h-dvh min-h-0 flex overflow-hidden mf-app-shell"
       style={{ background: pageBg }}
     >

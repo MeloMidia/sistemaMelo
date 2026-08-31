@@ -53,7 +53,7 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
               const date = new Date(2026, i, 1)
               const name = date.toLocaleDateString('pt-BR', { month: 'long' })
               return (
-                <option key={i} value={i} className="bg-[#0c0e17] text-white">
+                <option key={i} value={i}>
                   {name.charAt(0).toUpperCase() + name.slice(1)}
                 </option>
               )
@@ -68,7 +68,7 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
             {Array.from({ length: 11 }, (_, i) => {
               const year = new Date().getFullYear() - 5 + i
               return (
-                <option key={year} value={year} className="bg-[#0c0e17] text-white">
+                <option key={year} value={year}>
                   {year}
                 </option>
               )

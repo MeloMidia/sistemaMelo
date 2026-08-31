@@ -488,9 +488,9 @@ export function EventModal({
               onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full bg-white/[0.03] hover:bg-white/[0.05] focus:bg-[#07080c]/50 border border-white/[0.08] focus:border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/20 transition-all duration-200"
             >
-              <option value="" className="bg-[#0c0e17]">Sem categoria</option>
+              <option value="">Sem categoria</option>
               {(categories || []).map((c) => (
-                <option key={c.id} value={c.id} className="bg-[#0c0e17]">
+                <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
