@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCheck, MessageCircle, Search, Wifi, WifiOff } from 'lucide-react'
+import { CheckCheck, LayoutDashboard, MessageCircle, Search, Wifi, WifiOff } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { useConnection, useCrmStream } from '@/hooks/crm-api'
 import { LeadConversaTab } from './lead-conversa-tab'
 import { LeadProfilePanel } from './lead-profile-panel'
+import { KanbanLeads } from './kanban-leads'
 
 type Filter = 'all' | 'unread'
 
@@ -46,6 +47,7 @@ function Avatar({ conversation, size = 'md' }: { conversation: CrmConversation; 
 
 export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
   const [selectedId, setSelectedId] = useState<string | null>(openLeadId ?? null)
+  const [view, setView] = useState<'inbox' | 'pipeline'>('inbox')
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   const queryClient = useQueryClient()
@@ -90,6 +92,15 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
     if (conversation.isUnread) markAsRead.mutate(conversation.id)
   }
 
+  function openLeadFromPipeline(leadId: string) {
+    setSelectedId(leadId)
+    setView('inbox')
+  }
+
+  if (view === 'pipeline') {
+    return <KanbanLeads onOpenLead={openLeadFromPipeline} onOpenInbox={() => setView('inbox')} />
+  }
+
   return (
     <div className="mf-inbox flex-1 min-h-0 flex overflow-hidden">
       <aside className={`mf-inbox-rail w-full md:w-[360px] shrink-0 min-h-0 flex flex-col border-r ${selected ? 'hidden md:flex' : 'flex'}`}>
@@ -99,9 +110,15 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
               <p className="mf-eyebrow mb-1">Inbox comercial</p>
               <h1 className="text-xl text-[#151817] font-semibold tracking-tight">Conversas</h1>
             </div>
-            <div className={`flex items-center gap-1.5 text-[11px] font-medium ${connection?.status === 'open' ? 'text-[#16805D]' : 'text-slate-500'}`}>
-              {connection?.status === 'open' ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
-              {connection?.status === 'open' ? 'Conectado' : 'Desconectado'}
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 text-[11px] font-medium ${connection?.status === 'open' ? 'text-[#16805D]' : 'text-slate-500'}`}>
+                {connection?.status === 'open' ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
+                {connection?.status === 'open' ? 'Conectado' : 'Desconectado'}
+              </div>
+              <button type="button" onClick={() => setView('pipeline')} className="mf-inbox-pipeline-button" title="Abrir pipeline de leads" aria-label="Abrir pipeline de leads">
+                <LayoutDashboard className="size-3.5" aria-hidden="true" />
+                <span>Pipeline</span>
+              </button>
             </div>
           </div>
 

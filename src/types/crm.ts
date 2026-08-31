@@ -29,7 +29,7 @@ export interface Lead {
   id: string
   name: string | null
   phone: string
-  stageId: string
+  stageId: string | null
   assignedToId: string | null
   assignedTo: CrmUser | null
   value: number | null
@@ -47,6 +47,7 @@ export interface Lead {
   profilePicUrl: string | null
   followUpColumn: number | null
   followUpMovedAt: string | null
+  lastReadAt?: string | null
   tags: LeadTagWithTag[]
   messages: Message[]
   _count: { messages: number; tasks?: number }

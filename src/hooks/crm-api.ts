@@ -33,6 +33,27 @@ export function useLeadsLite() {
   })
 }
 
+export function useCreateLead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { name: string; phone: string; stageId?: string }) => {
+      const res = await fetch('/api/crm/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Não foi possível criar o lead.')
+      return result as Lead
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-leads-lite'] })
+    },
+  })
+}
+
 export function useCreateStage() {
   const qc = useQueryClient()
   return useMutation({
@@ -136,7 +157,7 @@ export function useUpdateLead() {
     }: {
       id: string
       name?: string | null
-      stageId?: string
+      stageId?: string | null
       assignedToId?: string | null
       value?: number | null
       temperature?: string | null
