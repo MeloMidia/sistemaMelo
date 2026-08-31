@@ -207,7 +207,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-nav-item-active span { color: var(--mf-signal) !important; }
 .mf-nav-item-active svg { color: var(--mf-signal) !important; }
 .mf-nav-item-active > span:last-child { background: var(--mf-signal) !important; box-shadow: none !important; }
-.mf-nav-subitem { align-items: center; background: transparent; border: 0; border-radius: 8px; color: var(--mf-muted); cursor: pointer; display: flex; font-size: 12px; font-weight: 600; margin: 1px 0 3px 31px; min-height: 30px; padding: 0 10px; text-align: left; transition: background-color 150ms ease, color 150ms ease; width: auto; }
+.mf-nav-subitem { align-items: center; background: transparent; border: 0; border-radius: 8px; color: var(--mf-muted); cursor: pointer; display: flex; font-size: 12px; font-weight: 600; gap: 8px; margin: 1px 0 3px 31px; min-height: 30px; padding: 0 10px; text-align: left; transition: background-color 150ms ease, color 150ms ease; width: auto; }
 .mf-nav-subitem:hover { background: var(--mf-well); color: var(--mf-ink); }
 .mf-nav-subitem-active { background: color-mix(in srgb, var(--mf-success) 10%, transparent); color: var(--mf-success); }
 .nm-btn, .mf-button-secondary {

@@ -9,7 +9,7 @@ import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Menu, ChevronLeft, Sun, Moon,
+  Briefcase, Kanban, Menu, ChevronLeft, Sun, Moon,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
@@ -186,6 +186,7 @@ export default function HomePage() {
                   className={`mf-nav-subitem ${activeTab === 'crm' && crmView === 'pipeline' ? 'mf-nav-subitem-active' : ''}`}
                   aria-current={activeTab === 'crm' && crmView === 'pipeline' ? 'page' : undefined}
                 >
+                  <Kanban className="size-3.5 shrink-0" aria-hidden="true" />
                   Kanban
                 </button>
               )}
