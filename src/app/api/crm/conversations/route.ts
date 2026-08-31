@@ -5,11 +5,28 @@ import { prisma } from '@/lib/prisma'
 
 const MAX_CONVERSATIONS = 250
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const searchTerm = new URL(request.url).searchParams.get('q')?.trim() ?? ''
+  const phoneTerm = searchTerm.replace(/\D/g, '')
+
   const leads = await prisma.lead.findMany({
+    where: searchTerm ? {
+      OR: [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        ...(phoneTerm ? [{ phone: { contains: phoneTerm } }] : []),
+        {
+          messages: {
+            some: {
+              content: { contains: searchTerm, mode: 'insensitive' },
+              NOT: { whatsappMessageId: { startsWith: 'note-' } },
+            },
+          },
+        },
+      ],
+    } : undefined,
     orderBy: { updatedAt: 'desc' },
     take: MAX_CONVERSATIONS,
     select: {

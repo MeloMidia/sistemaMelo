@@ -106,3 +106,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     throw error
   }
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+
+  try {
+    await prisma.lead.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    if ((error as { code?: string })?.code === 'P2025') {
+      return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+    }
+    throw error
+  }
+}

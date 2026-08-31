@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCheck, MessageCircle, Search, Wifi, WifiOff } from 'lucide-react'
+import { useDeferredValue, useState } from 'react'
+import { CheckCheck, MessageCircle, Search, Wifi, WifiOff, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
@@ -26,6 +26,13 @@ function preview(content: string) {
   if (content.startsWith('[midia')) return 'Mídia recebida'
   if (content.startsWith('[Nota Interna]')) return 'Nota interna'
   return content
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
 }
 
 function Avatar({ conversation, size = 'md' }: { conversation: CrmConversation; size?: 'sm' | 'md' }) {
@@ -60,14 +67,16 @@ export function CrmInbox({
   const view = controlledView ?? localView
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search.trim())
   const queryClient = useQueryClient()
   const { data: connection } = useConnection()
   useCrmStream()
 
   const conversationsQuery = useQuery<CrmConversation[]>({
-    queryKey: ['crm-conversations'],
+    queryKey: ['crm-conversations', deferredSearch],
     queryFn: async () => {
-      const response = await fetch('/api/crm/conversations')
+      const query = deferredSearch ? `?q=${encodeURIComponent(deferredSearch)}` : ''
+      const response = await fetch(`/api/crm/conversations${query}`)
       if (!response.ok) throw new Error('Não foi possível carregar as conversas.')
       return response.json()
     },
@@ -85,12 +94,21 @@ export function CrmInbox({
 
   const conversations = conversationsQuery.data ?? []
   const visibleConversations = (() => {
-    const term = search.trim().toLocaleLowerCase('pt-BR')
+    const term = normalizeSearch(search.trim())
+    const phoneTerm = search.replace(/\D/g, '')
     return conversations.filter((conversation) => {
       if (filter === 'unread' && !conversation.isUnread) return false
       if (!term) return true
-      return getLeadDisplayName(conversation).toLocaleLowerCase('pt-BR').includes(term) ||
-        conversation.phone.includes(term.replace(/\D/g, ''))
+      const searchableContent = [
+        conversation.name,
+        getLeadDisplayName(conversation),
+        conversation.phone,
+        formatPhoneNumber(conversation.phone),
+        conversation.lastMessage?.content,
+      ].filter(Boolean).join(' ')
+
+      return normalizeSearch(searchableContent).includes(term) ||
+        Boolean(phoneTerm && conversation.phone.replace(/\D/g, '').includes(phoneTerm))
     })
   })()
 
@@ -138,9 +156,19 @@ export function CrmInbox({
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Pesquisar conversa..."
-              className="mf-inbox-search w-full h-10 pl-9 pr-3 rounded-xl border text-sm outline-none focus:border-[#2854DF] focus:ring-2 focus:ring-[#2854DF]/10"
+              placeholder="Nome, telefone ou mensagem..."
+              className="mf-inbox-search w-full h-10 pl-9 pr-9 rounded-xl border text-sm outline-none focus:border-[#2854DF] focus:ring-2 focus:ring-[#2854DF]/10"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Limpar pesquisa"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            )}
           </label>
 
           <div className="mf-inbox-filter grid grid-cols-2 gap-1 mt-3 rounded-lg p-1">

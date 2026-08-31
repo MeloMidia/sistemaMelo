@@ -273,6 +273,30 @@ export function useUpdateLead() {
 }
 
 // ——— Messages ———
+export function useDeleteLead() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await fetch(`/api/crm/leads/${leadId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Não foi possível excluir o lead.')
+      return data
+    },
+    onSuccess: (_data, leadId) => {
+      qc.removeQueries({ queryKey: ['crm-messages', leadId] })
+      qc.removeQueries({ queryKey: ['crm-lead-profile', leadId] })
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-leads-lite'] })
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['agenda-events'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
 export function useLeadMessages(leadId: string | null) {
   return useQuery<Message[]>({
     queryKey: ['crm-messages', leadId],

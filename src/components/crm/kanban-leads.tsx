@@ -26,9 +26,10 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
-import { useCreateLead, useCreateStage, useCrmStream, useStages, useUpdateLead } from '@/hooks/crm-api'
+import { useCreateLead, useCreateStage, useCrmStream, useDeleteLead, useStages, useUpdateLead } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
@@ -36,9 +37,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -89,7 +92,17 @@ function LeadAvatar({ lead }: { lead: Lead }) {
   )
 }
 
-function PipelineCard({ lead, isOverlay = false, onOpenLead }: { lead: Lead; isOverlay?: boolean; onOpenLead: (leadId: string) => void }) {
+function PipelineCard({
+  lead,
+  isOverlay = false,
+  onOpenLead,
+  onRequestDelete,
+}: {
+  lead: Lead
+  isOverlay?: boolean
+  onOpenLead: (leadId: string) => void
+  onRequestDelete: (lead: Lead) => void
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `lead:${lead.id}`,
     data: { type: 'lead', lead },
@@ -117,16 +130,31 @@ function PipelineCard({ lead, isOverlay = false, onOpenLead }: { lead: Lead; isO
           </div>
           <p className="mf-pipeline-card-phone">{formatPhoneNumber(lead.phone)}</p>
         </div>
-        <button
-          type="button"
-          className="mf-pipeline-icon-button"
-          aria-label={`Mais opções de ${getLeadDisplayName(lead)}`}
-          title="Abrir lead"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => { event.stopPropagation(); onOpenLead(lead.id) }}
-        >
-          <MoreHorizontal className="size-4" aria-hidden="true" />
-        </button>
+        {!isOverlay && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              type="button"
+              className="mf-pipeline-icon-button"
+              aria-label={`Mais opções de ${getLeadDisplayName(lead)}`}
+              title="Ações do lead"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <MoreHorizontal className="size-4" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuItem onClick={() => onOpenLead(lead.id)}>
+                <MessageCircle className="size-4" aria-hidden="true" />
+                Abrir conversa
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onRequestDelete(lead)}>
+                <Trash2 className="size-4" aria-hidden="true" />
+                Excluir lead
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <p className="mf-pipeline-card-preview">{getPreview(lead)}</p>
@@ -157,7 +185,17 @@ function PipelineCard({ lead, isOverlay = false, onOpenLead }: { lead: Lead; isO
   )
 }
 
-function PipelineColumn({ stage, onOpenLead, onCreateLead }: { stage: LeadStage; onOpenLead: (leadId: string) => void; onCreateLead: (stageId: string) => void }) {
+function PipelineColumn({
+  stage,
+  onOpenLead,
+  onCreateLead,
+  onRequestDelete,
+}: {
+  stage: LeadStage
+  onOpenLead: (leadId: string) => void
+  onCreateLead: (stageId: string) => void
+  onRequestDelete: (lead: Lead) => void
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage:${stage.id}`,
     data: { type: 'stage', stageId: stage.id },
@@ -186,7 +224,7 @@ function PipelineColumn({ stage, onOpenLead, onCreateLead }: { stage: LeadStage;
       </header>
 
       <div ref={setNodeRef} className="mf-pipeline-column-body">
-        {stage.leads.map((lead) => <PipelineCard key={lead.id} lead={lead} onOpenLead={onOpenLead} />)}
+        {stage.leads.map((lead) => <PipelineCard key={lead.id} lead={lead} onOpenLead={onOpenLead} onRequestDelete={onRequestDelete} />)}
         {stage.leads.length === 0 && (
           <div className="mf-pipeline-empty-column">
             <span>Solte leads aqui</span>
@@ -293,12 +331,57 @@ function NewStageDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   )
 }
 
+function DeleteLeadDialog({
+  lead,
+  onOpenChange,
+}: {
+  lead: Lead | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const deleteLead = useDeleteLead()
+
+  function confirmDeletion() {
+    if (!lead) return
+    deleteLead.mutate(lead.id, {
+      onSuccess: () => onOpenChange(false),
+    })
+  }
+
+  return (
+    <Dialog open={Boolean(lead)} onOpenChange={onOpenChange}>
+      <DialogContent className="mf-pipeline-dialog p-0 sm:max-w-[440px]" showCloseButton={!deleteLead.isPending}>
+        <DialogHeader className="mf-pipeline-dialog-header pr-12">
+          <div>
+            <DialogTitle>Excluir lead?</DialogTitle>
+            <DialogDescription className="mt-2">
+              Você está prestes a excluir <strong>{lead ? getLeadDisplayName(lead) : 'este lead'}</strong>. As mensagens, etiquetas e histórico vinculados serão apagados definitivamente.
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+        {deleteLead.isError && (
+          <p className="px-5 text-sm text-destructive" role="alert">{deleteLead.error.message}</p>
+        )}
+        <DialogFooter className="mf-pipeline-dialog-footer">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={deleteLead.isPending}>
+            Cancelar
+          </Button>
+          <Button type="button" variant="destructive" onClick={confirmDeletion} disabled={deleteLead.isPending}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            {deleteLead.isPending ? 'Excluindo…' : 'Excluir lead'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId: string) => void; onOpenInbox?: () => void }) {
   const { data: stages = [], isLoading, isError } = useStages()
   const updateLead = useUpdateLead()
   const [search, setSearch] = useState('')
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all')
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [isNewStageOpen, setIsNewStageOpen] = useState(false)
   const [newLeadStageId, setNewLeadStageId] = useState<string | null>(null)
@@ -385,15 +468,16 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
         <div className="mf-pipeline-board-hint"><span>Arraste um cartão para mover o lead</span>{search || activityFilter !== 'all' ? <button type="button" onClick={() => { setSearch(''); setActivityFilter('all') }}>Limpar filtros</button> : <span>As mudanças são salvas automaticamente</span>}</div>
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="mf-pipeline-board">
-            {visibleStages.map((stage) => <PipelineColumn key={stage.id} stage={stage} onOpenLead={openLead} onCreateLead={openNewLead} />)}
+            {visibleStages.map((stage) => <PipelineColumn key={stage.id} stage={stage} onOpenLead={openLead} onCreateLead={openNewLead} onRequestDelete={setLeadToDelete} />)}
             <button type="button" className="mf-pipeline-add-stage" onClick={() => setIsNewStageOpen(true)}><Plus className="size-4" />Adicionar etapa</button>
           </div>
-          <DragOverlay dropAnimation={null}>{activeLead ? <div className="w-[302px] rotate-1"><PipelineCard lead={activeLead} isOverlay onOpenLead={openLead} /></div> : null}</DragOverlay>
+          <DragOverlay dropAnimation={null}>{activeLead ? <div className="w-[302px] rotate-1"><PipelineCard lead={activeLead} isOverlay onOpenLead={openLead} onRequestDelete={setLeadToDelete} /></div> : null}</DragOverlay>
         </DndContext>
       </div>
 
       <NewLeadDialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen} stages={stages} initialStageId={newLeadStageId} />
       <NewStageDialog open={isNewStageOpen} onOpenChange={setIsNewStageOpen} />
+      <DeleteLeadDialog lead={leadToDelete} onOpenChange={(open) => { if (!open) setLeadToDelete(null) }} />
     </div>
   )
 }
