@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCheck, LayoutDashboard, MessageCircle, Search, Wifi, WifiOff } from 'lucide-react'
+import { CheckCheck, MessageCircle, Search, Wifi, WifiOff } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
@@ -11,6 +11,7 @@ import { LeadProfilePanel } from './lead-profile-panel'
 import { KanbanLeads } from './kanban-leads'
 
 type Filter = 'all' | 'unread'
+export type CrmView = 'inbox' | 'pipeline'
 
 function formatConversationTime(value: string) {
   const date = new Date(value)
@@ -45,9 +46,18 @@ function Avatar({ conversation, size = 'md' }: { conversation: CrmConversation; 
   )
 }
 
-export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
+export function CrmInbox({
+  openLeadId,
+  view: controlledView,
+  onViewChange,
+}: {
+  openLeadId?: string | null
+  view?: CrmView
+  onViewChange?: (view: CrmView) => void
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(openLeadId ?? null)
-  const [view, setView] = useState<'inbox' | 'pipeline'>('inbox')
+  const [localView, setLocalView] = useState<CrmView>('inbox')
+  const view = controlledView ?? localView
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   const queryClient = useQueryClient()
@@ -92,6 +102,11 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
     if (conversation.isUnread) markAsRead.mutate(conversation.id)
   }
 
+  function setView(nextView: CrmView) {
+    setLocalView(nextView)
+    onViewChange?.(nextView)
+  }
+
   function openLeadFromPipeline(leadId: string) {
     setSelectedId(leadId)
     setView('inbox')
@@ -115,10 +130,6 @@ export function CrmInbox({ openLeadId }: { openLeadId?: string | null }) {
                 {connection?.status === 'open' ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
                 {connection?.status === 'open' ? 'Conectado' : 'Desconectado'}
               </div>
-              <button type="button" onClick={() => setView('pipeline')} className="mf-inbox-pipeline-button" title="Abrir pipeline de leads" aria-label="Abrir pipeline de leads">
-                <LayoutDashboard className="size-3.5" aria-hidden="true" />
-                <span>Pipeline</span>
-              </button>
             </div>
           </div>
 

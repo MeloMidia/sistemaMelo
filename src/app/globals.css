@@ -207,6 +207,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-nav-item-active span { color: var(--mf-signal) !important; }
 .mf-nav-item-active svg { color: var(--mf-signal) !important; }
 .mf-nav-item-active > span:last-child { background: var(--mf-signal) !important; box-shadow: none !important; }
+.mf-nav-subitem { align-items: center; background: transparent; border: 0; border-radius: 8px; color: var(--mf-muted); cursor: pointer; display: flex; font-size: 12px; font-weight: 600; margin: 1px 0 3px 31px; min-height: 30px; padding: 0 10px; text-align: left; transition: background-color 150ms ease, color 150ms ease; width: auto; }
+.mf-nav-subitem:hover { background: var(--mf-well); color: var(--mf-ink); }
+.mf-nav-subitem-active { background: color-mix(in srgb, var(--mf-success) 10%, transparent); color: var(--mf-success); }
 .nm-btn, .mf-button-secondary {
   background: var(--mf-surface) !important;
   border: 1px solid var(--mf-line) !important;
@@ -675,8 +678,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-pipeline-color-field button.is-selected { box-shadow: 0 0 0 2px var(--mf-ink); }
 .mf-pipeline-dialog-footer { align-items: center; background: var(--mf-well); border-top: 1px solid var(--mf-line); display: flex; flex-direction: row; justify-content: flex-end; margin: 0; padding: 14px 20px; }
 .mf-pipeline-dialog-footer button { min-width: 94px; }
-.mf-inbox-pipeline-button { align-items: center; background: var(--mf-well); border: 1px solid var(--mf-line); border-radius: 7px; color: var(--mf-muted); cursor: pointer; display: inline-flex; font-size: 10px; font-weight: 700; gap: 5px; height: 28px; justify-content: center; padding: 0 7px; transition: background-color 150ms ease, color 150ms ease; }
-.mf-inbox-pipeline-button:hover { background: var(--mf-signal-soft); color: var(--mf-signal); }
 
 @media (max-width: 1080px) {
   .mf-pipeline-toolbar { align-items: flex-start; flex-direction: column; gap: 14px; }

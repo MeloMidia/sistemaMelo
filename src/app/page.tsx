@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
-import { CrmInbox } from '@/components/crm/crm-inbox'
+import { CrmInbox, type CrmView } from '@/components/crm/crm-inbox'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
 import { AgendaView } from '@/components/agenda/agenda-view'
 import { ClientesView } from '@/components/clientes/clientes-view'
@@ -51,6 +51,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab]         = useState<ActiveTab>('kanban')
   const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
+  const [crmView, setCrmView]             = useState<CrmView>('inbox')
   const [theme, setTheme]                 = useState<'dark' | 'light'>('light')
   const { data: session } = useSession()
 
@@ -62,6 +63,12 @@ export default function HomePage() {
 
   function openLeadInCrm(leadId: string) {
     setCrmOpenLeadId(leadId)
+    setCrmView('inbox')
+    setActiveTab('crm')
+  }
+
+  function openCrmKanban() {
+    setCrmView('pipeline')
     setActiveTab('crm')
   }
 
@@ -72,7 +79,10 @@ export default function HomePage() {
     const isActive = activeTab === id
     return (
       <button
-        onClick={() => setActiveTab(id)}
+        onClick={() => {
+          if (id === 'crm') setCrmView('inbox')
+          setActiveTab(id)
+        }}
         title={!expanded ? label : undefined}
         className={`mf-nav-item w-full flex items-center gap-3 rounded-xl cursor-pointer select-none transition-colors duration-150
           ${isActive ? 'mf-nav-item-active' : ''} ${expanded ? 'px-3 py-2.5' : 'px-0 py-2.5 justify-center'}`}
@@ -167,7 +177,19 @@ export default function HomePage() {
             <SectionLabel label="Comercial" expanded={expanded} />
           </div>
           {COMERCIAL.map(item => (
-            <NavItem key={item.id} {...item} id={item.id as ActiveTab} />
+            <div key={item.id}>
+              <NavItem {...item} id={item.id as ActiveTab} />
+              {item.id === 'crm' && expanded && (
+                <button
+                  type="button"
+                  onClick={openCrmKanban}
+                  className={`mf-nav-subitem ${activeTab === 'crm' && crmView === 'pipeline' ? 'mf-nav-subitem-active' : ''}`}
+                  aria-current={activeTab === 'crm' && crmView === 'pipeline' ? 'page' : undefined}
+                >
+                  Kanban
+                </button>
+              )}
+            </div>
           ))}
         </nav>
 
@@ -244,7 +266,7 @@ export default function HomePage() {
         {activeTab === 'dashboard'    && <DashboardView />}
         {activeTab === 'metricas'     && <ClientesMetricas />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
-        {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} />}
+        {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} view={crmView} onViewChange={setCrmView} />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
     </div>
