@@ -5,15 +5,21 @@ export const CRM_CLOSED_STAGE_NAME = 'Fechados'
 
 /** Etapas iniciais criadas somente quando a base comercial está vazia. */
 export const DEFAULT_CRM_PIPELINE = [
-  { name: CRM_ENTRY_STAGE_NAME, order: 1000, color: '#2f855a' },
+  { name: CRM_ENTRY_STAGE_NAME, order: 1000, color: '#2f855a', isEntry: true },
   { name: 'Em atendimento', order: 2000, color: '#3b6fd8' },
   { name: 'Qualificados', order: 3000, color: '#8b5cf6' },
   { name: 'Agendados', order: 4000, color: '#d6922e' },
   { name: 'Proposta enviada', order: 5000, color: '#c45b3c' },
-  { name: CRM_CLOSED_STAGE_NAME, order: 6000, color: '#15724f' },
+  { name: CRM_CLOSED_STAGE_NAME, order: 6000, color: '#15724f', isClosed: true },
 ] as const
 
-export function isClosedCrmStage(name: string | null | undefined) {
+type CrmStageIdentity = { name: string; isClosed?: boolean | null }
+
+export function isClosedCrmStage(stage: CrmStageIdentity | string | null | undefined) {
+  if (!stage) return false
+  if (typeof stage !== 'string' && stage.isClosed) return true
+
+  const name = typeof stage === 'string' ? stage : stage.name
   return name?.trim().toLocaleLowerCase('pt-BR') === CRM_CLOSED_STAGE_NAME.toLocaleLowerCase('pt-BR')
 }
 
@@ -25,8 +31,17 @@ export function isClosedCrmStage(name: string | null | undefined) {
  */
 export async function ensureCrmPipeline() {
   let entryStage = await prisma.leadStage.findFirst({
-    where: { name: CRM_ENTRY_STAGE_NAME },
+    where: { OR: [{ isEntry: true }, { name: CRM_ENTRY_STAGE_NAME }] },
   })
+
+  // Bases anteriores identificavam a etapa apenas pelo nome. Ao encontrá-la,
+  // grava a identidade para que ela continue sendo a entrada após renomeada.
+  if (entryStage && !entryStage.isEntry) {
+    entryStage = await prisma.leadStage.update({
+      where: { id: entryStage.id },
+      data: { isEntry: true },
+    })
+  }
 
   if (!entryStage) {
     const firstStage = await prisma.leadStage.findFirst({ orderBy: { order: 'asc' } })
@@ -40,7 +55,7 @@ export async function ensureCrmPipeline() {
     }
 
     entryStage = await prisma.leadStage.findFirst({
-      where: { name: CRM_ENTRY_STAGE_NAME },
+      where: { OR: [{ isEntry: true }, { name: CRM_ENTRY_STAGE_NAME }] },
     })
 
     // Bases antigas podem ter etapas personalizadas, mas não a entrada do
@@ -53,12 +68,13 @@ export async function ensureCrmPipeline() {
             name: CRM_ENTRY_STAGE_NAME,
             color: '#2f855a',
             order: currentFirstStage.order - 1000,
+            isEntry: true,
           },
         })
       } else {
         await prisma.leadStage.createMany({ data: [...DEFAULT_CRM_PIPELINE] })
         entryStage = await prisma.leadStage.findFirst({
-          where: { name: CRM_ENTRY_STAGE_NAME },
+          where: { OR: [{ isEntry: true }, { name: CRM_ENTRY_STAGE_NAME }] },
         })
       }
     }

@@ -46,7 +46,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const targetStage = stageId && stageId !== currentLead?.stageId
-      ? await prisma.leadStage.findUnique({ where: { id: stageId }, select: { name: true } })
+      ? await prisma.leadStage.findUnique({ where: { id: stageId }, select: { name: true, isClosed: true } })
       : null
 
     if (stageId !== undefined && stageId !== null && stageId !== currentLead?.stageId && !targetStage) {
@@ -55,7 +55,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const stageChanged = stageId !== undefined && stageId !== currentLead?.stageId
     const closingUpdate = stageChanged
-      ? { closedAt: isClosedCrmStage(targetStage?.name) ? new Date() : null }
+      ? { closedAt: isClosedCrmStage(targetStage) ? new Date() : null }
       : {}
     // Primeira entrada no funil: lead não tinha etapa e passou a ter.
     // Não regrava se for só uma troca entre etapas já existentes.

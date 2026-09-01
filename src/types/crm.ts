@@ -98,6 +98,8 @@ export interface LeadStage {
   name: string
   order: number
   color: string
+  isEntry?: boolean
+  isClosed?: boolean
   leads: Lead[]
   _count: { leads: number }
 }
@@ -129,6 +131,7 @@ export interface CrmConversation {
   profilePicUrl: string | null
   updatedAt: string
   lastReadAt: string | null
+  tags: LeadTagWithTag[]
   isUnread: boolean
   lastMessage: Pick<Message, 'id' | 'content' | 'direction' | 'status' | 'createdAt'> | null
 }

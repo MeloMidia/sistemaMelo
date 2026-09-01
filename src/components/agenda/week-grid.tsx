@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Check, X } from 'lucide-react'
 import { addDays, isSameDay, WEEKDAY_LABELS, HOURS, formatHourLabel } from '@/lib/agenda-date'
 import type { AgendaEvent } from '@/types/agenda'
@@ -101,18 +101,35 @@ function spawnGhost(rect: DOMRect, color: string, title: string, time: string): 
 
 type MoveSnap = { dayIdx: number; startMin: number; endMin: number } | null
 
-export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateEvent, onOpenLeadInCrm }: WeekGridProps) {
+export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateEvent }: WeekGridProps) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const today = new Date()
+  const [now, setNow] = useState(() => new Date())
+  const today = now
+  const nowMin = mfm(now)
+  const gridEndMin = GRID_OFFSET_MIN + HOURS.length * 60
+  const showNowIndicator = nowMin >= GRID_OFFSET_MIN && nowMin < gridEndMin
+  const nowIndicatorTop = ((nowMin - GRID_OFFSET_MIN) / 60) * HOUR_HEIGHT
 
   const scrollRef  = useRef<HTMLDivElement>(null)
   const headerRef  = useRef<HTMLDivElement>(null)
   const eventRefs  = useRef<Map<string, HTMLDivElement>>(new Map())
-  const weekStartRef = useRef(weekStart)
-  weekStartRef.current = weekStart
 
   // Única state React durante o drag: indica qual slot está sendo alvo (move)
   const [moveSnap, setMoveSnap] = useState<MoveSnap>(null)
+
+  useEffect(() => {
+    let interval: number | null = null
+    const updateNow = () => setNow(new Date())
+    const timeout = window.setTimeout(() => {
+      updateNow()
+      interval = window.setInterval(updateNow, 60_000)
+    }, Math.max(1000, 60_000 - (Date.now() % 60_000)))
+
+    return () => {
+      window.clearTimeout(timeout)
+      if (interval) window.clearInterval(interval)
+    }
+  }, [])
 
   const getMetrics = useCallback(() => {
     const s = scrollRef.current
@@ -167,7 +184,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
       const dayIdx = clamp(Math.floor(rawX / m.colW), 0, 6)
 
       // Atualizar label de horário no ghost diretamente no DOM
-      const targetDay = addDays(weekStartRef.current, dayIdx)
+      const targetDay = addDays(weekStart, dayIdx)
       const ns = new Date(targetDay)
       ns.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
       const ne = new Date(ns.getTime() + durationMin * 60000);
@@ -200,7 +217,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
 
       if (lastDayIdx >= 0 && lastStartMin >= 0) {
         eventEl.style.opacity = '0'
-        const targetDay = addDays(weekStartRef.current, lastDayIdx)
+        const targetDay = addDays(weekStart, lastDayIdx)
         const ns = new Date(targetDay)
         ns.setHours(Math.floor(lastStartMin / 60), lastStartMin % 60, 0, 0)
         const ne = new Date(ns.getTime() + durationMin * 60000)
@@ -215,7 +232,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
 
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup',   onUp)
-  }, [getMetrics, onEditEvent, onUpdateEvent])
+  }, [getMetrics, onEditEvent, onUpdateEvent, weekStart])
 
   // ─── DRAG: redimensionar ────────────────────────────────────────────────────
   const handleResizeDown = useCallback((e: React.PointerEvent, event: AgendaEvent) => {
@@ -233,8 +250,8 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
     // Capturar métricas uma vez no início — evita getBoundingClientRect a cada frame
     const m0 = getMetrics()
     if (!m0) return
-    let cachedRect      = m0.rect
-    let cachedHeaderH   = m0.headerH
+    const cachedRect      = m0.rect
+    const cachedHeaderH   = m0.headerH
     let cachedScrollTop = m0.scrollTop
 
     const timeEl = eventEl.querySelector('[data-event-time]') as HTMLElement | null
@@ -364,6 +381,16 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                     pointerEvents: 'none',
                   }}
                 />
+              )}
+
+              {isToday && showNowIndicator && (
+                <div
+                  className="mf-agenda-now-line"
+                  style={{ top: nowIndicatorTop }}
+                  aria-hidden="true"
+                >
+                  <span />
+                </div>
               )}
 
               {/* Eventos */}

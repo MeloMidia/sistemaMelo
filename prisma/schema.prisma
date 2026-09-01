@@ -168,11 +168,13 @@ model FollowUpLog {
 }
 
 model LeadStage {
-  id    String @id @default(cuid())
-  name  String
-  order Int
-  color String @default("#3b82f6")
-  leads Lead[]
+  id      String @id @default(cuid())
+  name    String
+  order   Int
+  color   String @default("#3b82f6")
+  isEntry Boolean @default(false)
+  isClosed Boolean @default(false)
+  leads   Lead[]
 }
 
 model Message {

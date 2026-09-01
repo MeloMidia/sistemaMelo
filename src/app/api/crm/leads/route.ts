@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const entryStage = await ensureCrmPipeline()
   const requestedStageId = typeof body.stageId === 'string' ? body.stageId : entryStage.id
-  const stage = await prisma.leadStage.findUnique({ where: { id: requestedStageId }, select: { id: true, name: true } })
+  const stage = await prisma.leadStage.findUnique({ where: { id: requestedStageId }, select: { id: true, name: true, isClosed: true } })
   if (!stage) return NextResponse.json({ error: 'A etapa selecionada não existe.' }, { status: 400 })
 
   try {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         phone,
         stageId: stage.id,
         stageEnteredAt: new Date(),
-        ...(isClosedCrmStage(stage.name) && { closedAt: new Date() }),
+        ...(isClosedCrmStage(stage) && { closedAt: new Date() }),
       },
       include: {
         assignedTo: { select: { id: true, name: true } },

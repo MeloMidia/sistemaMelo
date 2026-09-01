@@ -30,9 +30,12 @@ const TEMPLATES = [
 function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOutbound: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
   const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState('0:00')
   const [duration, setDuration] = useState('0:00')
+
+  const playbackRates = [1, 1.5, 2]
 
   function togglePlay() {
     if (!audioRef.current) return
@@ -78,6 +81,15 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
     setIsPlaying(false)
     setProgress(0)
     setCurrentTime('0:00')
+  }
+
+  function cyclePlaybackRate() {
+    if (!audioRef.current) return
+
+    const currentIndex = playbackRates.indexOf(playbackRate)
+    const nextRate = playbackRates[(currentIndex + 1) % playbackRates.length]
+    audioRef.current.playbackRate = nextRate
+    setPlaybackRate(nextRate)
   }
 
   function formatTime(seconds: number) {
@@ -135,9 +147,22 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
         <Mic className="mf-chat-audio-icon w-5 h-5" />
       </div>
 
+      <button
+        type="button"
+        onClick={cyclePlaybackRate}
+        className={`mf-chat-audio-speed shrink-0 rounded-md px-1.5 py-1 text-[10px] font-bold tabular-nums transition-colors cursor-pointer ${isOutbound ? 'is-outbound' : ''}`}
+        aria-label={`Velocidade de reprodução: ${playbackRate.toString().replace('.', ',')}x. Clique para alterar.`}
+        title="Alterar velocidade"
+      >
+        {playbackRate.toString().replace('.', ',')}×
+      </button>
+
       <audio
         ref={audioRef}
         src={`/api/crm/messages/${messageId}/media`}
+        onLoadedData={(event) => {
+          event.currentTarget.playbackRate = playbackRate
+        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}

@@ -36,6 +36,11 @@ export async function GET(request: Request) {
       profilePicUrl: true,
       updatedAt: true,
       lastReadAt: true,
+      tags: {
+        include: {
+          tag: { select: { id: true, name: true, color: true } },
+        },
+      },
       messages: {
         where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
         orderBy: { createdAt: 'desc' },

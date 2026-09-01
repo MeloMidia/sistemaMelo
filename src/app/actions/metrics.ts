@@ -97,6 +97,7 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
       select: {
         id: true,
         name: true,
+        isClosed: true,
         color: true,
         _count: { select: { leads: true } },
       },
@@ -142,7 +143,7 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
   const outboundMessages = messageCounts.find((item) => item.direction === 'OUTBOUND')?._count._all ?? 0
   const salesCount = closedLeads.length
   const newLeads = createdLeads.length
-  const closedStageIds = new Set(stages.filter((stage) => isClosedCrmStage(stage.name)).map((stage) => stage.id))
+  const closedStageIds = new Set(stages.filter((stage) => isClosedCrmStage(stage)).map((stage) => stage.id))
 
   return {
     period: { start, end },

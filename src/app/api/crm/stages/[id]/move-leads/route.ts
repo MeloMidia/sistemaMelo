@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const targetStage = await prisma.leadStage.findUnique({
     where: { id: toStageId },
-    select: { name: true },
+    select: { name: true, isClosed: true },
   })
   if (!targetStage) {
     return NextResponse.json({ error: 'Etapa de destino não encontrada' }, { status: 404 })
@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     where: { stageId: fromStageId },
     data: {
       stageId: toStageId,
-      closedAt: isClosedCrmStage(targetStage.name) ? new Date() : null,
+      closedAt: isClosedCrmStage(targetStage) ? new Date() : null,
     },
   })
 

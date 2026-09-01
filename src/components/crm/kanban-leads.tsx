@@ -24,12 +24,14 @@ import {
   Loader2,
   MessageCircle,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Trash2,
   X,
+  Check,
 } from 'lucide-react'
-import { useCreateLead, useCreateStage, useCrmStream, useDeleteLead, useStages, useUpdateLead } from '@/hooks/crm-api'
+import { useCreateLead, useCreateStage, useCrmStream, useDeleteLead, useStages, useUpdateLead, useUpdateStage } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
@@ -196,10 +198,28 @@ function PipelineColumn({
   onCreateLead: (stageId: string) => void
   onRequestDelete: (lead: Lead) => void
 }) {
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [stageName, setStageName] = useState(stage.name)
+  const updateStage = useUpdateStage()
   const { setNodeRef, isOver } = useDroppable({
     id: `stage:${stage.id}`,
     data: { type: 'stage', stageId: stage.id },
   })
+
+  function cancelEditingName() {
+    setStageName(stage.name)
+    setIsEditingName(false)
+  }
+
+  function saveStageName() {
+    const name = stageName.trim()
+    if (!name || name === stage.name) {
+      cancelEditingName()
+      return
+    }
+
+    updateStage.mutate({ id: stage.id, name }, { onSuccess: () => setIsEditingName(false) })
+  }
 
   return (
     <section className={`mf-pipeline-column ${isOver ? 'is-over' : ''}`} style={{ '--mf-stage-color': stage.color } as React.CSSProperties}>
@@ -207,20 +227,57 @@ function PipelineColumn({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="mf-pipeline-stage-mark" />
-            <h2>{stage.name}</h2>
+            {isEditingName ? (
+              <input
+                value={stageName}
+                onChange={(event) => setStageName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') saveStageName()
+                  if (event.key === 'Escape') cancelEditingName()
+                }}
+                className="mf-pipeline-stage-name-input"
+                aria-label="Nome da etapa"
+                maxLength={50}
+                autoFocus
+              />
+            ) : (
+              <h2>{stage.name}</h2>
+            )}
             <span className="mf-pipeline-stage-count">{stage._count.leads}</span>
           </div>
           <p>{stage._count.leads === 1 ? '1 lead neste momento' : `${stage._count.leads} leads neste momento`}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => onCreateLead(stage.id)}
-          className="mf-pipeline-icon-button"
-          aria-label={`Adicionar lead em ${stage.name}`}
-          title="Adicionar lead"
-        >
-          <Plus className="size-4" aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {isEditingName ? (
+            <>
+              <button type="button" onClick={saveStageName} disabled={updateStage.isPending || !stageName.trim()} className="mf-pipeline-icon-button" aria-label="Salvar nome da etapa" title="Salvar">
+                <Check className="size-4" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={cancelEditingName} disabled={updateStage.isPending} className="mf-pipeline-icon-button" aria-label="Cancelar edição" title="Cancelar">
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setStageName(stage.name); setIsEditingName(true) }}
+              className="mf-pipeline-icon-button"
+              aria-label={`Renomear etapa ${stage.name}`}
+              title="Renomear etapa"
+            >
+              <Pencil className="size-3.5" aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onCreateLead(stage.id)}
+            className="mf-pipeline-icon-button"
+            aria-label={`Adicionar lead em ${stage.name}`}
+            title="Adicionar lead"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <div ref={setNodeRef} className="mf-pipeline-column-body">

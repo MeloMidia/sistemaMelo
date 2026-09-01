@@ -1,6 +1,6 @@
 'use client'
 
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useState, type CSSProperties } from 'react'
 import { CheckCheck, MessageCircle, Search, Wifi, WifiOff, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
@@ -109,6 +109,7 @@ export function CrmInbox({
         getLeadDisplayName(conversation),
         conversation.phone,
         formatPhoneNumber(conversation.phone),
+        ...(conversation.tags ?? []).map(({ tag }) => tag.name),
         conversation.lastMessage?.content,
       ].filter(Boolean).join(' ')
 
@@ -204,6 +205,8 @@ export function CrmInbox({
           {visibleConversations.map((conversation) => {
             const active = conversation.id === selectedId
             const lastMessage = conversation.lastMessage
+            const primaryTag = conversation.tags?.[0]?.tag
+            const extraTagsCount = Math.max((conversation.tags?.length ?? 0) - 1, 0)
             return (
               <button
                 key={conversation.id}
@@ -218,7 +221,18 @@ export function CrmInbox({
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     {lastMessage?.direction === 'OUTBOUND' && <CheckCheck className="size-3.5 shrink-0 text-sky-400" />}
-                    <p className={`mf-inbox-preview truncate text-xs ${conversation.isUnread ? 'font-medium' : ''}`}>{lastMessage ? preview(lastMessage.content) : 'Sem mensagens'}</p>
+                    {primaryTag && (
+                      <span
+                        className="mf-inbox-tag"
+                        style={{ '--tag-color': primaryTag.color } as CSSProperties}
+                        title={extraTagsCount ? `${primaryTag.name} +${extraTagsCount}` : primaryTag.name}
+                      >
+                        <span aria-hidden="true" />
+                        <span>{primaryTag.name}</span>
+                        {extraTagsCount > 0 && <strong>+{extraTagsCount}</strong>}
+                      </span>
+                    )}
+                    <p className={`mf-inbox-preview min-w-0 flex-1 truncate text-xs ${conversation.isUnread ? 'font-medium' : ''}`}>{lastMessage ? preview(lastMessage.content) : 'Sem mensagens'}</p>
                     {conversation.isUnread && <span className="ml-auto size-2 rounded-full bg-emerald-400 shrink-0" />}
                   </div>
                 </div>

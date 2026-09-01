@@ -162,6 +162,18 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
                 <span className="opacity-60 text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">{column.tasks.length}</span>
               </div>
             )}
+
+            {!isEditingTitle && (
+              <button
+                type="button"
+                onClick={() => { setEditTitle(column.title); setIsEditingTitle(true) }}
+                className="p-1 rounded-md text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer shrink-0"
+                aria-label={`Renomear coluna ${column.title}`}
+                title="Renomear coluna"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <DropdownMenu>
