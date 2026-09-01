@@ -89,11 +89,11 @@ export function TaskCard({ task }: TaskCardProps) {
 
   const handleCreateTask = () => {
     const columnId = columns?.[0]?.id ?? kanbanColumns?.[0]?.id
-    if (!columnId) return
+    const title = taskDesc.trim()
+    if (!columnId || !title) return
     const [y, m, d] = (taskDueDate || '').split('-').map(Number)
     createTask.mutate({
-      title: task.title,
-      description: taskDesc.trim() || undefined,
+      title,
       dueDate: taskDueDate ? new Date(y, m - 1, d, 12).toISOString() : undefined,
       columnId,
       source: 'tasks',
@@ -505,7 +505,10 @@ export function TaskCard({ task }: TaskCardProps) {
                         title="Concluir"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white leading-snug">{t.title}</p>
+                        {/* Tarefas antigas guardavam o texto real em description
+                            (title era só uma cópia do nome do card) — mostra o
+                            que tiver de mais útil, sem precisar migrar dado. */}
+                        <p className="text-sm font-medium text-white leading-snug">{t.description || t.title}</p>
                         {t.dueDate && (
                           <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                             <Calendar className="w-2.5 h-2.5" />
@@ -529,7 +532,7 @@ export function TaskCard({ task }: TaskCardProps) {
                   {completedCardTasks.map(t => (
                     <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500/60 shrink-0" />
-                      <p className="text-xs text-slate-600 line-through truncate">{t.title}</p>
+                      <p className="text-xs text-slate-600 line-through truncate">{t.description || t.title}</p>
                     </div>
                   ))}
                 </div>
@@ -568,11 +571,11 @@ export function TaskCard({ task }: TaskCardProps) {
             {/* Form */}
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Descrição</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">O que precisa ser feito?</label>
                 <textarea
                   value={taskDesc}
                   onChange={(e) => setTaskDesc(e.target.value)}
-                  placeholder="Descreva a tarefa..."
+                  placeholder="Ex: Enviar contrato assinado"
                   rows={3}
                   className="w-full rounded-xl bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/40 resize-none transition-colors"
                 />
@@ -606,7 +609,7 @@ export function TaskCard({ task }: TaskCardProps) {
               </button>
               <button
                 onClick={handleCreateTask}
-                disabled={createTask.isPending}
+                disabled={createTask.isPending || !taskDesc.trim()}
                 className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 {createTask.isPending ? (
