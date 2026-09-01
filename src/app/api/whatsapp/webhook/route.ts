@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       await handleConnectionUpdate((data ?? {}) as Record<string, unknown>)
     } else if (event === 'labels.association') {
       await applyLabelAssociation(data)
-      emitCrmEvent({ type: 'connection-update', status: 'label-sync' })
+      emitCrmEvent({ type: 'board-update' })
     }
   } catch (error) {
     console.error('Erro ao processar webhook da Evolution API:', error)
