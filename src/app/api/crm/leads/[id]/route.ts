@@ -4,22 +4,37 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isClosedCrmStage } from '@/lib/crm-pipeline'
+import { hydrateLeadTags } from '@/lib/wa-tags'
+
+const leadWithProfileInclude = {
+  tags: { include: { tag: true } },
+  assignedTo: { select: { id: true, name: true } },
+  _count: { select: { messages: true, tasks: true } },
+} as const
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const lead = await prisma.lead.findUnique({
-    where: { id },
-    include: {
-      tags: { include: { tag: true } },
-      assignedTo: { select: { id: true, name: true } },
-      _count: { select: { messages: true, tasks: true } },
-    },
-  })
+  let lead = await prisma.lead.findUnique({ where: { id }, include: leadWithProfileInclude })
 
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+
+  // A lista de conversas já resolve etiquetas a partir das labels do WhatsApp
+  // (ver src/lib/wa-tags.ts), mas só na leitura — sem gravar. Aqui, ao abrir
+  // o lead, aproveita e grava como LeadTag real, pra este painel nunca mais
+  // divergir do que a lista mostra. Só tenta de novo se ele ainda não tem
+  // nenhuma etiqueta gravada (evita bater na Evolution toda vez à toa).
+  if (lead.tags.length === 0) {
+    const hydrated = await hydrateLeadTags(lead).catch((error) => {
+      console.error('[crm/leads/[id]] Erro ao hidratar etiquetas do WhatsApp:', error)
+      return false
+    })
+    if (hydrated) {
+      lead = await prisma.lead.findUnique({ where: { id }, include: leadWithProfileInclude }) ?? lead
+    }
+  }
 
   return NextResponse.json(lead)
 }
