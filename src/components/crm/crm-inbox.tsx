@@ -205,7 +205,7 @@ export function CrmInbox({
           {visibleConversations.map((conversation) => {
             const active = conversation.id === selectedId
             const lastMessage = conversation.lastMessage
-            const visibleTags = conversation.tags?.slice(0, 2) ?? []
+            const visibleTags = conversation.tags?.slice(0, 3) ?? []
             const extraTagsCount = Math.max((conversation.tags?.length ?? 0) - visibleTags.length, 0)
             return (
               <button

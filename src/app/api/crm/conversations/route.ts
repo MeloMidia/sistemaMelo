@@ -39,6 +39,47 @@ type WhatsappChatLabelRow = {
   phoneJid: string | null
 }
 
+function addUnique<T>(items: T[], item: T) {
+  if (!items.includes(item)) items.push(item)
+}
+
+function phoneDigitsFromJid(jid: string | null): string {
+  if (!jid?.endsWith('@s.whatsapp.net')) return ''
+  return jid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+}
+
+function phoneLookupKeys(value: string | null): string[] {
+  const digits = value?.replace(/\D/g, '') ?? ''
+  if (!digits) return []
+
+  const keys: string[] = []
+  addUnique(keys, digits)
+
+  const withoutBrazilCode = digits.startsWith('55') ? digits.slice(2) : digits
+  if (withoutBrazilCode) {
+    addUnique(keys, withoutBrazilCode)
+    addUnique(keys, `55${withoutBrazilCode}`)
+  }
+
+  if (withoutBrazilCode.length === 11) {
+    const areaCode = withoutBrazilCode.slice(0, 2)
+    const subscriber = withoutBrazilCode.slice(2)
+    if (subscriber.startsWith('9')) {
+      const withoutNinthDigit = `${areaCode}${subscriber.slice(1)}`
+      addUnique(keys, withoutNinthDigit)
+      addUnique(keys, `55${withoutNinthDigit}`)
+    }
+  }
+
+  if (withoutBrazilCode.length === 10) {
+    const withNinthDigit = `${withoutBrazilCode.slice(0, 2)}9${withoutBrazilCode.slice(2)}`
+    addUnique(keys, withNinthDigit)
+    addUnique(keys, `55${withNinthDigit}`)
+  }
+
+  return keys
+}
+
 function parseLabelIds(labels: unknown): string[] {
   let rawLabels = labels
   if (typeof rawLabels === 'string') {
@@ -68,15 +109,19 @@ function labelColor(value: string | number | undefined): string {
 function buildLeadJidLookups(leads: ConversationLead[]) {
   const jidToLeadId = new Map<string, string>()
   const phoneJidToLeadId = new Map<string, string>()
+  const phoneKeyToLeadId = new Map<string, string>()
   for (const lead of leads) {
     if (!lead.phone.startsWith('lid:')) {
       const phoneJid = `${lead.phone}@s.whatsapp.net`
       jidToLeadId.set(phoneJid, lead.id)
       phoneJidToLeadId.set(phoneJid, lead.id)
+      for (const key of phoneLookupKeys(lead.phone)) {
+        if (!phoneKeyToLeadId.has(key)) phoneKeyToLeadId.set(key, lead.id)
+      }
     }
     if (lead.waLid) jidToLeadId.set(lead.waLid, lead.id)
   }
-  return { jidToLeadId, phoneJidToLeadId }
+  return { jidToLeadId, phoneJidToLeadId, phoneKeyToLeadId }
 }
 
 function appendWhatsappTag(
@@ -109,9 +154,20 @@ function leadIdForWhatsappRow(
   row: WhatsappChatLabelRow,
   lookups: ReturnType<typeof buildLeadJidLookups>
 ): string | undefined {
-  return lookups.jidToLeadId.get(row.remoteJid) ?? (
+  const exactLeadId = lookups.jidToLeadId.get(row.remoteJid) ?? (
     row.phoneJid ? lookups.phoneJidToLeadId.get(row.phoneJid) : undefined
   )
+  if (exactLeadId) return exactLeadId
+
+  for (const key of [
+    ...phoneLookupKeys(phoneDigitsFromJid(row.remoteJid)),
+    ...phoneLookupKeys(phoneDigitsFromJid(row.phoneJid)),
+  ]) {
+    const leadId = lookups.phoneKeyToLeadId.get(key)
+    if (leadId) return leadId
+  }
+
+  return undefined
 }
 
 async function fetchEvolutionInstanceId(client: import('pg').Client): Promise<string | null> {
@@ -377,8 +433,19 @@ async function fetchWhatsappTagsFromApi(leads: ConversationLead[]): Promise<Map<
 
 async function fetchWhatsappTags(leads: ConversationLead[]): Promise<Map<string, ConversationTag[]>> {
   const dbTags = await fetchWhatsappTagsFromDb(leads)
-  if (dbTags.size > 0) return dbTags
-  return fetchWhatsappTagsFromApi(leads)
+  const leadsWithoutDbTags = leads.filter((lead) => !dbTags.has(lead.id))
+  if (leadsWithoutDbTags.length === 0) return dbTags
+
+  const apiTags = await fetchWhatsappTagsFromApi(leadsWithoutDbTags)
+  for (const [leadId, tags] of apiTags) {
+    const currentTags = dbTags.get(leadId) ?? []
+    const currentTagIds = new Set(currentTags.map((entry) => entry.tagId))
+    dbTags.set(leadId, [
+      ...currentTags,
+      ...tags.filter((entry) => !currentTagIds.has(entry.tagId)),
+    ])
+  }
+  return dbTags
 }
 
 export async function GET(request: Request) {
