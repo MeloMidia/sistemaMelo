@@ -225,8 +225,7 @@ export function CrmInbox({
                       style={{ '--tag-color': stageColor } as CSSProperties}
                       title={stageLabel}
                     >
-                      <span aria-hidden="true" />
-                      <span>{stageLabel}</span>
+                      {stageLabel}
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
