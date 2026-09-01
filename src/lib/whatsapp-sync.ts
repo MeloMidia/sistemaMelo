@@ -329,6 +329,8 @@ export async function applyLabelAssociation(data: unknown) {
   const labelObj = asRecord(assoc.label) ?? asRecord(d.label) ?? asRecord(d)
   const labelId = asString(labelObj?.id) ?? asString(assoc.labelId) ?? asString(d.labelId)
   const labelName = asString(labelObj?.name) ?? asString(d.labelName)
+  const rawLabelColor = asString(labelObj?.color) ?? asString(d.labelColor)
+  const labelColor = rawLabelColor ?? '#64748b'
 
   // Find lead by waLid first (handles @lid format), then by phone
   let lead = await prisma.lead.findFirst({ where: { waLid: chatId } })
@@ -346,6 +348,21 @@ export async function applyLabelAssociation(data: unknown) {
     : null
   if (!tag && labelName) {
     tag = await prisma.crmTag.findFirst({ where: { name: labelName } })
+  }
+  if (tag && labelId && !tag.waLabelId) {
+    tag = await prisma.crmTag.update({
+      where: { id: tag.id },
+      data: { waLabelId: labelId, name: labelName ?? tag.name, ...(rawLabelColor && { color: rawLabelColor }) },
+    })
+  }
+  if (!tag && labelName) {
+    tag = await prisma.crmTag.create({
+      data: {
+        name: labelName,
+        color: labelColor,
+        ...(labelId && { waLabelId: labelId }),
+      },
+    })
   }
 
   // Determine stage — prefer ID lookup (immune to encoding issues), fall back to name

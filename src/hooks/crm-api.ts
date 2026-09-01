@@ -411,6 +411,9 @@ export function useWaImport() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
       qc.invalidateQueries({ queryKey: ['crm-tags'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
     },
   })
 }
@@ -505,7 +508,12 @@ export function useAttachTag(leadId: string) {
       if (!res.ok) throw new Error('Failed to attach tag')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['crm-lead-profile', leadId] })
+    },
   })
 }
 
@@ -517,7 +525,12 @@ export function useDetachTag(leadId: string) {
       if (!res.ok) throw new Error('Failed to detach tag')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-stages'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-by-label'] })
+      qc.invalidateQueries({ queryKey: ['crm-lead-profile', leadId] })
+    },
   })
 }
 
@@ -771,6 +784,7 @@ export function useCrmStream() {
           qc.invalidateQueries({ queryKey: ['crm-conversations'] })
           if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
         } else if (event.type === 'board-update') {
+          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
           qc.invalidateQueries({ queryKey: ['crm-stages'] })
           qc.invalidateQueries({ queryKey: ['crm-by-label'] })
           qc.invalidateQueries({ queryKey: ['crm-follow-up'] })

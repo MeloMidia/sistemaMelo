@@ -205,8 +205,8 @@ export function CrmInbox({
           {visibleConversations.map((conversation) => {
             const active = conversation.id === selectedId
             const lastMessage = conversation.lastMessage
-            const primaryTag = conversation.tags?.[0]?.tag
-            const extraTagsCount = Math.max((conversation.tags?.length ?? 0) - 1, 0)
+            const visibleTags = conversation.tags?.slice(0, 2) ?? []
+            const extraTagsCount = Math.max((conversation.tags?.length ?? 0) - visibleTags.length, 0)
             return (
               <button
                 key={conversation.id}
@@ -219,19 +219,24 @@ export function CrmInbox({
                     <p className={`mf-inbox-contact truncate text-sm ${conversation.isUnread ? 'font-semibold' : 'font-medium'}`}>{getLeadDisplayName(conversation)}</p>
                     {lastMessage && <time className={`ml-auto shrink-0 text-[10px] ${conversation.isUnread ? 'text-emerald-400' : 'text-slate-500'}`}>{formatConversationTime(lastMessage.createdAt)}</time>}
                   </div>
+                  {visibleTags.length > 0 && (
+                    <div className="mf-inbox-tag-row" aria-label={`Etiquetas: ${conversation.tags.map(({ tag }) => tag.name).join(', ')}`}>
+                      {visibleTags.map(({ tag }) => (
+                        <span
+                          key={tag.id}
+                          className="mf-inbox-tag"
+                          style={{ '--tag-color': tag.color } as CSSProperties}
+                          title={tag.name}
+                        >
+                          <span aria-hidden="true" />
+                          <span>{tag.name}</span>
+                        </span>
+                      ))}
+                      {extraTagsCount > 0 && <strong>+{extraTagsCount}</strong>}
+                    </div>
+                  )}
                   <div className="mt-1 flex items-center gap-1.5">
                     {lastMessage?.direction === 'OUTBOUND' && <CheckCheck className="size-3.5 shrink-0 text-sky-400" />}
-                    {primaryTag && (
-                      <span
-                        className="mf-inbox-tag"
-                        style={{ '--tag-color': primaryTag.color } as CSSProperties}
-                        title={extraTagsCount ? `${primaryTag.name} +${extraTagsCount}` : primaryTag.name}
-                      >
-                        <span aria-hidden="true" />
-                        <span>{primaryTag.name}</span>
-                        {extraTagsCount > 0 && <strong>+{extraTagsCount}</strong>}
-                      </span>
-                    )}
                     <p className={`mf-inbox-preview min-w-0 flex-1 truncate text-xs ${conversation.isUnread ? 'font-medium' : ''}`}>{lastMessage ? preview(lastMessage.content) : 'Sem mensagens'}</p>
                     {conversation.isUnread && <span className="ml-auto size-2 rounded-full bg-emerald-400 shrink-0" />}
                   </div>
