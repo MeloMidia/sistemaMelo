@@ -18,16 +18,21 @@ type LeadForm = {
   name: string
   assignedToId: string
   notes: string
-  cpf: string
-  email: string
   city: string
-  state: string
-  neighborhood: string
-  postalCode: string
-  address: string
   instagram: string
-  nickname: string
+  mercadoLivreStatus: string
+  businessArea: string
+  companyName: string
+  mlKnowledge: string
+  stock: string
+  revenue: string
+  employees: string
+  partners: string
 }
+
+const MERCADO_LIVRE_STATUS_OPTIONS = ['Sim', 'Não', 'Vendeu mas parou', 'Outro']
+const BUSINESS_AREA_OPTIONS = ['Linha leve', 'Linha pesada', 'Moto peças', 'Outro']
+const ML_KNOWLEDGE_OPTIONS = ['Muito', 'Médio', 'Pouco', 'Muito pouco']
 
 type NegotiationForm = {
   stageId: string
@@ -57,15 +62,16 @@ function getForm(lead: Lead): LeadForm {
     name: lead.name ?? '',
     assignedToId: lead.assignedToId ?? '',
     notes: lead.notes ?? '',
-    cpf: lead.cpf ?? '',
-    email: lead.email ?? '',
     city: lead.city ?? '',
-    state: lead.state ?? '',
-    neighborhood: lead.neighborhood ?? '',
-    postalCode: lead.postalCode ?? '',
-    address: lead.address ?? '',
     instagram: lead.instagram ?? '',
-    nickname: lead.nickname ?? '',
+    mercadoLivreStatus: lead.mercadoLivreStatus ?? '',
+    businessArea: lead.businessArea ?? '',
+    companyName: lead.companyName ?? '',
+    mlKnowledge: lead.mlKnowledge ?? '',
+    stock: lead.stock ?? '',
+    revenue: lead.revenue ?? '',
+    employees: lead.employees ?? '',
+    partners: lead.partners ?? '',
   }
 }
 
@@ -246,15 +252,16 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
         name: toNullable(form.name),
         assignedToId: form.assignedToId || null,
         notes: toNullable(form.notes),
-        cpf: toNullable(form.cpf),
-        email: toNullable(form.email),
         city: toNullable(form.city),
-        state: toNullable(form.state),
-        neighborhood: toNullable(form.neighborhood),
-        postalCode: toNullable(form.postalCode),
-        address: toNullable(form.address),
         instagram: toNullable(form.instagram),
-        nickname: toNullable(form.nickname),
+        mercadoLivreStatus: toNullable(form.mercadoLivreStatus),
+        businessArea: toNullable(form.businessArea),
+        companyName: toNullable(form.companyName),
+        mlKnowledge: toNullable(form.mlKnowledge),
+        stock: toNullable(form.stock),
+        revenue: toNullable(form.revenue),
+        employees: toNullable(form.employees),
+        partners: toNullable(form.partners),
       },
       { onSuccess: () => { setIsEditorOpen(false); refreshProfile() } }
     )
@@ -267,6 +274,18 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
   if (!lead || profileQuery.isError) return null
 
   const displayName = getLeadDisplayName(lead)
+  const strategicDetails = [
+    ['Já vende pelo ML', lead.mercadoLivreStatus],
+    ['Área de atuação', lead.businessArea],
+    ['Empresa', lead.companyName],
+    ['Cidade', lead.city],
+    ['Conhecimento ML', lead.mlKnowledge],
+    ['Estoque', lead.stock],
+    ['Faturamento', lead.revenue],
+    ['Colaboradores', lead.employees],
+    ['Sócios', lead.partners],
+    ['Instagram', lead.instagram],
+  ] as const
 
   return (
     <aside className="mf-lead-profile hidden xl:flex w-[336px] shrink-0 min-h-0 flex-col overflow-y-auto">
@@ -346,11 +365,21 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
         </section>
 
         <section className="mf-profile-block">
-          <div className="mf-profile-block-heading"><span>Descrição</span><button type="button" onClick={openEditor} className="mf-profile-icon-button" aria-label="Editar descrição"><Pencil className="size-3.5" aria-hidden="true" /></button></div>
+          <div className="mf-profile-block-heading"><span>Descrição de lead</span><button type="button" onClick={openEditor} className="mf-profile-icon-button" aria-label="Editar descrição"><Pencil className="size-3.5" aria-hidden="true" /></button></div>
           <p className={`mf-profile-description ${lead.notes ? '' : 'is-empty'}`}>{lead.notes || 'Adicione um contexto útil para o time.'}</p>
         </section>
 
         <div className="mf-profile-sections">
+          <DetailSection icon={ClipboardList} title="Informações estratégicas" defaultOpen>
+            <dl className="mf-profile-form-answers">
+              {strategicDetails.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd className={value ? '' : 'is-empty'}>{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          </DetailSection>
           <DetailSection icon={CircleDollarSign} title="Negociações" defaultOpen>
             <div className="mf-profile-negotiations">
               {negotiationsQuery.isLoading && <Loader2 className="size-4 animate-spin text-[var(--mf-success)]" />}
@@ -389,16 +418,17 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
               <div className="mf-lead-editor-grid">
                 <Field label="Nome"><Input name="name" autoComplete="name" value={form.name} onChange={(event) => updateForm('name', event.target.value)} className="mf-profile-input" placeholder="Nome do lead" /></Field>
                 <Field label="Responsável"><select name="assignedToId" value={form.assignedToId} onChange={(event) => updateForm('assignedToId', event.target.value)} className="mf-profile-input"><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></Field>
-                <Field label="CPF"><Input name="cpf" inputMode="numeric" value={form.cpf} onChange={(event) => updateForm('cpf', event.target.value)} className="mf-profile-input" placeholder="Digite o CPF" /></Field>
-                <Field label="E-mail"><Input name="email" type="email" autoComplete="email" value={form.email} onChange={(event) => updateForm('email', event.target.value)} className="mf-profile-input" placeholder="Digite o e-mail" /></Field>
-                <Field label="Cidade"><Input name="city" autoComplete="address-level2" value={form.city} onChange={(event) => updateForm('city', event.target.value)} className="mf-profile-input" placeholder="Digite a cidade" /></Field>
-                <Field label="Estado"><Input name="state" autoComplete="address-level1" value={form.state} onChange={(event) => updateForm('state', event.target.value)} className="mf-profile-input" placeholder="Digite o estado" /></Field>
-                <Field label="Bairro"><Input name="neighborhood" value={form.neighborhood} onChange={(event) => updateForm('neighborhood', event.target.value)} className="mf-profile-input" placeholder="Digite o bairro" /></Field>
-                <Field label="CEP"><Input name="postalCode" autoComplete="postal-code" inputMode="numeric" value={form.postalCode} onChange={(event) => updateForm('postalCode', event.target.value)} className="mf-profile-input" placeholder="Digite o CEP" /></Field>
-                <Field label="Endereço" className="sm:col-span-2"><Input name="address" autoComplete="street-address" value={form.address} onChange={(event) => updateForm('address', event.target.value)} className="mf-profile-input" placeholder="Digite o endereço" /></Field>
+                <Field label="Já vende pelo Mercado Livre"><select name="mercadoLivreStatus" value={form.mercadoLivreStatus} onChange={(event) => updateForm('mercadoLivreStatus', event.target.value)} className="mf-profile-input"><option value="">Selecione</option>{MERCADO_LIVRE_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+                <Field label="Área de atuação"><select name="businessArea" value={form.businessArea} onChange={(event) => updateForm('businessArea', event.target.value)} className="mf-profile-input"><option value="">Selecione</option>{BUSINESS_AREA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+                <Field label="Nome da empresa"><Input name="companyName" value={form.companyName} onChange={(event) => updateForm('companyName', event.target.value)} className="mf-profile-input" placeholder="Nome da empresa" /></Field>
+                <Field label="Cidade"><Input name="city" autoComplete="address-level2" value={form.city} onChange={(event) => updateForm('city', event.target.value)} className="mf-profile-input" placeholder="Cidade" /></Field>
+                <Field label="Conhecimento sobre ML"><select name="mlKnowledge" value={form.mlKnowledge} onChange={(event) => updateForm('mlKnowledge', event.target.value)} className="mf-profile-input"><option value="">Selecione</option>{ML_KNOWLEDGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+                <Field label="Estoque"><Input name="stock" value={form.stock} onChange={(event) => updateForm('stock', event.target.value)} className="mf-profile-input" placeholder="Ex.: 200 peças, baixo, médio..." /></Field>
+                <Field label="Faturamento"><Input name="revenue" value={form.revenue} onChange={(event) => updateForm('revenue', event.target.value)} className="mf-profile-input" placeholder="Ex.: R$ 30 mil/mês" /></Field>
+                <Field label="Colaboradores"><Input name="employees" value={form.employees} onChange={(event) => updateForm('employees', event.target.value)} className="mf-profile-input" placeholder="Quantidade de colaboradores" /></Field>
+                <Field label="Sócios"><Input name="partners" value={form.partners} onChange={(event) => updateForm('partners', event.target.value)} className="mf-profile-input" placeholder="Sócios envolvidos" /></Field>
                 <Field label="Instagram"><Input name="instagram" value={form.instagram} onChange={(event) => updateForm('instagram', event.target.value)} className="mf-profile-input" placeholder="@usuario" /></Field>
-                <Field label="Apelido"><Input name="nickname" value={form.nickname} onChange={(event) => updateForm('nickname', event.target.value)} className="mf-profile-input" placeholder="Como prefere ser chamado" /></Field>
-                <Field label="Descrição" className="sm:col-span-2"><textarea name="notes" value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} className="mf-profile-input min-h-24 resize-y" placeholder="Contexto, observações ou preferências deste lead…" /></Field>
+                <Field label="Descrição de lead" className="sm:col-span-2"><textarea name="notes" value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} className="mf-profile-input min-h-24 resize-y" placeholder="Contexto, observações ou preferências deste lead…" /></Field>
               </div>
             )}
             <DialogFooter className="mf-lead-editor-footer">

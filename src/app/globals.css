@@ -307,6 +307,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-profile-section-body dl > div { align-items: center; display: flex; justify-content: space-between; gap: 12px; }
 .mf-profile-section-body dt { color: var(--mf-faint); }
 .mf-profile-section-body dd { color: var(--mf-ink); font-weight: 600; text-align: right; }
+.mf-profile-form-answers { gap: 8px !important; }
+.mf-profile-form-answers > div { align-items: flex-start !important; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 8px 9px; }
+.mf-profile-form-answers dt { font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.mf-profile-form-answers dd { color: var(--mf-ink); font-size: 12px; line-height: 1.35; max-width: 58%; overflow-wrap: anywhere; }
+.mf-profile-form-answers dd.is-empty { color: var(--mf-faint); font-weight: 500; }
 .mf-profile-input { background: var(--mf-well) !important; border: 1px solid var(--mf-line) !important; border-radius: 8px; box-shadow: none !important; color: var(--mf-ink) !important; font-size: 13px; outline: none; padding: 8px 10px; width: 100%; }
 .mf-profile-input:focus { border-color: var(--mf-signal) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--mf-signal) 12%, transparent) !important; }
 .mf-lead-editor { background: var(--mf-surface) !important; border: 1px solid var(--mf-line) !important; box-shadow: var(--mf-shadow-float) !important; }

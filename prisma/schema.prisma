@@ -9,11 +9,11 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String        @unique
   passwordHash String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime      @default(now())
   leads        Lead[]
   negotiations Negotiation[]
 }
@@ -28,25 +28,25 @@ model Column {
 }
 
 model Task {
-  id              String    @id @default(uuid())
+  id              String       @id @default(uuid())
   title           String
   description     String?
   dueDate         DateTime?
-  isPriorityToday Boolean   @default(false)
-  isDoing         Boolean   @default(false)
-  isWaiting       Boolean   @default(false)
+  isPriorityToday Boolean      @default(false)
+  isDoing         Boolean      @default(false)
+  isWaiting       Boolean      @default(false)
   columnId        String
-  column          Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  column          Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)
   order           Int
-  source          String    @default("kanban")
+  source          String       @default("kanban")
   assignee        String?
   logoUrl         String?
   notes           String?
-  meetingsCount   Int       @default(0)
-  adsAtivo        Boolean   @default(false)
-  promocaoAtiva   Boolean   @default(false)
+  meetingsCount   Int          @default(0)
+  adsAtivo        Boolean      @default(false)
+  promocaoAtiva   Boolean      @default(false)
   promocaoAte     DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime     @default(now())
   completedAt     DateTime?
   completedBy     String?
   churnedAt       DateTime?
@@ -54,7 +54,7 @@ model Task {
   churnedBy       String?
   tags            TaskTag[]
   leadId          String?
-  lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead            Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   kanbanTaskId    String?
   negotiation     Negotiation?
 
@@ -88,19 +88,19 @@ model DashboardMetric {
   vendasQtd           Int      @default(0)
   faturamento         Float    @default(0)
   investimentoTrafego Float    @default(0)
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model DashboardGoal {
-  id                  String   @id @default(uuid())
-  leads               Int      @default(1000)
-  reunioesAgendadas   Int      @default(200)
-  reunioesRealizadas  Int      @default(150)
-  faturamento         Float    @default(50000)
+  id                 String @id @default(uuid())
+  leads              Int    @default(1000)
+  reunioesAgendadas  Int    @default(200)
+  reunioesRealizadas Int    @default(150)
+  faturamento        Float  @default(50000)
 
-  updatedAt           DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 }
 
 model SdrDailyLog {
@@ -116,41 +116,49 @@ model SdrDailyLog {
 }
 
 model Lead {
-  id               String             @id @default(cuid())
-  name             String?
-  phone            String             @unique
-  waLid            String?            @unique
-  stageId          String?
-  stage            LeadStage?         @relation(fields: [stageId], references: [id])
-  assignedToId     String?
-  assignedTo       User?              @relation(fields: [assignedToId], references: [id])
-  value            Float?
-  temperature      String?
-  notes            String?
-  cpf              String?
-  email            String?
-  city             String?
-  state            String?
-  neighborhood     String?
-  postalCode       String?
-  address          String?
-  instagram        String?
-  nickname         String?
-  profilePicUrl    String?
-  followUpColumn   Int?
-  followUpMovedAt  DateTime?
-  closedAt         DateTime?
-  lastReadAt       DateTime?
-  stageEnteredAt   DateTime?
-  messages         Message[]
-  tags             LeadTag[]
-  events           AgendaEvent[]
-  campaignLeads    BulkCampaignLead[]
-  followUpLogs     FollowUpLog[]
-  tasks            Task[]
-  negotiations     Negotiation[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  name               String?
+  phone              String             @unique
+  waLid              String?            @unique
+  stageId            String?
+  stage              LeadStage?         @relation(fields: [stageId], references: [id])
+  assignedToId       String?
+  assignedTo         User?              @relation(fields: [assignedToId], references: [id])
+  value              Float?
+  temperature        String?
+  notes              String?
+  cpf                String?
+  email              String?
+  city               String?
+  state              String?
+  neighborhood       String?
+  postalCode         String?
+  address            String?
+  instagram          String?
+  nickname           String?
+  mercadoLivreStatus String?
+  businessArea       String?
+  companyName        String?
+  mlKnowledge        String?
+  stock              String?
+  revenue            String?
+  employees          String?
+  partners           String?
+  profilePicUrl      String?
+  followUpColumn     Int?
+  followUpMovedAt    DateTime?
+  closedAt           DateTime?
+  lastReadAt         DateTime?
+  stageEnteredAt     DateTime?
+  messages           Message[]
+  tags               LeadTag[]
+  events             AgendaEvent[]
+  campaignLeads      BulkCampaignLead[]
+  followUpLogs       FollowUpLog[]
+  tasks              Task[]
+  negotiations       Negotiation[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([closedAt])
   @@index([createdAt])
@@ -161,20 +169,20 @@ model FollowUpLog {
   id        String   @id @default(cuid())
   leadId    String
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  column    Int?     // null = removido do follow up
+  column    Int? // null = removido do follow up
   createdAt DateTime @default(now())
 
   @@index([leadId, createdAt])
 }
 
 model LeadStage {
-  id      String @id @default(cuid())
-  name    String
-  order   Int
-  color   String @default("#3b82f6")
-  isEntry Boolean @default(false)
+  id       String  @id @default(cuid())
+  name     String
+  order    Int
+  color    String  @default("#3b82f6")
+  isEntry  Boolean @default(false)
   isClosed Boolean @default(false)
-  leads   Lead[]
+  leads    Lead[]
 }
 
 model Message {
@@ -189,10 +197,10 @@ model Message {
 }
 
 model CrmTag {
-  id          String    @id @default(cuid())
-  name        String
-  color       String
-  waLabelId   String?   @unique
+  id           String           @id @default(cuid())
+  name         String
+  color        String
+  waLabelId    String?          @unique
   leads        LeadTag[]
   negotiations NegotiationTag[]
 }
@@ -259,7 +267,7 @@ enum MessageStatus {
 model EventCategory {
   id     String        @id @default(cuid())
   name   String
-  color  String         @default("#3b82f6")
+  color  String        @default("#3b82f6")
   events AgendaEvent[]
 }
 
@@ -308,38 +316,38 @@ enum BulkLeadStatus {
 }
 
 model BulkCampaign {
-  id            String             @id @default(cuid())
-  title         String
-  message       String?
-  mediaBase64   String?
-  mediaType     String?
-  mimeType      String?
-  fileName      String?
-  mediaCaption  String?
-  status        BulkCampaignStatus @default(DRAFT)
-  scheduledAt   DateTime?
-  startedAt     DateTime?
-  completedAt   DateTime?
-  totalLeads    Int                @default(0)
-  sentCount     Int                @default(0)
-  failedCount   Int                @default(0)
-  delaySeconds  Int                @default(7)
-  leads         BulkCampaignLead[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  title        String
+  message      String?
+  mediaBase64  String?
+  mediaType    String?
+  mimeType     String?
+  fileName     String?
+  mediaCaption String?
+  status       BulkCampaignStatus @default(DRAFT)
+  scheduledAt  DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  totalLeads   Int                @default(0)
+  sentCount    Int                @default(0)
+  failedCount  Int                @default(0)
+  delaySeconds Int                @default(7)
+  leads        BulkCampaignLead[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([status, scheduledAt])
 }
 
 model BulkCampaignLead {
-  id          String         @id @default(cuid())
-  campaign    BulkCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  campaignId  String
-  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  leadId      String
-  status      BulkLeadStatus @default(PENDING)
-  sentAt      DateTime?
-  error       String?
+  id         String         @id @default(cuid())
+  campaign   BulkCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId String
+  lead       Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId     String
+  status     BulkLeadStatus @default(PENDING)
+  sentAt     DateTime?
+  error      String?
 
   @@unique([campaignId, leadId])
   @@index([campaignId, status])

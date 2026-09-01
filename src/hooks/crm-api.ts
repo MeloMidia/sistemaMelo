@@ -184,6 +184,14 @@ export function useUpdateLead() {
       address?: string | null
       instagram?: string | null
       nickname?: string | null
+      mercadoLivreStatus?: string | null
+      businessArea?: string | null
+      companyName?: string | null
+      mlKnowledge?: string | null
+      stock?: string | null
+      revenue?: string | null
+      employees?: string | null
+      partners?: string | null
     }) => {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: 'PUT',

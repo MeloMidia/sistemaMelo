@@ -47,6 +47,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const {
     name, stageId, assignedToId, value, temperature, notes, followUpColumn,
     cpf, email, city, state, neighborhood, postalCode, address, instagram, nickname,
+    mercadoLivreStatus, businessArea, companyName, mlKnowledge, stock, revenue, employees, partners,
   } = await request.json()
 
   const followUpChanged = followUpColumn !== undefined
@@ -96,6 +97,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         ...(address !== undefined && { address }),
         ...(instagram !== undefined && { instagram }),
         ...(nickname !== undefined && { nickname }),
+        ...(mercadoLivreStatus !== undefined && { mercadoLivreStatus }),
+        ...(businessArea !== undefined && { businessArea }),
+        ...(companyName !== undefined && { companyName }),
+        ...(mlKnowledge !== undefined && { mlKnowledge }),
+        ...(stock !== undefined && { stock }),
+        ...(revenue !== undefined && { revenue }),
+        ...(employees !== undefined && { employees }),
+        ...(partners !== undefined && { partners }),
         ...(followUpChanged && {
           followUpColumn,
           followUpMovedAt: new Date(),
