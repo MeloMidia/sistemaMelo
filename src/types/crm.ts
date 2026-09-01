@@ -131,6 +131,7 @@ export interface CrmConversation {
   profilePicUrl: string | null
   updatedAt: string
   lastReadAt: string | null
+  stage: { id: string; name: string; color: string } | null
   tags: LeadTagWithTag[]
   isUnread: boolean
   lastMessage: Pick<Message, 'id' | 'content' | 'direction' | 'status' | 'createdAt'> | null

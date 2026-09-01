@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { fetchWhatsappTags } from '@/lib/wa-tags'
 
 const MAX_CONVERSATIONS = 250
 
@@ -38,6 +37,7 @@ export async function GET(request: Request) {
       profilePicUrl: true,
       updatedAt: true,
       lastReadAt: true,
+      stage: { select: { id: true, name: true, color: true } },
       tags: {
         include: {
           tag: { select: { id: true, name: true, color: true } },
@@ -58,8 +58,6 @@ export async function GET(request: Request) {
     },
   })
 
-  const whatsappTagsByLeadId = await fetchWhatsappTags(leads)
-
   return NextResponse.json(leads.map((lead) => {
     const lastMessage = lead.messages[0] ?? null
     const isUnread = Boolean(
@@ -67,13 +65,6 @@ export async function GET(request: Request) {
       (!lead.lastReadAt || lastMessage.createdAt > lead.lastReadAt)
     )
 
-    const fallbackTags = whatsappTagsByLeadId.get(lead.id) ?? []
-    const storedTagIds = new Set(lead.tags.map((entry) => entry.tagId))
-    const tags = [
-      ...lead.tags,
-      ...fallbackTags.filter((entry) => !storedTagIds.has(entry.tagId)),
-    ]
-
-    return { ...lead, tags, lastMessage, isUnread, messages: undefined }
+    return { ...lead, lastMessage, isUnread, messages: undefined }
   }))
 }
