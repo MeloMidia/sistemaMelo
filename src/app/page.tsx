@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
@@ -29,9 +30,14 @@ function MeloMidiaLogoMark({ compact = false }: { compact?: boolean }) {
       aria-label="Melo Mídia"
       role="img"
     >
-      <span className="mf-melo-midia-logo-orbit" />
-      <span className="mf-melo-midia-logo-mm">MM</span>
-      <span className="mf-melo-midia-logo-signal" />
+      <Image
+        src="/logo-melo-midia.jpeg"
+        alt=""
+        width={1080}
+        height={1080}
+        sizes={compact ? '30px' : '34px'}
+        className="mf-melo-midia-logo-img"
+      />
     </span>
   )
 }
