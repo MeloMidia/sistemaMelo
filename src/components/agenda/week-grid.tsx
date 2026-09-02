@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, X } from 'lucide-react'
 import { addDays, isSameDay, WEEKDAY_LABELS, HOURS, formatHourLabel } from '@/lib/agenda-date'
 import type { AgendaEvent } from '@/types/agenda'
 
 const HOUR_HEIGHT = 48
+const TIME_COLUMN_WIDTH = 65
 const MIN_EVENT_HEIGHT = 22
 const GRID_START_HOUR = HOURS[0]          // 7
 const GRID_OFFSET_MIN = GRID_START_HOUR * 60
@@ -102,7 +103,7 @@ function spawnGhost(rect: DOMRect, color: string, title: string, time: string): 
 type MoveSnap = { dayIdx: number; startMin: number; endMin: number } | null
 
 export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateEvent }: WeekGridProps) {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
   const [now, setNow] = useState(() => new Date())
   const today = now
   const nowMin = mfm(now)
@@ -131,6 +132,31 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
     }
   }, [])
 
+  useEffect(() => {
+    const scroller = scrollRef.current
+    const header = headerRef.current
+    if (!scroller || !header) return
+
+    const current = new Date()
+    const currentDayIndex = days.findIndex((day) => isSameDay(day, current))
+    const targetDayIndex = currentDayIndex >= 0 ? currentDayIndex : 0
+    const contentWidth = header.scrollWidth || scroller.scrollWidth || scroller.offsetWidth
+    const columnWidth = Math.max(0, (contentWidth - TIME_COLUMN_WIDTH) / 7)
+    const targetLeft = contentWidth > scroller.clientWidth
+      ? Math.max(0, TIME_COLUMN_WIDTH + targetDayIndex * columnWidth - (scroller.clientWidth - columnWidth) / 2)
+      : 0
+
+    const currentMin = mfm(current)
+    const shouldCenterNow = currentDayIndex >= 0 && currentMin >= GRID_OFFSET_MIN && currentMin < gridEndMin
+    const targetTop = shouldCenterNow
+      ? Math.max(0, ((currentMin - GRID_OFFSET_MIN) / 60) * HOUR_HEIGHT - scroller.clientHeight * 0.32)
+      : scroller.scrollTop
+
+    requestAnimationFrame(() => {
+      scroller.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' })
+    })
+  }, [days, gridEndMin, weekStart])
+
   const getMetrics = useCallback(() => {
     const s = scrollRef.current
     const h = headerRef.current
@@ -138,8 +164,9 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
     return {
       rect:      s.getBoundingClientRect(),
       headerH:   h.offsetHeight,
-      colW:      (s.offsetWidth - 65) / 7,
+      colW:      ((h.scrollWidth || s.scrollWidth || s.offsetWidth) - TIME_COLUMN_WIDTH) / 7,
       scrollTop: s.scrollTop,
+      scrollLeft: s.scrollLeft,
     }
   }, [])
 
@@ -180,7 +207,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
       const startMin = clamp(snapTo(rawMin), GRID_OFFSET_MIN, 23 * 60 - durationMin)
       const endMin   = startMin + durationMin
 
-      const rawX   = ev.clientX - m.rect.left - 65
+      const rawX   = ev.clientX - m.rect.left + m.scrollLeft - TIME_COLUMN_WIDTH
       const dayIdx = clamp(Math.floor(rawX / m.colW), 0, 6)
 
       // Atualizar label de horário no ghost diretamente no DOM
@@ -296,12 +323,12 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div ref={scrollRef} className="mf-workspace flex-1 overflow-y-auto select-none bg-[#07080c]">
+    <div ref={scrollRef} className="mf-workspace mf-agenda-week-scroll flex-1 min-w-0 overflow-auto select-none bg-[#07080c]">
 
       {/* Cabeçalho sticky */}
       <div
         ref={headerRef}
-        className="grid grid-cols-[65px_repeat(7,1fr)] sticky top-0 bg-[#07080c]/90 backdrop-blur-md z-10 border-b border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
+        className="mf-agenda-week-grid mf-agenda-week-header grid grid-cols-[65px_repeat(7,1fr)] sticky top-0 bg-[#07080c]/90 backdrop-blur-md z-10 border-b border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
       >
         <div className="border-r border-white/[0.04]" />
         {days.map((day, i) => {
@@ -329,7 +356,7 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
       </div>
 
       {/* Grade */}
-      <div className="grid grid-cols-[65px_repeat(7,1fr)]">
+      <div className="mf-agenda-week-grid grid grid-cols-[65px_repeat(7,1fr)]">
 
         {/* Coluna de horários */}
         <div className="border-r border-white/[0.04] bg-[#07080c]/30">
@@ -425,8 +452,15 @@ export function WeekGrid({ weekStart, events, onCreateAt, onEditEvent, onUpdateE
                       backgroundColor: eventColor,
                       cursor:          'grab',
                     }}
-                    className="rounded-lg overflow-hidden group/event shadow-md flex flex-col"
-                    onPointerDown={ev => handleMoveDown(ev, event, eventColor)}
+                    className="mf-agenda-event-card rounded-lg overflow-hidden group/event shadow-md flex flex-col"
+                    onPointerDown={ev => {
+                      if (ev.pointerType === 'touch') return
+                      handleMoveDown(ev, event, eventColor)
+                    }}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      onEditEvent(event)
+                    }}
                   >
                     {/* Badge de status */}
                     {(isRealizada || isFalta || isNaoRealizada) && (

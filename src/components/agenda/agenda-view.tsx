@@ -65,14 +65,14 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
   })
 
   return (
-    <div className="mf-workspace flex-1 flex flex-col overflow-hidden bg-[#07080c]">
+    <div className="mf-workspace mf-agenda-view flex-1 min-h-0 flex flex-col overflow-hidden bg-[#07080c]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="mf-agenda-header flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-[#07080c]/80 backdrop-blur-md shrink-0">
+        <div className="mf-agenda-actions flex items-center gap-3">
           <button
             type="button"
             onClick={() => setModalState({ mode: 'create', date: new Date(), hour: 9 })}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-all duration-200"
+            className="mf-agenda-create flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-all duration-200"
           >
             <Plus className="w-4 h-4" />
             Criar
@@ -86,7 +86,7 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
             Hoje
           </button>
 
-          <div className="flex gap-1 ml-1">
+          <div className="mf-agenda-week-controls flex gap-1 ml-1">
             <button
               type="button"
               onClick={() => setWeekStart((d) => addDays(d, -7))}
@@ -106,11 +106,11 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="mf-agenda-meta flex items-center gap-3">
           <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
             {formatWeekRangeLabel(weekStart)}
           </span>
-          <div className="relative">
+          <div className="mf-agenda-search relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
             <input
               type="text"
@@ -133,8 +133,8 @@ export function AgendaView({ onOpenLeadInCrm }: { onOpenLeadInCrm?: (leadId: str
       </div>
 
       {/* Body */}
-      <div className="flex-1 flex overflow-hidden">
-        <aside className="w-60 shrink-0 border-r border-white/[0.06] py-6 px-4 overflow-y-auto bg-[#090a0f]/30 backdrop-blur-md space-y-6">
+      <div className="mf-agenda-body flex-1 min-h-0 flex overflow-hidden">
+        <aside className="mf-agenda-side-panel w-60 shrink-0 border-r border-white/[0.06] py-6 px-4 overflow-y-auto bg-[#090a0f]/30 backdrop-blur-md space-y-6">
           <MiniCalendar weekStart={weekStart} onSelectDate={(date) => setWeekStart(startOfWeek(date))} />
           <CategorySidebar visibleIds={visibleCategoryIds} onToggle={toggleCategory} />
         </aside>

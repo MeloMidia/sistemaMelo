@@ -183,7 +183,7 @@ export default function HomePage() {
         />
         {expanded && (
           <span
-            className="text-[13px] font-semibold truncate leading-none"
+            className="mf-nav-item-label text-[13px] font-semibold truncate leading-none"
             style={{ color: isActive ? 'var(--nm-text-primary)' : 'inherit' }}
           >
             {label}
@@ -191,7 +191,7 @@ export default function HomePage() {
         )}
         {isActive && expanded && (
           <span
-            className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+            className="mf-nav-active-dot ml-auto w-1.5 h-1.5 rounded-full shrink-0"
             style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
           />
         )}
@@ -214,7 +214,7 @@ export default function HomePage() {
       >
         {/* Logo + toggle */}
         <div
-          className={`flex items-center h-16 shrink-0 ${expanded ? 'px-4 gap-3' : 'justify-center'}`}
+          className={`mf-sidebar-brand flex items-center h-16 shrink-0 ${expanded ? 'px-4 gap-3' : 'justify-center'}`}
           style={{ borderBottom: '1px solid var(--nm-border)' }}
         >
           {expanded ? (
@@ -259,7 +259,7 @@ export default function HomePage() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
+        <nav className="mf-sidebar-nav flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
           <SectionLabel label="Operacional" expanded={expanded} />
           {OPERACIONAL.map(item => (
             <NavItem key={item.id} {...item} id={item.id as ActiveTab} />
@@ -269,7 +269,7 @@ export default function HomePage() {
             <SectionLabel label="Comercial" expanded={expanded} />
           </div>
           {COMERCIAL.map(item => (
-            <div key={item.id}>
+            <div key={item.id} className="mf-nav-item-group">
               <NavItem {...item} id={item.id as ActiveTab} />
               {item.id === 'crm' && expanded && (
                 <button
@@ -288,17 +288,17 @@ export default function HomePage() {
 
         {/* Footer */}
         <div
-          className="shrink-0 py-3 px-2 space-y-1"
+          className="mf-sidebar-footer shrink-0 py-3 px-2 space-y-1"
           style={{ borderTop: '1px solid var(--nm-border)' }}
         >
           {/* WhatsApp */}
-          <div className={`flex ${expanded ? '' : 'justify-center'}`}>
+          <div className={`mf-sidebar-whatsapp flex ${expanded ? '' : 'justify-center'}`}>
             <WhatsappSettings collapsed={!expanded} />
           </div>
 
           {/* Usuário */}
           {session?.user && (
-            <div className={`flex items-center gap-2.5 px-2 py-2 rounded-xl ${expanded ? '' : 'justify-center'}`}>
+            <div className={`mf-sidebar-user flex items-center gap-2.5 px-2 py-2 rounded-xl ${expanded ? '' : 'justify-center'}`}>
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 nm-xs"
               style={{ color: 'var(--mf-signal)' }}
@@ -318,7 +318,7 @@ export default function HomePage() {
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
             title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            className={`w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-all duration-200 nm-btn
+            className={`mf-sidebar-theme w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-all duration-200 nm-btn
               ${expanded ? '' : 'justify-center'}`}
             style={{ color: 'var(--nm-text-secondary)' }}
           >
@@ -336,7 +336,7 @@ export default function HomePage() {
           <button
             onClick={() => signOut()}
             title="Sair"
-            className={`w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-colors
+            className={`mf-sidebar-signout w-full flex items-center gap-2.5 rounded-xl px-2 py-2 cursor-pointer transition-colors
               ${expanded ? '' : 'justify-center'}`}
             style={{ color: 'var(--nm-text-muted)' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444' }}

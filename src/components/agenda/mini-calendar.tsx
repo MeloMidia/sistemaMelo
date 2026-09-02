@@ -32,16 +32,12 @@ export function MiniCalendar({ weekStart, onSelectDate }: MiniCalendarProps) {
   const weekEnd = addDays(weekStart, 6)
   const days = buildMonthGrid(viewMonth)
 
-  const monthLabel = viewMonth
-    .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-    .replace(/^./, (c) => c.toUpperCase())
-
   function isInSelectedWeek(day: Date) {
     return day >= weekStart && day <= weekEnd
   }
 
   return (
-    <div className="px-1 select-none">
+    <div className="mf-mini-calendar px-1 select-none">
       <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-center gap-1 text-slate-200">
           <select

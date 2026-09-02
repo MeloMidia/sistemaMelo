@@ -62,7 +62,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
   }
 
   return (
-    <div className="px-1 select-none">
+    <div className="mf-agenda-categories px-1 select-none">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Categorias</span>
         <button
@@ -78,7 +78,7 @@ export function CategorySidebar({ visibleIds, onToggle }: CategorySidebarProps) 
         {(categories || []).map((category) => {
           const isVisible = visibleIds.has(category.id)
           return (
-            <div key={category.id} className="flex items-center gap-2.5 group py-0.5">
+            <div key={category.id} className="mf-agenda-category-row flex items-center gap-2.5 group py-0.5">
               {/* Custom Checkbox */}
               <div 
                 onClick={() => onToggle(category.id)} 

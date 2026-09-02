@@ -369,8 +369,8 @@ export function EventModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-      <div className="bg-[#0c0e17] border border-white/[0.15] w-full max-w-sm max-h-[90vh] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 select-none flex flex-col">
+    <div className="mf-agenda-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      <div className="mf-agenda-modal-card bg-[#0c0e17] border border-white/[0.15] w-full max-w-sm max-h-[90vh] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 select-none flex flex-col">
         <div className="flex justify-between items-center p-5 border-b border-white/[0.05] shrink-0">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
             {mode === 'create' ? 'Novo evento' : 'Editar evento'}
@@ -384,7 +384,7 @@ export function EventModal({
           </button>
         </div>
 
-        <div className="p-5 space-y-3.5 overflow-y-auto">
+        <div className="mf-agenda-modal-body p-5 space-y-3.5 overflow-y-auto">
           {error && (
             <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
@@ -610,7 +610,7 @@ export function EventModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-5 border-t border-white/[0.05] bg-[#07080c]/20 shrink-0">
+        <div className="mf-agenda-modal-footer flex items-center justify-between p-5 border-t border-white/[0.05] bg-[#07080c]/20 shrink-0">
           {mode === 'edit' ? (
             <div className="flex items-center gap-3">
               <button
