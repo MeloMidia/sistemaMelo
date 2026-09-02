@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { attachTaskContext, taskLeadInclude } from '@/lib/task-context'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -19,7 +20,8 @@ export async function GET() {
       },
     } as object,
     orderBy: { completedAt: 'desc' } as object,
+    include: taskLeadInclude,
   })
 
-  return NextResponse.json(tasks)
+  return NextResponse.json(await attachTaskContext(tasks))
 }

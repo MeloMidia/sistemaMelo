@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { attachTaskContext, taskLeadInclude } from '@/lib/task-context'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -36,6 +37,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const task = await prisma.task.update({
     where: { id },
     data,
+    include: taskLeadInclude,
   })
 
   if (dueDateChanged && task.source === 'negotiations') {
@@ -45,7 +47,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }).catch(() => null)
   }
 
-  return NextResponse.json(task)
+  const [taskWithContext] = await attachTaskContext([task])
+  return NextResponse.json(taskWithContext)
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

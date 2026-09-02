@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, type ReactNode } from 'react'
+import Image from 'next/image'
 import { useAllTasks, useUpdateTask, useDeleteTask, useCompletedTasks } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 import type { Task } from '@/types'
@@ -26,6 +27,7 @@ import {
   Trash2,
   Loader2,
   ClipboardList,
+  Building2,
   CheckCircle2,
   History,
   ChevronDown,
@@ -37,6 +39,7 @@ import {
   Activity,
   Clock,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 // Converte string "YYYY-MM-DD" para Date sem perder um dia por timezone
 function parseDateLocal(dateStr: string): Date {
@@ -56,7 +59,21 @@ function toDateInputValue(date: Date | string | null | undefined): string {
 
 const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor']
 
-function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass }: any) {
+interface DroppableColumnProps {
+  id: string
+  title: string
+  icon: LucideIcon
+  count: number
+  tasks: Task[]
+  children: ReactNode
+  emptyMessage: string
+  colorClass: string
+  borderClass: string
+  bgClass: string
+  headerClass: string
+}
+
+function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id })
 
   return (
@@ -118,7 +135,7 @@ export function TaskManager() {
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
 
-  const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
+  const [sortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
 
@@ -463,6 +480,130 @@ export function TaskManager() {
 // ──────────────────────────────────────────────────────────
 // TaskQueueItem com modal de edição inline
 // ──────────────────────────────────────────────────────────
+function normalizeTaskText(value: string | null | undefined) {
+  return (value ?? '').trim().toLocaleLowerCase('pt-BR')
+}
+
+function formatShortDate(value: Date | string) {
+  const date = typeof value === 'string' ? new Date(value) : value
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function getTaskDisplay(task: Task) {
+  const contextName = task.kanbanTask?.title
+    ?? task.lead?.companyName
+    ?? task.lead?.name
+    ?? task.lead?.phone
+    ?? null
+  const legacyProcessTask = Boolean(
+    contextName
+    && task.description
+    && normalizeTaskText(task.title) === normalizeTaskText(contextName)
+  )
+
+  return {
+    actionTitle: legacyProcessTask ? task.description! : task.title,
+    actionDescription: legacyProcessTask ? null : task.description,
+    contextName,
+    contextLabel: task.kanbanTask ? 'Cliente em Processos' : task.lead ? 'Lead do CRM' : null,
+    avatarUrl: task.logoUrl || task.kanbanTask?.logoUrl || task.lead?.profilePicUrl || null,
+  }
+}
+
+function TaskClientContext({ task }: { task: Task }) {
+  const display = getTaskDisplay(task)
+  const sourceTask = task.kanbanTask
+  const lead = task.lead
+  const location = [lead?.city, lead?.state].filter(Boolean).join(' / ')
+  const meetingsCount = sourceTask?.meetingsCount ?? task.meetingsCount
+  const hasAds = sourceTask?.adsAtivo ?? task.adsAtivo
+  const hasPromotion = sourceTask?.promocaoAtiva ?? task.promocaoAtiva
+  const promotionDate = sourceTask?.promocaoAte ?? task.promocaoAte
+  const note = sourceTask?.notes || lead?.notes || sourceTask?.description
+
+  const leadTags = lead?.tags?.map(({ tag }) => tag) ?? []
+  const processTags = sourceTask?.tags?.map(({ tag }) => tag) ?? []
+  const contextTags = [
+    ...leadTags,
+    ...processTags.filter((processTag) => !leadTags.some((leadTag) => leadTag.id === processTag.id)),
+  ]
+
+  const badges = [
+    sourceTask?.column?.title ? { key: 'stage', label: sourceTask.column.title } : null,
+    lead?.temperature ? { key: 'temperature', label: lead.temperature } : null,
+    location ? { key: 'location', label: location } : null,
+    meetingsCount > 0 ? { key: 'meetings', label: `${meetingsCount} ${meetingsCount === 1 ? 'reunião' : 'reuniões'}` } : null,
+    hasAds ? { key: 'ads', label: 'ADS ativo' } : null,
+    hasPromotion ? { key: 'promotion', label: 'Promo ativa' } : null,
+    promotionDate ? { key: 'promotion-date', label: `Promo até ${formatShortDate(promotionDate)}` } : null,
+  ].filter((badge): badge is { key: string; label: string } => Boolean(badge))
+
+  if (!display.contextName && badges.length === 0 && contextTags.length === 0 && !note) return null
+
+  const contextInitial = (display.contextName || 'C').charAt(0).toLocaleUpperCase('pt-BR')
+
+  return (
+    <div className="mt-2.5 rounded-xl border border-white/[0.06] bg-white/[0.035] p-2.5">
+      <div className="flex items-center gap-2 min-w-0">
+        {display.avatarUrl ? (
+          <Image
+            src={display.avatarUrl}
+            alt=""
+            width={32}
+            height={32}
+            unoptimized
+            className="h-8 w-8 rounded-lg object-cover ring-1 ring-white/10 shrink-0"
+          />
+        ) : (
+          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20 flex items-center justify-center text-xs font-bold shrink-0">
+            {contextInitial}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            <Building2 className="h-3 w-3" />
+            {display.contextLabel || 'Dados do cliente'}
+          </div>
+          {display.contextName && (
+            <p className="truncate text-xs font-semibold text-slate-200">{display.contextName}</p>
+          )}
+        </div>
+      </div>
+
+      {(badges.length > 0 || contextTags.length > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {badges.map((badge) => (
+            <span
+              key={badge.key}
+              className="rounded-full border border-white/[0.06] bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-slate-400"
+            >
+              {badge.label}
+            </span>
+          ))}
+          {contextTags.slice(0, 3).map((tag) => (
+            <span
+              key={tag.id}
+              className="rounded-full border bg-black/20 px-2 py-0.5 text-[10px] font-semibold"
+              style={{ borderColor: `${tag.color}55`, color: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {contextTags.length > 3 && (
+            <span className="rounded-full border border-white/[0.06] bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              +{contextTags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      {note && (
+        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-slate-500">{note}</p>
+      )}
+    </div>
+  )
+}
+
 function TaskQueueItem({
   task,
   isPriorityView,
@@ -480,11 +621,12 @@ function TaskQueueItem({
   onToggleWaiting: () => void
   onDelete: () => void
   onComplete: () => void
-  onEdit: (data: { title: string; description?: string; dueDate?: string; assignee?: string | null }) => void
+  onEdit: (data: { title: string; description?: string | null; dueDate?: string | null; assignee?: string | null }) => void
 }) {
+  const display = getTaskDisplay(task)
   const [editing, setEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(task.title)
-  const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editTitle, setEditTitle] = useState(display.actionTitle)
+  const [editDesc, setEditDesc] = useState(display.actionDescription || '')
   const [editDue, setEditDue] = useState(toDateInputValue(task.dueDate))
   const [editAssignee, setEditAssignee] = useState(task.assignee || '')
 
@@ -492,8 +634,9 @@ function TaskQueueItem({
   const isOverdue = dueDate && dueDate < new Date()
 
   const openEdit = () => {
-    setEditTitle(task.title)
-    setEditDesc(task.description || '')
+    const latestDisplay = getTaskDisplay(task)
+    setEditTitle(latestDisplay.actionTitle)
+    setEditDesc(latestDisplay.actionDescription || '')
     setEditDue(toDateInputValue(task.dueDate))
     setEditAssignee(task.assignee || '')
     setEditing(true)
@@ -503,8 +646,8 @@ function TaskQueueItem({
     if (!editTitle.trim()) return
     onEdit({
       title: editTitle.trim(),
-      description: editDesc.trim() || undefined,
-      dueDate: editDue ? parseDateLocal(editDue).toISOString() : undefined,
+      description: editDesc.trim() || null,
+      dueDate: editDue ? parseDateLocal(editDue).toISOString() : null,
       assignee: editAssignee || null,
     })
     setEditing(false)
@@ -589,10 +732,11 @@ function TaskQueueItem({
     `}>
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-white leading-snug">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{task.description}</p>
+          <p className="text-base font-semibold text-white leading-snug">{display.actionTitle}</p>
+          {display.actionDescription && (
+            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{display.actionDescription}</p>
           )}
+          <TaskClientContext task={task} />
           <div className="flex items-center gap-2 mt-2">
             {dueDate && (
               <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'
@@ -676,15 +820,22 @@ function TaskQueueItem({
 function HistoryItem({ task }: { task: Task }) {
   const completedAt = task.completedAt ? new Date(task.completedAt) : null
   const dueDate = task.dueDate ? new Date(task.dueDate) : null
+  const display = getTaskDisplay(task)
 
   return (
     <div className="p-3.5 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03]">
       <div className="flex items-start gap-2.5">
         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-300 truncate line-through decoration-slate-600">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">{task.description}</p>
+          <p className="text-sm font-medium text-slate-300 truncate line-through decoration-slate-600">{display.actionTitle}</p>
+          {display.actionDescription && (
+            <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">{display.actionDescription}</p>
+          )}
+          {display.contextName && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+              <Building2 className="h-3 w-3" />
+              {display.contextName}
+            </p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {completedAt && (
