@@ -9,7 +9,7 @@ import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Kanban, Menu, ChevronLeft, Sun, Moon, TrendingUp,
+  Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp,
 } from 'lucide-react'
 import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
 import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
@@ -21,6 +21,20 @@ import { CarteiraView } from '@/components/clientes/carteira-view'
 
 type Theme = 'dark' | 'light'
 type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
+
+function MeloMidiaLogoMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={`mf-melo-midia-logo ${compact ? 'mf-melo-midia-logo-compact' : ''}`}
+      aria-label="Melo Mídia"
+      role="img"
+    >
+      <span className="mf-melo-midia-logo-orbit" />
+      <span className="mf-melo-midia-logo-mm">MM</span>
+      <span className="mf-melo-midia-logo-signal" />
+    </span>
+  )
+}
 
 const THEME_STORAGE_KEY = 'nm-theme'
 const THEME_COOKIE_KEY = 'mf-theme'
@@ -79,6 +93,13 @@ function readSavedTheme(): Theme {
   return isTheme(documentTheme) ? documentTheme : 'light'
 }
 
+function readAppliedTheme(): Theme {
+  if (typeof document === 'undefined') return 'light'
+
+  const documentTheme = document.documentElement.dataset.theme
+  return isTheme(documentTheme) ? documentTheme : readSavedTheme()
+}
+
 function applyTheme(theme: Theme) {
   if (typeof document === 'undefined') return
 
@@ -106,28 +127,17 @@ export default function HomePage() {
   const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
   const [crmView, setCrmView]             = useState<CrmView>('inbox')
-  const [theme, setTheme]                 = useState<Theme>('light')
-  const [themeLoaded, setThemeLoaded]     = useState(false)
+  const [theme, setTheme]                 = useState<Theme>(readAppliedTheme)
   const { data: session } = useSession()
 
   useEffect(() => {
-    const savedTheme = readSavedTheme()
-    setTheme(savedTheme)
-    applyTheme(savedTheme)
-    setThemeLoaded(true)
-  }, [])
-
-  useEffect(() => {
-    if (!themeLoaded) return
     applyTheme(theme)
     saveTheme(theme)
-  }, [theme, themeLoaded])
+  }, [theme])
 
   function toggleTheme() {
     setTheme((current) => {
       const next = current === 'dark' ? 'light' : 'dark'
-      applyTheme(next)
-      saveTheme(next)
       return next
     })
   }
@@ -201,39 +211,45 @@ export default function HomePage() {
           className={`flex items-center h-16 shrink-0 ${expanded ? 'px-4 gap-3' : 'justify-center'}`}
           style={{ borderBottom: '1px solid var(--nm-border)' }}
         >
-          {expanded && (
-            <div className="flex items-center gap-1.5 select-none flex-1 min-w-0">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
-                style={{
-                  background: '#151817',
-                  boxShadow: 'none',
-                  color: '#fff',
-                }}
-              >
-                MF
-              </div>
-              <div>
-                <span className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--nm-text-primary)' }}>
-                  melo
-                </span>
-                <span className="text-[15px] font-light italic tracking-tight" style={{ color: 'var(--nm-text-secondary)' }}>
-                  flow
+          {expanded ? (
+            <div className="flex items-center gap-2.5 select-none flex-1 min-w-0">
+              <MeloMidiaLogoMark />
+              <div className="min-w-0 leading-none">
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--nm-text-primary)' }}>
+                    melo
+                  </span>
+                  <span className="text-[15px] font-light italic tracking-tight" style={{ color: 'var(--nm-text-secondary)' }}>
+                    flow
+                  </span>
+                </div>
+                <span className="mt-1 block text-[8px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--mf-signal)' }}>
+                  Melo Mídia
                 </span>
               </div>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label="Expandir menu lateral"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center cursor-pointer nm-btn shrink-0"
+              title="Expandir"
+            >
+              <MeloMidiaLogoMark compact />
+            </button>
           )}
-          <button
-            onClick={() => setExpanded(v => !v)}
-            aria-label={expanded ? 'Recolher menu lateral' : 'Expandir menu lateral'}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer nm-btn shrink-0"
-            title={expanded ? 'Recolher' : 'Expandir'}
-            style={{ color: 'var(--nm-text-muted)' }}
-          >
-            {expanded
-              ? <ChevronLeft className="w-4 h-4" />
-              : <Menu className="w-4 h-4" />}
-          </button>
+          {expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              aria-label="Recolher menu lateral"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer nm-btn shrink-0"
+              title="Recolher"
+              style={{ color: 'var(--nm-text-muted)' }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Nav */}
