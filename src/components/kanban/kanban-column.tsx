@@ -23,6 +23,15 @@ interface KanbanColumnProps {
   taskLabel?: string
 }
 
+function formatCurrencyShort(value: number) {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+}
+
 export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -91,6 +100,9 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
   const taskIds = column.tasks.map((t) => t.id)
 
   const isNegotiationBoard = source === 'negotiations'
+  const negotiationTotal = isNegotiationBoard
+    ? column.tasks.reduce((sum, task) => sum + (task.negotiation?.totalValue ?? 0), 0)
+    : 0
   const stageTone = isNegotiationBoard && column.title.toLocaleLowerCase('pt-BR') === 'ganho'
     ? '#4fa24a'
     : isNegotiationBoard && column.title.toLocaleLowerCase('pt-BR') === 'perdido'
@@ -190,6 +202,12 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {isNegotiationBoard && (
+          <div className="mf-negotiation-column-total" title={`Total em negociação: ${formatCurrencyShort(negotiationTotal)}`}>
+            <span>Total em negociação</span>
+            <strong>{formatCurrencyShort(negotiationTotal)}</strong>
+          </div>
+        )}
       </div>
 
       {/* Tasks list */}

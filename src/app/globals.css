@@ -514,6 +514,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   color: var(--mf-muted);
   padding: 6px 10px;
 }
+.mf-negotiation-column-total { align-items: center; background: color-mix(in srgb, var(--mf-success) 10%, transparent); border: 1px solid color-mix(in srgb, var(--mf-success) 22%, var(--nm-border)); border-radius: 12px; display: flex; justify-content: space-between; margin-top: 12px; padding: 9px 10px; }
+.mf-negotiation-column-total span { color: var(--mf-muted); font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.mf-negotiation-column-total strong { color: var(--mf-success); font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
 .mf-profile-negotiations { display: grid; gap: 8px; }
 .mf-profile-negotiations-empty { align-items: center; color: var(--mf-faint); display: flex; flex-direction: column; font-size: 11px; gap: 5px; padding: 8px 0 4px; text-align: center; }
 .mf-profile-negotiation-card { background: var(--mf-well); border: 1px solid var(--mf-line); border-left: 2px solid var(--mf-success); border-radius: 8px; padding: 9px 10px; }

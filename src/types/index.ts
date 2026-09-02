@@ -27,6 +27,7 @@ export interface Task {
   negotiation?: {
     negotiatedAt: string
     expectedCloseAt: string | null
+    totalValue: number
   } | null
 }
 
