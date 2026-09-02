@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ChevronDown, CircleDollarSign, ClipboardList, Loader2,
+  CalendarDays, ChevronDown, CircleDollarSign, ClipboardList, Loader2,
   MessageSquare, Pencil, Plus, ReceiptText, X,
 } from 'lucide-react'
 import type { Lead, Negotiation } from '@/types/crm'
@@ -38,6 +38,7 @@ type NegotiationForm = {
   stageId: string
   responsibleId: string
   negotiatedAt: string
+  expectedCloseAt: string
   service: string
   quantity: string
   unitPrice: string
@@ -55,6 +56,13 @@ function todayInputValue() {
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function formatDateBR(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
 function getForm(lead: Lead): LeadForm {
@@ -201,6 +209,7 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
       stageId: defaultStage?.id ?? '',
       responsibleId: lead?.assignedToId ?? '',
       negotiatedAt: todayInputValue(),
+      expectedCloseAt: '',
       service: '',
       quantity: '1',
       unitPrice: '0',
@@ -388,10 +397,16 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
               )}
               {negotiationsQuery.data?.map((negotiation) => {
                 const stage = negotiationColumns.find((column) => column.id === negotiation.task.columnId)
+                const negotiatedAt = formatDateBR(negotiation.negotiatedAt)
+                const expectedCloseAt = formatDateBR(negotiation.expectedCloseAt)
                 return (
                   <div key={negotiation.id} className="mf-profile-negotiation-card">
                     <div><strong>{negotiation.service}</strong><span>{formatCurrency(negotiation.totalValue)}</span></div>
                     <p>{stage?.title ?? 'Em negociação'} · {negotiation.responsible?.name ?? 'Sem responsável'}</p>
+                    <div className="mf-profile-negotiation-dates">
+                      {negotiatedAt && <span><CalendarDays className="size-3" aria-hidden="true" />Negociado {negotiatedAt}</span>}
+                      <span className={expectedCloseAt ? '' : 'is-empty'}><CalendarDays className="size-3" aria-hidden="true" />Fecha {expectedCloseAt ?? 'sem previsão'}</span>
+                    </div>
                   </div>
                 )
               })}
@@ -451,6 +466,7 @@ export function LeadProfilePanel({ leadId }: { leadId: string }) {
               <div className="mf-negotiation-form">
                 <Field label="Cliente"><Input value={displayName} readOnly className="mf-profile-input" /></Field>
                 <Field label="Data da negociação"><Input type="date" value={negotiationForm.negotiatedAt} onChange={(event) => updateNegotiationForm('negotiatedAt', event.target.value)} className="mf-profile-input" required /></Field>
+                <Field label="Previsão de fechamento"><Input type="date" value={negotiationForm.expectedCloseAt} onChange={(event) => updateNegotiationForm('expectedCloseAt', event.target.value)} className="mf-profile-input" /></Field>
                 <Field label="Responsável"><select value={negotiationForm.responsibleId} onChange={(event) => updateNegotiationForm('responsibleId', event.target.value)} className="mf-profile-input"><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></Field>
                 <Field label="Estágio"><select value={negotiationForm.stageId} onChange={(event) => updateNegotiationForm('stageId', event.target.value)} className="mf-profile-input" required><option value="" disabled>Selecione o estágio</option>{negotiationColumns.map((column) => <option key={column.id} value={column.id}>{column.title}</option>)}</select></Field>
                 <div className="sm:col-span-2"><span className="mf-negotiation-field-label">Etiquetas</span><div className="mf-negotiation-tags">{tags.map((tag) => <button key={tag.id} type="button" onClick={() => toggleNegotiationTag(tag.id)} className={negotiationForm.tagIds.includes(tag.id) ? 'is-selected' : ''} style={{ '--tag-color': tag.color } as React.CSSProperties}>{tag.name}</button>)}</div></div>

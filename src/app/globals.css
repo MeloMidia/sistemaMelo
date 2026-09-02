@@ -521,6 +521,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-profile-negotiation-card strong { color: var(--mf-ink); font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf-profile-negotiation-card span { color: var(--mf-success); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .mf-profile-negotiation-card p { color: var(--mf-muted); font-size: 10px; margin-top: 4px; }
+.mf-profile-negotiation-dates { display: flex !important; flex-wrap: wrap; gap: 5px !important; justify-content: flex-start !important; margin-top: 7px; }
+.mf-profile-negotiation-dates span { align-items: center; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); border-radius: 999px; color: var(--mf-ink) !important; display: inline-flex; font-size: 10px !important; font-weight: 700 !important; gap: 4px; padding: 3px 7px; }
+.mf-profile-negotiation-dates span.is-empty { color: var(--mf-faint) !important; font-weight: 600 !important; }
 .mf-profile-negotiation-create { align-items: center; background: var(--mf-surface); border: 1px solid var(--mf-line-strong); border-radius: 8px; color: var(--mf-ink); cursor: pointer; display: flex; font-size: 11px; font-weight: 700; gap: 6px; justify-content: center; min-height: 32px; transition: border-color 150ms ease, color 150ms ease; width: 100%; }
 .mf-profile-negotiation-create:hover { border-color: var(--mf-success); color: var(--mf-success); }
 .mf-negotiation-dialog { background: var(--mf-surface) !important; border: 1px solid var(--mf-line) !important; box-shadow: var(--mf-shadow-float) !important; }

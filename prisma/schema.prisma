@@ -215,23 +215,24 @@ model LeadTag {
 }
 
 model Negotiation {
-  id            String           @id @default(cuid())
-  leadId        String
-  lead          Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  taskId        String           @unique
-  task          Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  responsibleId String?
-  responsible   User?            @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
-  negotiatedAt  DateTime
-  service       String
-  quantity      Int              @default(1)
-  unitPrice     Float
-  discount      Float            @default(0)
-  totalValue    Float
-  notes         String?
-  tags          NegotiationTag[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  leadId          String
+  lead            Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  taskId          String           @unique
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  responsibleId   String?
+  responsible     User?            @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+  negotiatedAt    DateTime
+  expectedCloseAt DateTime?
+  service         String
+  quantity        Int              @default(1)
+  unitPrice       Float
+  discount        Float            @default(0)
+  totalValue      Float
+  notes           String?
+  tags            NegotiationTag[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([leadId, negotiatedAt])
   @@index([responsibleId])

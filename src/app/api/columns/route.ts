@@ -34,6 +34,9 @@ export async function GET(request: Request) {
       tasks: {
         where: { source },
         orderBy: { order: 'asc' },
+        include: source === NEGOTIATIONS_SOURCE
+          ? { negotiation: { select: { negotiatedAt: true, expectedCloseAt: true } } }
+          : undefined,
       },
     },
     orderBy: { order: 'asc' },

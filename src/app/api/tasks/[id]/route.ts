@@ -13,7 +13,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const data: Record<string, unknown> = {}
   if (body.title !== undefined) data.title = body.title
   if (body.description !== undefined) data.description = body.description
-  if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
+  const dueDateChanged = body.dueDate !== undefined
+  if (dueDateChanged) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
   if (body.isPriorityToday !== undefined) data.isPriorityToday = body.isPriorityToday
   if (body.isDoing !== undefined) data.isDoing = body.isDoing
   if (body.isWaiting !== undefined) data.isWaiting = body.isWaiting
@@ -36,6 +37,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     where: { id },
     data,
   })
+
+  if (dueDateChanged && task.source === 'negotiations') {
+    await prisma.negotiation.update({
+      where: { taskId: id },
+      data: { expectedCloseAt: task.dueDate },
+    }).catch(() => null)
+  }
 
   return NextResponse.json(task)
 }

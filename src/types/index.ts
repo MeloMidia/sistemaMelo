@@ -24,6 +24,10 @@ export interface Task {
   churnedBy: string | null
   leadId: string | null
   kanbanTaskId: string | null
+  negotiation?: {
+    negotiatedAt: string
+    expectedCloseAt: string | null
+  } | null
 }
 
 export interface Column {

@@ -55,11 +55,13 @@ function parseNegotiationPreview(description: string | null | undefined) {
 }
 
 export function TaskCard({ task }: TaskCardProps) {
+  const isNegotiationCard = task.source === 'negotiations'
+  const negotiationExpectedCloseAt = task.negotiation?.expectedCloseAt ?? null
   // Card inline edit state
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDueDate, setEditDueDate] = useState(
-    toLocalDateString(task.dueDate)
+    toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : task.dueDate)
   )
   const [editLogo, setEditLogo] = useState<string | null>(task.logoUrl)
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -74,7 +76,6 @@ export function TaskCard({ task }: TaskCardProps) {
   const { data: columns } = useColumns('tasks')
   const { data: kanbanColumns } = useColumns()
   const { data: cardTasks } = useKanbanCardTasks(task.id)
-  const isNegotiationCard = task.source === 'negotiations'
   const negotiationPreview = isNegotiationCard ? parseNegotiationPreview(task.description) : null
   const negotiationService = negotiationPreview?.service || task.description || 'Negociação criada a partir do lead'
   const negotiationValue = negotiationPreview?.value || ''
@@ -130,7 +131,7 @@ export function TaskCard({ task }: TaskCardProps) {
     updateTask.mutate({
       id: task.id,
       title: editTitle.trim(),
-      dueDate: isNegotiationCard ? undefined : (editDueDate ? parseDateLocal(editDueDate) : null),
+      dueDate: editDueDate ? parseDateLocal(editDueDate) : null,
       logoUrl: editLogo,
     })
     setIsEditing(false)
@@ -164,7 +165,9 @@ export function TaskCard({ task }: TaskCardProps) {
   }
 
   const dueDate = isNegotiationCard ? null : (task.dueDate ? new Date(task.dueDate) : null)
+  const negotiationCloseDate = isNegotiationCard && negotiationExpectedCloseAt ? new Date(negotiationExpectedCloseAt) : null
   const isOverdue = dueDate && dueDate < new Date()
+  const isNegotiationCloseOverdue = negotiationCloseDate && negotiationCloseDate < new Date()
 
   // Dynamic monogram colors for cards without logos
   const initial = task.title.charAt(0).toUpperCase()
@@ -263,17 +266,17 @@ export function TaskCard({ task }: TaskCardProps) {
                   className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
 
-                {!isNegotiationCard && (
-                  <div>
-                    <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">Encerramento do contrato</label>
-                    <Input
-                      type="date"
-                      value={editDueDate}
-                      onChange={(e) => setEditDueDate(e.target.value)}
-                      className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white [color-scheme:dark] rounded-lg"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">
+                    {isNegotiationCard ? 'Previsão de fechamento' : 'Encerramento do contrato'}
+                  </label>
+                  <Input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white [color-scheme:dark] rounded-lg"
+                  />
+                </div>
 
                 {/* Save / Cancel */}
                 <div className="flex gap-2 pt-0.5">
@@ -325,6 +328,16 @@ export function TaskCard({ task }: TaskCardProps) {
                         <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 border border-white/[0.05]">
                           <User className="w-3 h-3 shrink-0" />
                           {task.assignee}
+                        </span>
+                      )}
+                      {negotiationCloseDate && (
+                        <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                          isNegotiationCloseOverdue
+                            ? 'bg-red-500/10 text-red-400 border-red-500/15'
+                            : 'bg-sky-500/10 text-sky-300 border-sky-500/15'
+                        }`}>
+                          <Calendar className="w-3 h-3 shrink-0" />
+                          Fecha {formatDateBR(negotiationCloseDate)}
                         </span>
                       )}
                     </div>
@@ -449,6 +462,20 @@ export function TaskCard({ task }: TaskCardProps) {
                   <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
                 ) : null}
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {isNegotiationCard && task.negotiation?.negotiatedAt && (
+                    <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400">
+                      <Calendar className="w-3 h-3" />
+                      Negociado {formatDateBR(task.negotiation.negotiatedAt)}
+                    </span>
+                  )}
+                  {isNegotiationCard && negotiationCloseDate && (
+                    <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      isNegotiationCloseOverdue ? 'bg-red-500/15 text-red-400' : 'bg-sky-500/15 text-sky-300'
+                    }`}>
+                      <Calendar className="w-3 h-3" />
+                      Fecha {formatDateBR(negotiationCloseDate)}
+                    </span>
+                  )}
                   {!isNegotiationCard && dueDate && (
                     <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
                       isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'

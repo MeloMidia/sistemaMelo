@@ -9,6 +9,19 @@ function asNumber(value: unknown) {
   return Number.isFinite(number) ? number : 0
 }
 
+function parseDateInput(value: unknown): Date | null {
+  if (typeof value !== 'string' || !value) return null
+
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0)
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -35,7 +48,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = await request.json()
   const stageId = typeof body.stageId === 'string' ? body.stageId : ''
   const service = typeof body.service === 'string' ? body.service.trim() : ''
-  const negotiatedAt = body.negotiatedAt ? new Date(body.negotiatedAt) : null
+  const negotiatedAt = parseDateInput(body.negotiatedAt)
+  const expectedCloseAt = parseDateInput(body.expectedCloseAt)
   const quantity = Math.max(1, Math.floor(asNumber(body.quantity)))
   const unitPrice = Math.max(0, asNumber(body.unitPrice))
   const discount = Math.max(0, asNumber(body.discount))
@@ -65,7 +79,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: {
         title: getLeadDisplayName(lead),
         description,
-        dueDate: negotiatedAt,
+        dueDate: expectedCloseAt,
         columnId: stage.id,
         order: (await tx.task.count({ where: { columnId: stage.id } }) + 1) * 1000,
         source: 'negotiations',
@@ -81,6 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         taskId: task.id,
         responsibleId: responsible?.id ?? null,
         negotiatedAt,
+        expectedCloseAt,
         service,
         quantity,
         unitPrice,
