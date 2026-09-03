@@ -12,6 +12,12 @@ export const taskLeadInclude = {
       state: true,
       companyName: true,
       notes: true,
+      stage: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       tags: {
         include: {
           tag: {
@@ -30,6 +36,7 @@ export const taskLeadInclude = {
 const kanbanTaskContextSelect = {
   id: true,
   title: true,
+  source: true,
   description: true,
   dueDate: true,
   logoUrl: true,
@@ -87,4 +94,34 @@ export async function attachTaskContext<T extends TaskWithOptionalKanbanParent>(
     ...task,
     kanbanTask: task.kanbanTaskId ? kanbanTaskById.get(task.kanbanTaskId) ?? null : null,
   }))
+}
+
+function normalizeColumnTitle(value: string | null | undefined) {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+}
+
+export function isNegotiationRelatedTask(task: {
+  lead?: {
+    stage?: {
+      name: string
+    } | null
+  } | null
+  kanbanTask?: {
+    source?: string
+    column?: {
+      source: string
+      title: string
+    } | null
+  } | null
+}) {
+  const column = task.kanbanTask?.column
+  const isProcessNegotiationColumn = column?.source === 'kanban' && normalizeColumnTitle(column.title) === 'em negociacao'
+  const isNegotiationsBoardTask = task.kanbanTask?.source === 'negotiations' || column?.source === 'negotiations'
+  const isCrmNegotiationLead = normalizeColumnTitle(task.lead?.stage?.name) === 'em negociacao'
+
+  return isProcessNegotiationColumn || isNegotiationsBoardTask || isCrmNegotiationLead
 }

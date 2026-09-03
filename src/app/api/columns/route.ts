@@ -6,6 +6,8 @@ import { authOptions } from '@/lib/auth'
 const NEGOTIATIONS_SOURCE = 'negotiations'
 const NEGOTIATION_STAGES = ['Não atribuídas', 'Em negociação', 'Ganho', 'Perdido']
 
+const NEGOTIATION_STAGE_COLORS = ['#60a5fa', '#f59e0b', '#22c55e', '#ef4444']
+
 async function ensureNegotiationBoard() {
   const existingCount = await prisma.column.count({ where: { source: NEGOTIATIONS_SOURCE } })
   if (existingCount > 0) return
@@ -13,6 +15,7 @@ async function ensureNegotiationBoard() {
   await prisma.column.createMany({
     data: NEGOTIATION_STAGES.map((title, index) => ({
       title,
+      color: NEGOTIATION_STAGE_COLORS[index],
       order: (index + 1) * 1000,
       source: NEGOTIATIONS_SOURCE,
     })),
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title, source } = await request.json()
+  const { title, source, color } = await request.json()
   const columnSource = source || 'kanban'
 
   // Get max order for this source
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
   const column = await prisma.column.create({
     data: {
       title,
+      color: color || null,
       order: newOrder,
       source: columnSource,
     },

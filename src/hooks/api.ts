@@ -21,11 +21,13 @@ export function useColumns(source: string = 'kanban') {
 export function useCreateColumn(source: string = 'kanban') {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (title: string) => {
+    mutationFn: async (input: string | { title: string; color?: string | null }) => {
+      const title = typeof input === 'string' ? input : input.title
+      const color = typeof input === 'string' ? undefined : input.color
       const res = await fetch('/api/columns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, source }),
+        body: JSON.stringify({ title, color, source }),
       })
       if (!res.ok) throw new Error('Failed to create column')
       return res.json()
@@ -37,7 +39,7 @@ export function useCreateColumn(source: string = 'kanban') {
 export function useUpdateColumn() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; title?: string; order?: number }) => {
+    mutationFn: async ({ id, ...data }: { id: string; title?: string; color?: string | null; order?: number }) => {
       const res = await fetch(`/api/columns/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

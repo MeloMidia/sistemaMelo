@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { attachTaskContext, taskLeadInclude } from '@/lib/task-context'
+import { attachTaskContext, isNegotiationRelatedTask, taskLeadInclude } from '@/lib/task-context'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -23,5 +23,6 @@ export async function GET() {
     include: taskLeadInclude,
   })
 
-  return NextResponse.json(await attachTaskContext(tasks))
+  const tasksWithContext = await attachTaskContext(tasks)
+  return NextResponse.json(tasksWithContext.filter((task) => !isNegotiationRelatedTask(task)))
 }

@@ -8,12 +8,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { title, order } = await request.json()
+  const { title, color, order } = await request.json()
 
   const column = await prisma.column.update({
     where: { id },
     data: {
       ...(title !== undefined && { title }),
+      ...(color !== undefined && { color }),
       ...(order !== undefined && { order }),
     },
   })

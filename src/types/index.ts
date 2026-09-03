@@ -18,6 +18,10 @@ export interface LeadTaskContext {
   state: string | null
   companyName: string | null
   notes: string | null
+  stage?: {
+    id: string
+    name: string
+  } | null
   tags: Array<{
     leadId: string
     tagId: string
@@ -32,6 +36,7 @@ export interface LeadTaskContext {
 export interface KanbanTaskContext {
   id: string
   title: string
+  source: string
   description: string | null
   dueDate: string | null
   logoUrl: string | null
@@ -88,6 +93,7 @@ export interface Task {
 export interface Column {
   id: string
   title: string
+  color: string | null
   order: number
   source: string
   createdAt: string

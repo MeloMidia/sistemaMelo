@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import type { LeadStage } from '@/types/crm'
 import { LeadCard } from './lead-card'
-import { GripVertical, ArrowRightLeft, Pencil, Check, X } from 'lucide-react'
+import { GripVertical, ArrowRightLeft, Pencil, Check, X, Palette } from 'lucide-react'
 import { useUpdateStage } from '@/hooks/crm-api'
 
 const PRESET_COLORS = [
@@ -134,20 +134,35 @@ export function LeadColumn({ stage, onSelectLead, otherStages, onMoveAll, isMovi
             />
 
             {/* Swatches de cor */}
-            <div className="grid grid-cols-8 gap-1">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setEditColor(c)}
-                  title={c}
-                  className="w-6 h-6 rounded-md transition-transform hover:scale-110 cursor-pointer"
-                  style={{
-                    backgroundColor: c,
-                    outline: editColor === c ? `2px solid ${c}` : '2px solid transparent',
-                    outlineOffset: '2px',
-                  }}
+            <div className="flex items-center gap-2">
+              <label
+                className="relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.05] text-white/70"
+                title="Escolher cor"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                <input
+                  type="color"
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Escolher cor da etapa"
                 />
-              ))}
+              </label>
+              <div className="grid flex-1 grid-cols-8 gap-1">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setEditColor(c)}
+                    title={c}
+                    className="h-6 rounded-md transition-transform hover:scale-110 cursor-pointer"
+                    style={{
+                      backgroundColor: c,
+                      outline: editColor === c ? `2px solid ${c}` : '2px solid transparent',
+                      outlineOffset: '2px',
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Confirmar / Cancelar */}
@@ -212,6 +227,19 @@ export function LeadColumn({ stage, onSelectLead, otherStages, onMoveAll, isMovi
             )}
 
             {/* Botão editar */}
+            <button
+              onClick={startEdit}
+              title="Editar cor do título"
+              className="flex h-6 w-6 items-center justify-center rounded-md border transition-all cursor-pointer shrink-0"
+              style={{
+                backgroundColor: `${stage.color}12`,
+                borderColor: `${stage.color}35`,
+                color: stage.color,
+              }}
+            >
+              <Palette className="w-3.5 h-3.5" />
+            </button>
+
             <button
               onClick={startEdit}
               title="Editar nome e cor"
