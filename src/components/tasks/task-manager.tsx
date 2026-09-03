@@ -519,7 +519,6 @@ function TaskClientContext({ task }: { task: Task }) {
   const hasAds = sourceTask?.adsAtivo ?? task.adsAtivo
   const hasPromotion = sourceTask?.promocaoAtiva ?? task.promocaoAtiva
   const promotionDate = sourceTask?.promocaoAte ?? task.promocaoAte
-  const note = sourceTask?.notes || lead?.notes || sourceTask?.description
 
   const leadTags = lead?.tags?.map(({ tag }) => tag) ?? []
   const processTags = sourceTask?.tags?.map(({ tag }) => tag) ?? []
@@ -538,44 +537,40 @@ function TaskClientContext({ task }: { task: Task }) {
     promotionDate ? { key: 'promotion-date', label: `Promo até ${formatShortDate(promotionDate)}` } : null,
   ].filter((badge): badge is { key: string; label: string } => Boolean(badge))
 
-  if (!display.contextName && badges.length === 0 && contextTags.length === 0 && !note) return null
+  if (!display.contextName && badges.length === 0 && contextTags.length === 0) return null
 
   const contextInitial = (display.contextName || 'C').charAt(0).toLocaleUpperCase('pt-BR')
 
   return (
-    <div className="mt-2.5 rounded-xl border border-white/[0.06] bg-white/[0.035] p-2.5">
-      <div className="flex items-center gap-2 min-w-0">
-        {display.avatarUrl ? (
-          <Image
-            src={display.avatarUrl}
-            alt=""
-            width={32}
-            height={32}
-            unoptimized
-            className="h-8 w-8 rounded-lg object-cover ring-1 ring-white/10 shrink-0"
-          />
-        ) : (
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20 flex items-center justify-center text-xs font-bold shrink-0">
-            {contextInitial}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-            <Building2 className="h-3 w-3" />
-            {display.contextLabel || 'Dados do cliente'}
-          </div>
-          {display.contextName && (
-            <p className="truncate text-xs font-semibold text-slate-200">{display.contextName}</p>
+    <div className="mt-2 space-y-1.5">
+      {display.contextName && (
+        <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          {display.avatarUrl ? (
+            <Image
+              src={display.avatarUrl}
+              alt=""
+              width={18}
+              height={18}
+              unoptimized
+              className="h-4.5 w-4.5 rounded object-cover ring-1 ring-white/10 shrink-0"
+            />
+          ) : (
+            <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-[9px] font-bold text-emerald-300 ring-1 ring-emerald-500/20">
+              {contextInitial}
+            </span>
           )}
+          <Building2 className="h-3 w-3 shrink-0 text-slate-600" />
+          <span className="shrink-0 uppercase tracking-[0.12em]">{display.contextLabel || 'Cliente'}</span>
+          <span className="truncate font-semibold text-slate-300">{display.contextName}</span>
         </div>
-      </div>
+      )}
 
       {(badges.length > 0 || contextTags.length > 0) && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {badges.map((badge) => (
             <span
               key={badge.key}
-              className="rounded-full border border-white/[0.06] bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-slate-400"
+              className="rounded-full border border-white/[0.06] bg-white/[0.035] px-2 py-0.5 text-[10px] font-semibold text-slate-500"
             >
               {badge.label}
             </span>
@@ -583,22 +578,18 @@ function TaskClientContext({ task }: { task: Task }) {
           {contextTags.slice(0, 3).map((tag) => (
             <span
               key={tag.id}
-              className="rounded-full border bg-black/20 px-2 py-0.5 text-[10px] font-semibold"
+              className="rounded-full border bg-white/[0.035] px-2 py-0.5 text-[10px] font-semibold"
               style={{ borderColor: `${tag.color}55`, color: tag.color }}
             >
               {tag.name}
             </span>
           ))}
           {contextTags.length > 3 && (
-            <span className="rounded-full border border-white/[0.06] bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+            <span className="rounded-full border border-white/[0.06] bg-white/[0.035] px-2 py-0.5 text-[10px] font-semibold text-slate-500">
               +{contextTags.length - 3}
             </span>
           )}
         </div>
-      )}
-
-      {note && (
-        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-slate-500">{note}</p>
       )}
     </div>
   )

@@ -32,11 +32,45 @@ function formatCurrencyShort(value: number) {
   })
 }
 
+function formatCurrency(value: number) {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+function parseCurrencyInput(value: string) {
+  const normalized = value
+    .replace(/\s/g, '')
+    .replace(/[R$]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.')
+
+  const number = Number(normalized)
+  return Number.isFinite(number) ? Math.max(0, number) : 0
+}
+
+function parseNegotiationValue(description: string | null | undefined) {
+  if (!description) return 0
+
+  const valueText = description.split(/\s(?:·|Â·)\s/).at(-1) ?? ''
+  return parseCurrencyInput(valueText)
+}
+
+function parseDateLocal(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0).toISOString()
+}
+
 export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
+  const [newNegotiationService, setNewNegotiationService] = useState('')
+  const [newNegotiationValue, setNewNegotiationValue] = useState('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(column.title)
 
@@ -74,19 +108,31 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
     reader.readAsDataURL(file)
   }
 
+  const resetAddTaskForm = () => {
+    setNewTaskTitle('')
+    setNewTaskLogo(null)
+    setNewTaskDueDate('')
+    setNewNegotiationService('')
+    setNewNegotiationValue('')
+    setIsAddingTask(false)
+  }
+
   const handleAddTask = () => {
-    if (newTaskTitle.trim()) {
+    const title = newTaskTitle.trim()
+    const service = newNegotiationService.trim()
+    const negotiationValue = parseCurrencyInput(newNegotiationValue)
+    const canCreateNegotiation = !isNegotiationBoard || (service && newTaskDueDate && negotiationValue > 0)
+
+    if (title && canCreateNegotiation) {
       createTask.mutate({
-        title: newTaskTitle.trim(),
+        title,
+        description: isNegotiationBoard ? `${service} · ${formatCurrency(negotiationValue)}` : undefined,
         columnId: column.id,
-        dueDate: newTaskDueDate || undefined,
+        dueDate: newTaskDueDate ? parseDateLocal(newTaskDueDate) : undefined,
         logoUrl: newTaskLogo || undefined,
         source,
       })
-      setNewTaskTitle('')
-      setNewTaskLogo(null)
-      setNewTaskDueDate('')
-      setIsAddingTask(false)
+      resetAddTaskForm()
     }
   }
 
@@ -101,7 +147,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
 
   const isNegotiationBoard = source === 'negotiations'
   const negotiationTotal = isNegotiationBoard
-    ? column.tasks.reduce((sum, task) => sum + (task.negotiation?.totalValue ?? 0), 0)
+    ? column.tasks.reduce((sum, task) => sum + (task.negotiation?.totalValue ?? parseNegotiationValue(task.description)), 0)
     : 0
   const stageTone = isNegotiationBoard && column.title.toLocaleLowerCase('pt-BR') === 'ganho'
     ? '#4fa24a'
@@ -234,12 +280,53 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
               onChange={(e) => setNewTaskTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddTask()
-                if (e.key === 'Escape') { setIsAddingTask(false); setNewTaskTitle(''); setNewTaskLogo(null); setNewTaskDueDate('') }
-              }}
-              placeholder={`Nome ${taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
+                  if (e.key === 'Escape') resetAddTaskForm()
+                }}
+              placeholder={isNegotiationBoard ? 'Nome do cliente...' : `Nome ${taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
               autoFocus
               className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
             />
+
+            {isNegotiationBoard && (
+              <>
+                <Input
+                  value={newNegotiationService}
+                  onChange={(e) => setNewNegotiationService(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddTask()
+                    if (e.key === 'Escape') resetAddTaskForm()
+                  }}
+                  placeholder="Serviço negociado..."
+                  className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium mb-1 block">Previsão de fechamento</label>
+                    <Input
+                      type="date"
+                      value={newTaskDueDate}
+                      onChange={(e) => setNewTaskDueDate(e.target.value)}
+                      className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] text-sm rounded-xl h-9"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium mb-1 block">Valor</label>
+                    <Input
+                      inputMode="decimal"
+                      value={newNegotiationValue}
+                      onChange={(e) => setNewNegotiationValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddTask()
+                        if (e.key === 'Escape') resetAddTaskForm()
+                      }}
+                      placeholder="R$ 0,00"
+                      className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl h-9"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Logo upload */}
             <div className="flex items-center gap-2.5">
@@ -269,6 +356,10 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
               <Button
                 size="sm"
                 onClick={handleAddTask}
+                disabled={
+                  !newTaskTitle.trim()
+                  || (isNegotiationBoard && (!newNegotiationService.trim() || !newTaskDueDate || parseCurrencyInput(newNegotiationValue) <= 0))
+                }
                 className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer rounded-lg"
               >
                 Adicionar
@@ -276,7 +367,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => { setIsAddingTask(false); setNewTaskTitle(''); setNewTaskLogo(null); setNewTaskDueDate('') }}
+                onClick={resetAddTaskForm}
                 className="text-slate-500 hover:text-white text-xs cursor-pointer"
               >
                 Cancelar
