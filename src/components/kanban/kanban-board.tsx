@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -18,7 +18,7 @@ import { useColumns, useCreateColumn, useReorderTasks, useReorderColumns } from 
 import { KanbanColumn } from './kanban-column'
 import { TaskCard } from './task-card'
 import type { Task, Column } from '@/types'
-import { Plus, Loader2, TrendingUp } from 'lucide-react'
+import { Plus, Loader2, TrendingUp, ListFilter, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
@@ -46,6 +46,17 @@ export function KanbanBoard({
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
+  const [selectedColumnId, setSelectedColumnId] = useState('')
+
+  const selectedColumn = useMemo(
+    () => (columns ?? []).find((column) => column.id === selectedColumnId) ?? null,
+    [columns, selectedColumnId]
+  )
+  const visibleColumns = useMemo(
+    () => (selectedColumn ? [selectedColumn] : (columns ?? [])),
+    [columns, selectedColumn]
+  )
+  const showColumnFilter = source === 'kanban' && (columns?.length ?? 0) > 1
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -206,7 +217,13 @@ export function KanbanBoard({
     )
   }
 
-  const columnIds = (columns || []).map((c) => `column-${c.id}`)
+  const columnIds = visibleColumns.map((c) => `column-${c.id}`)
+  const workspaceClass = title || showColumnFilter ? 'flex flex-col overflow-hidden' : 'overflow-x-auto p-6'
+  const boardScrollClass = title
+    ? 'flex-1 min-h-0 overflow-x-auto p-6 pt-3'
+    : showColumnFilter
+      ? 'flex-1 min-h-0 overflow-x-auto px-6 pb-6 pt-3'
+      : ''
 
   return (
     <DndContext
@@ -216,7 +233,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className={`mf-workspace flex-1 min-h-0 ${title ? 'flex flex-col overflow-hidden' : 'overflow-x-auto p-6'}`} style={{ background: 'var(--nm-bg)' }}>
+      <div className={`mf-workspace flex-1 min-h-0 ${workspaceClass}`} style={{ background: 'var(--nm-bg)' }}>
         {title && (
           <header className="mf-negotiations-header shrink-0 flex items-center justify-between gap-4 px-6 py-5" aria-labelledby="negotiations-title">
             <div className="flex items-center gap-3 min-w-0">
@@ -232,15 +249,62 @@ export function KanbanBoard({
             <span className="mf-negotiations-count shrink-0 text-xs font-semibold tabular-nums">{(columns ?? []).reduce((total, column) => total + column.tasks.length, 0)} negociações</span>
           </header>
         )}
-        <div className={title ? 'flex-1 min-h-0 overflow-x-auto p-6 pt-3' : ''}>
+        {showColumnFilter && (
+          <div className="shrink-0 px-6 pt-6">
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3"
+              style={{
+                background: 'var(--nm-bg)',
+                boxShadow: 'inset -3px -3px 7px var(--nm-light), inset 3px 3px 7px var(--nm-dark)',
+                border: '1px solid var(--nm-border)',
+              }}
+            >
+              <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--nm-text-muted)' }}>
+                <ListFilter className="size-4" />
+                <span>Coluna</span>
+                <select
+                  value={selectedColumn?.id ?? ''}
+                  onChange={(event) => setSelectedColumnId(event.target.value)}
+                  className="h-9 min-w-[220px] rounded-lg px-3 text-sm font-semibold normal-case outline-none"
+                  style={{
+                    background: 'var(--nm-bg)',
+                    color: 'var(--nm-text-primary)',
+                    border: '1px solid var(--nm-border)',
+                    boxShadow: '-2px -2px 5px var(--nm-light), 2px 2px 5px var(--nm-dark)',
+                  }}
+                >
+                  <option value="">Todas as colunas ({columns?.length ?? 0})</option>
+                  {(columns ?? []).map((column) => (
+                    <option key={column.id} value={column.id}>
+                      {column.title} ({column.tasks.length})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {selectedColumn && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedColumnId('')}
+                  className="h-9 gap-2 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{ color: 'var(--nm-text-secondary)' }}
+                >
+                  <X className="size-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        <div className={boardScrollClass}>
           <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
-            {(columns || []).map((column) => (
+            {visibleColumns.map((column) => (
               <KanbanColumn key={column.id} column={column} source={source} taskLabel={taskLabel} />
             ))}
 
             {/* Add column */}
-            {isAddingColumn ? (
+            {!selectedColumn && (isAddingColumn ? (
               <div
                 className="w-[320px] shrink-0 p-4 rounded-2xl space-y-3"
                 style={{
@@ -300,7 +364,7 @@ export function KanbanBoard({
                 <Plus className="w-4 h-4" />
                 Nova coluna
               </button>
-            )}
+            ))}
           </div>
           </SortableContext>
         </div>
