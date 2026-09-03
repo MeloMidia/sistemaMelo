@@ -500,72 +500,70 @@ export function TaskCard({ task }: TaskCardProps) {
               </button>
             </div>
 
-            {!isNegotiationCard && (
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm font-semibold text-slate-200">Tarefas</span>
-                    {activeTasks.length > 0 && (
-                      <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold px-1.5">
-                        {activeTasks.length}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setCreateModalOpen(true)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Nova Tarefa
-                  </button>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-200">Tarefas</span>
+                  {activeTasks.length > 0 && (
+                    <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold px-1.5">
+                      {activeTasks.length}
+                    </span>
+                  )}
                 </div>
-
-                {/* Lista de tarefas ativas */}
-                {activeTasks.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {activeTasks.map(t => (
-                      <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-colors group/item">
-                        <button
-                          onClick={() => updateTask.mutate({ id: t.id, completedAt: new Date().toISOString() })}
-                          className="shrink-0 w-5 h-5 rounded-full border border-white/20 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer transition-colors"
-                          title="Concluir"
-                        />
-                        <div className="flex-1 min-w-0">
-                          {/* Tarefas antigas guardavam o texto real em description
-                              (title era só uma cópia do nome do card) — mostra o
-                              que tiver de mais útil, sem precisar migrar dado. */}
-                          <p className="text-sm font-medium text-white leading-snug">{t.description || t.title}</p>
-                          {t.dueDate && (
-                            <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                              <Calendar className="w-2.5 h-2.5" />
-                              {new Date(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-600 text-center py-6">Nenhuma tarefa ainda</p>
-                )}
-
-                {/* Concluídas */}
-                {completedCardTasks.length > 0 && (
-                  <div className="pt-2 space-y-1">
-                    <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider pb-1">
-                      Concluídas ({completedCardTasks.length})
-                    </p>
-                    {completedCardTasks.map(t => (
-                      <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500/60 shrink-0" />
-                        <p className="text-xs text-slate-600 line-through truncate">{t.description || t.title}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <button
+                  onClick={() => setCreateModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nova Tarefa
+                </button>
               </div>
-            )}
+
+              {/* Lista de tarefas ativas */}
+              {activeTasks.length > 0 ? (
+                <div className="space-y-1.5">
+                  {activeTasks.map(t => (
+                    <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-colors group/item">
+                      <button
+                        onClick={() => updateTask.mutate({ id: t.id, completedAt: new Date().toISOString() })}
+                        className="shrink-0 w-5 h-5 rounded-full border border-white/20 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer transition-colors"
+                        title="Concluir"
+                      />
+                      <div className="flex-1 min-w-0">
+                        {/* Tarefas antigas guardavam o texto real em description
+                            (title era só uma cópia do nome do card) — mostra o
+                            que tiver de mais útil, sem precisar migrar dado. */}
+                        <p className="text-sm font-medium text-white leading-snug">{t.description || t.title}</p>
+                        {t.dueDate && (
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Calendar className="w-2.5 h-2.5" />
+                            {new Date(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600 text-center py-6">Nenhuma tarefa ainda</p>
+              )}
+
+              {/* Concluídas */}
+              {completedCardTasks.length > 0 && (
+                <div className="pt-2 space-y-1">
+                  <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider pb-1">
+                    Concluídas ({completedCardTasks.length})
+                  </p>
+                  {completedCardTasks.map(t => (
+                    <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500/60 shrink-0" />
+                      <p className="text-xs text-slate-600 line-through truncate">{t.description || t.title}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
