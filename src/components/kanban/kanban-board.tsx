@@ -15,10 +15,10 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useColumns, useCreateColumn, useReorderTasks, useReorderColumns } from '@/hooks/api'
-import { KanbanColumn } from './kanban-column'
+import { KanbanColumn, TITLE_COLOR_PRESETS } from './kanban-column'
 import { TaskCard } from './task-card'
 import type { Task, Column } from '@/types'
-import { Plus, Loader2, TrendingUp, ListFilter, X } from 'lucide-react'
+import { Plus, Loader2, TrendingUp, ListFilter, X, Palette } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
@@ -46,6 +46,7 @@ export function KanbanBoard({
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
+  const [newColumnColor, setNewColumnColor] = useState(TITLE_COLOR_PRESETS[0])
   const [selectedColumnId, setSelectedColumnId] = useState('')
 
   const selectedColumn = useMemo(
@@ -200,8 +201,9 @@ export function KanbanBoard({
 
   const handleAddColumn = () => {
     if (newColumnTitle.trim()) {
-      createColumn.mutate(newColumnTitle.trim())
+      createColumn.mutate({ title: newColumnTitle.trim(), color: newColumnColor })
       setNewColumnTitle('')
+      setNewColumnColor(TITLE_COLOR_PRESETS[0])
       setIsAddingColumn(false)
     }
   }
@@ -318,7 +320,7 @@ export function KanbanBoard({
                   onChange={(e) => setNewColumnTitle(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleAddColumn()
-                    if (e.key === 'Escape') { setIsAddingColumn(false); setNewColumnTitle('') }
+                    if (e.key === 'Escape') { setIsAddingColumn(false); setNewColumnTitle(''); setNewColumnColor(TITLE_COLOR_PRESETS[0]) }
                   }}
                   placeholder="Nome da coluna..."
                   autoFocus
@@ -329,11 +331,42 @@ export function KanbanBoard({
                     border: '1px solid rgba(255,255,255,0.04)',
                   }}
                 />
+                <div className="flex items-center gap-2">
+                  <label
+                    className="relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.05] text-white/70"
+                    title="Escolher cor"
+                  >
+                    <Palette className="h-3.5 w-3.5" />
+                    <input
+                      type="color"
+                      value={newColumnColor}
+                      onChange={(event) => setNewColumnColor(event.target.value)}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-label="Escolher cor da nova coluna"
+                    />
+                  </label>
+                  <div className="grid flex-1 grid-cols-8 gap-1">
+                    {TITLE_COLOR_PRESETS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setNewColumnColor(color)}
+                        title={color}
+                        className="h-6 rounded-md transition-transform hover:scale-105 cursor-pointer"
+                        style={{
+                          backgroundColor: color,
+                          outline: newColumnColor === color ? `2px solid ${color}` : '2px solid transparent',
+                          outlineOffset: '2px',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleAddColumn} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs cursor-pointer rounded-lg border-0">
                     Criar
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingColumn(false); setNewColumnTitle('') }} className="text-slate-500 hover:text-white text-xs cursor-pointer">
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingColumn(false); setNewColumnTitle(''); setNewColumnColor(TITLE_COLOR_PRESETS[0]) }} className="text-slate-500 hover:text-white text-xs cursor-pointer">
                     Cancelar
                   </Button>
                 </div>

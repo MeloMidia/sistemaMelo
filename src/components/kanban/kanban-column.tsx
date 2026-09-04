@@ -23,7 +23,7 @@ interface KanbanColumnProps {
   taskLabel?: string
 }
 
-const TITLE_COLOR_PRESETS = [
+export const TITLE_COLOR_PRESETS = [
   '#60a5fa',
   '#8b5cf6',
   '#ec4899',
@@ -42,7 +42,7 @@ function normalizeTitle(value: string) {
     .toLocaleLowerCase('pt-BR')
 }
 
-function getDefaultNegotiationColor(title: string) {
+export function getDefaultColumnTitleColor(title: string) {
   const normalized = normalizeTitle(title)
   if (normalized === 'ganho') return '#22c55e'
   if (normalized === 'perdido') return '#ef4444'
@@ -101,7 +101,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
   const [newNegotiationValue, setNewNegotiationValue] = useState('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(column.title)
-  const [editColumnColor, setEditColumnColor] = useState(column.color || getDefaultNegotiationColor(column.title))
+  const [editColumnColor, setEditColumnColor] = useState(column.color || getDefaultColumnTitleColor(column.title))
 
   const createTask = useCreateTask()
   const deleteColumn = useDeleteColumn()
@@ -170,16 +170,16 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
     const nextTitle = editTitle.trim()
     if (!nextTitle) return
 
-    const nextColor = editColumnColor || getDefaultNegotiationColor(nextTitle)
-    const currentColor = column.color || getDefaultNegotiationColor(column.title)
+    const nextColor = editColumnColor || getDefaultColumnTitleColor(nextTitle)
+    const currentColor = column.color || getDefaultColumnTitleColor(column.title)
     const titleChanged = nextTitle !== column.title
-    const colorChanged = isNegotiationBoard && nextColor !== currentColor
+    const colorChanged = nextColor !== currentColor
 
     if (titleChanged || colorChanged) {
       updateColumn.mutate({
         id: column.id,
         title: nextTitle,
-        ...(isNegotiationBoard && { color: nextColor }),
+        color: nextColor,
       })
     }
     setIsEditingTitle(false)
@@ -187,7 +187,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
 
   const startTitleEdit = () => {
     setEditTitle(column.title)
-    setEditColumnColor(column.color || getDefaultNegotiationColor(column.title))
+    setEditColumnColor(column.color || getDefaultColumnTitleColor(column.title))
     setIsEditingTitle(true)
   }
 
@@ -196,19 +196,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
   const negotiationTotal = isNegotiationBoard
     ? column.tasks.reduce((sum, task) => sum + (task.negotiation?.totalValue ?? parseNegotiationValue(task.description)), 0)
     : 0
-  // Refined accent colors with better visibility and glassmorphism styling
-  const accentColors = [
-    { text: 'text-blue-400', dot: 'bg-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/[0.07]', ring: 'ring-blue-500/10' },
-    { text: 'text-violet-400', dot: 'bg-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/[0.07]', ring: 'ring-violet-500/10' },
-    { text: 'text-emerald-400', dot: 'bg-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/[0.07]', ring: 'ring-emerald-500/10' },
-    { text: 'text-amber-400', dot: 'bg-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/[0.07]', ring: 'ring-amber-500/10' },
-    { text: 'text-rose-400', dot: 'bg-rose-400', border: 'border-rose-500/20', bg: 'bg-rose-500/[0.07]', ring: 'ring-rose-500/10' },
-    { text: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-500/20', bg: 'bg-cyan-500/[0.07]', ring: 'ring-cyan-500/10' },
-  ]
-
-  const colorIdx = Math.abs(column.title.charCodeAt(0)) % accentColors.length
-  const accent = accentColors[colorIdx]
-  const negotiationTitleColor = column.color || getDefaultNegotiationColor(column.title)
+  const columnTitleColor = column.color || getDefaultColumnTitleColor(column.title)
 
   return (
     <div
@@ -221,7 +209,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
           : isOver
             ? '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark), 0 0 0 2px #6366f160'
             : '-8px -8px 18px var(--nm-light), 8px 8px 18px var(--nm-dark)',
-        border: isNegotiationBoard ? `1px solid ${negotiationTitleColor}35` : '1px solid var(--nm-border)',
+        border: column.color ? `1px solid ${columnTitleColor}35` : '1px solid var(--nm-border)',
         transition: 'box-shadow 0.2s ease, opacity 0.15s ease',
         opacity: isDragging ? 0.55 : 1,
       }}
@@ -251,95 +239,85 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
                       if (e.key === 'Escape') {
                         setIsEditingTitle(false)
                         setEditTitle(column.title)
-                        setEditColumnColor(column.color || getDefaultNegotiationColor(column.title))
+                        setEditColumnColor(column.color || getDefaultColumnTitleColor(column.title))
                       }
                     }}
                     autoFocus
                     className="h-7 w-32 text-xs font-semibold bg-white/[0.06] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                   />
                   <button onClick={handleSaveTitle} className="p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer"><Check className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => { setIsEditingTitle(false); setEditTitle(column.title); setEditColumnColor(column.color || getDefaultNegotiationColor(column.title)) }} className="p-1 text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => { setIsEditingTitle(false); setEditTitle(column.title); setEditColumnColor(column.color || getDefaultColumnTitleColor(column.title)) }} className="p-1 text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                 </div>
-                {isNegotiationBoard && (
-                  <div className="flex items-center gap-1.5">
-                    <label
-                      className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.05] text-white/70"
-                      title="Escolher cor"
-                    >
-                      <Palette className="h-3.5 w-3.5" />
-                      <input
-                        type="color"
-                        value={editColumnColor}
-                        onChange={(e) => setEditColumnColor(e.target.value)}
-                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                        aria-label="Escolher cor da coluna"
+                <div className="flex items-center gap-1.5">
+                  <label
+                    className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.05] text-white/70"
+                    title="Escolher cor"
+                  >
+                    <Palette className="h-3.5 w-3.5" />
+                    <input
+                      type="color"
+                      value={editColumnColor}
+                      onChange={(e) => setEditColumnColor(e.target.value)}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-label="Escolher cor da coluna"
+                    />
+                  </label>
+                  <div className="grid flex-1 grid-cols-4 gap-1">
+                    {TITLE_COLOR_PRESETS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setEditColumnColor(color)}
+                        title={color}
+                        className="h-5 rounded-md transition-transform hover:scale-105 cursor-pointer"
+                        style={{
+                          backgroundColor: color,
+                          outline: editColumnColor === color ? `2px solid ${color}` : '2px solid transparent',
+                          outlineOffset: '2px',
+                        }}
                       />
-                    </label>
-                    <div className="grid flex-1 grid-cols-4 gap-1">
-                      {TITLE_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setEditColumnColor(color)}
-                          title={color}
-                          className="h-5 rounded-md transition-transform hover:scale-105 cursor-pointer"
-                          style={{
-                            backgroundColor: color,
-                            outline: editColumnColor === color ? `2px solid ${color}` : '2px solid transparent',
-                            outlineOffset: '2px',
-                          }}
-                        />
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
               </div>
-            ) : isNegotiationBoard ? (
+            ) : (
               <div
                 className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ring-1 flex-1 min-w-0"
                 style={{
-                  backgroundColor: `${negotiationTitleColor}12`,
-                  borderColor: `${negotiationTitleColor}30`,
-                  color: negotiationTitleColor,
-                  boxShadow: `0 0 0 1px ${negotiationTitleColor}12`,
+                  backgroundColor: `${columnTitleColor}12`,
+                  borderColor: `${columnTitleColor}30`,
+                  color: columnTitleColor,
+                  boxShadow: `0 0 0 1px ${columnTitleColor}12`,
                 }}
               >
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: negotiationTitleColor }} />
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: columnTitleColor }} />
                 <span className="truncate">{column.title}</span>
                 <span className="opacity-70 text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">{column.tasks.length}</span>
-              </div>
-            ) : (
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${accent.border} ${accent.bg} ${accent.text} ring-1 ${accent.ring}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${accent.dot} animate-pulse`} />
-                <span>{column.title}</span>
-                <span className="opacity-60 text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">{column.tasks.length}</span>
               </div>
             )}
 
             {!isEditingTitle && (
               <>
-                {isNegotiationBoard && (
                   <button
                     type="button"
                     onClick={startTitleEdit}
                     className="flex h-6 w-6 items-center justify-center rounded-md border transition-all cursor-pointer shrink-0"
                     style={{
-                      backgroundColor: `${negotiationTitleColor}12`,
-                      borderColor: `${negotiationTitleColor}35`,
-                      color: negotiationTitleColor,
+                      backgroundColor: `${columnTitleColor}12`,
+                      borderColor: `${columnTitleColor}35`,
+                      color: columnTitleColor,
                     }}
                     aria-label={`Editar cor da coluna ${column.title}`}
                     title="Editar cor do título"
                   >
                     <Palette className="w-3.5 h-3.5" />
                   </button>
-                )}
                 <button
                   type="button"
                   onClick={startTitleEdit}
                   className="p-1 rounded-md text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer shrink-0"
                   aria-label={`Editar coluna ${column.title}`}
-                  title={isNegotiationBoard ? 'Editar nome e cor' : 'Renomear coluna'}
+                  title="Editar nome e cor"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
@@ -353,7 +331,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-[#0f111a] border-white/[0.08] shadow-xl shadow-black/60 rounded-xl">
               <DropdownMenuItem onClick={startTitleEdit} className="text-slate-300 focus:text-white focus:bg-white/[0.06] cursor-pointer text-xs rounded-lg m-1">
-                <Pencil className="w-3.5 h-3.5 mr-2 text-slate-400" /> {isNegotiationBoard ? 'Editar nome e cor' : 'Renomear'}
+                <Pencil className="w-3.5 h-3.5 mr-2 text-slate-400" /> Editar nome e cor
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => deleteColumn.mutate(column.id)} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer text-xs rounded-lg m-1">
                 <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400/80" /> Excluir
