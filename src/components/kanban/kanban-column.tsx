@@ -21,6 +21,7 @@ interface KanbanColumnProps {
   column: ColumnType
   source?: string
   taskLabel?: string
+  onOpenLead?: (leadId: string) => void
 }
 
 export const TITLE_COLOR_PRESETS = [
@@ -92,7 +93,7 @@ function parseDateLocal(value: string) {
   return new Date(year, month - 1, day, 12, 0, 0).toISOString()
 }
 
-export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' }: KanbanColumnProps) {
+export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente', onOpenLead }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
@@ -351,7 +352,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente' 
       <div ref={setDroppableRef} className="flex-1 p-3 space-y-2 min-h-[80px] overflow-y-auto max-h-[calc(100vh-260px)]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} onOpenLead={onOpenLead} />
           ))}
         </SortableContext>
 

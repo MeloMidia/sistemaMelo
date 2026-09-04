@@ -121,6 +121,10 @@ export function CrmInbox({
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
   const unreadCount = conversations.filter((conversation) => conversation.isUnread).length
 
+  if (openLeadId && openLeadId !== selectedId) {
+    setSelectedId(openLeadId)
+  }
+
   // Volta pra aba "Chat" ao trocar de conversa, sem usar efeito (ajuste de estado
   // durante a renderização — ver https://react.dev/learn/you-might-not-need-an-effect).
   if (selectedId !== chatTabSelectedId) {

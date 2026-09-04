@@ -360,7 +360,7 @@ export default function HomePage() {
         {activeTab === 'metricas'     && <ClientesMetricas />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} view={crmView} onViewChange={setCrmView} />}
-        {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" />}
+        {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" onOpenLead={openLeadInCrm} />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
     </div>

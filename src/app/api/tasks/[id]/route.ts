@@ -10,6 +10,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await request.json()
+  const existingTask = await prisma.task.findUnique({
+    where: { id },
+    select: { source: true, negotiation: { select: { service: true } } },
+  })
+
+  if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
 
   const data: Record<string, unknown> = {}
   if (body.title !== undefined) data.title = body.title
@@ -34,10 +40,33 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.promocaoAtiva !== undefined) data.promocaoAtiva = body.promocaoAtiva
   if (body.promocaoAte !== undefined) data.promocaoAte = body.promocaoAte ? new Date(body.promocaoAte) : null
 
-  const task = await prisma.task.update({
-    where: { id },
-    data,
-    include: taskLeadInclude,
+  const negotiationValueChanged = body.negotiationTotalValue !== undefined
+  const nextNegotiationValue = Number(body.negotiationTotalValue)
+  if (negotiationValueChanged && existingTask.source === 'negotiations') {
+    if (!Number.isFinite(nextNegotiationValue) || nextNegotiationValue < 0) {
+      return NextResponse.json({ error: 'O valor da negociação é inválido.' }, { status: 400 })
+    }
+
+    if (body.description === undefined && existingTask.negotiation?.service) {
+      data.description = `${existingTask.negotiation.service} \u00b7 ${nextNegotiationValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+    }
+  }
+
+  const task = await prisma.$transaction(async (tx) => {
+    const updatedTask = await tx.task.update({
+      where: { id },
+      data,
+      include: taskLeadInclude,
+    })
+
+    if (negotiationValueChanged && existingTask.source === 'negotiations') {
+      await tx.negotiation.update({
+        where: { taskId: id },
+        data: { totalValue: nextNegotiationValue },
+      })
+    }
+
+    return updatedTask
   })
 
   if (dueDateChanged && task.source === 'negotiations') {

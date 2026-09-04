@@ -30,11 +30,13 @@ export function KanbanBoard({
   title,
   description,
   taskLabel = 'cliente',
+  onOpenLead,
 }: {
   source?: string
   title?: string
   description?: string
   taskLabel?: string
+  onOpenLead?: (leadId: string) => void
 }) {
   const { data: columns, isLoading } = useColumns(source)
   const createColumn = useCreateColumn(source)
@@ -302,7 +304,7 @@ export function KanbanBoard({
           <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {visibleColumns.map((column) => (
-              <KanbanColumn key={column.id} column={column} source={source} taskLabel={taskLabel} />
+              <KanbanColumn key={column.id} column={column} source={source} taskLabel={taskLabel} onOpenLead={onOpenLead} />
             ))}
 
             {/* Add column */}

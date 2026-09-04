@@ -6,7 +6,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, Plus, ClipboardList, User,
+  ImagePlus, Plus, ClipboardList, User, MessageCircle,
   CheckCircle2, Clock
 } from 'lucide-react'
 import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 
 interface TaskCardProps {
   task: TaskType
+  onOpenLead?: (leadId: string) => void
 }
 
 // Extrai "YYYY-MM-DD" de um Date/string sem perder dia por timezone
@@ -54,7 +55,28 @@ function parseNegotiationPreview(description: string | null | undefined) {
   return { service: description, value: '' }
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+function parseCurrencyInput(value: string) {
+  const rawValue = value
+    .replace(/\s/g, '')
+    .replace(/[R$]/g, '')
+  const normalized = rawValue.includes(',')
+    ? rawValue.replace(/\./g, '').replace(',', '.')
+    : rawValue
+
+  const number = Number(normalized)
+  return Number.isFinite(number) ? Math.max(0, number) : 0
+}
+
+function formatCurrency(value: number) {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+export function TaskCard({ task, onOpenLead }: TaskCardProps) {
   const isNegotiationCard = task.source === 'negotiations'
   const negotiationExpectedCloseAt = task.negotiation?.expectedCloseAt ?? (isNegotiationCard ? task.dueDate : null)
   // Card inline edit state
@@ -63,6 +85,9 @@ export function TaskCard({ task }: TaskCardProps) {
   const [editDueDate, setEditDueDate] = useState(
     toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : task.dueDate)
   )
+  const negotiationPreview = isNegotiationCard ? parseNegotiationPreview(task.description) : null
+  const initialNegotiationValue = task.negotiation?.totalValue ?? parseCurrencyInput(negotiationPreview?.value ?? '')
+  const [editNegotiationValue, setEditNegotiationValue] = useState(String(initialNegotiationValue))
   const [editLogo, setEditLogo] = useState<string | null>(task.logoUrl)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
@@ -76,7 +101,6 @@ export function TaskCard({ task }: TaskCardProps) {
   const { data: columns } = useColumns('tasks')
   const { data: kanbanColumns } = useColumns()
   const { data: cardTasks } = useKanbanCardTasks(task.id)
-  const negotiationPreview = isNegotiationCard ? parseNegotiationPreview(task.description) : null
   const negotiationService = negotiationPreview?.service || task.description || 'Negociação criada a partir do lead'
   const negotiationValue = negotiationPreview?.value || ''
 
@@ -128,18 +152,24 @@ export function TaskCard({ task }: TaskCardProps) {
   // ── Card inline edit handlers ──────────────────────────
   const handleSave = () => {
     if (!editTitle.trim()) return
+    const nextNegotiationValue = isNegotiationCard ? parseCurrencyInput(editNegotiationValue) : null
     updateTask.mutate({
       id: task.id,
       title: editTitle.trim(),
       dueDate: editDueDate ? parseDateLocal(editDueDate) : null,
       logoUrl: editLogo,
+      ...(isNegotiationCard ? {
+        description: `${negotiationService} \u00b7 ${formatCurrency(nextNegotiationValue ?? 0)}`,
+        negotiationTotalValue: nextNegotiationValue ?? 0,
+      } : {}),
     })
     setIsEditing(false)
   }
 
   const handleCancel = () => {
     setEditTitle(task.title)
-    setEditDueDate(toLocalDateString(task.dueDate))
+    setEditDueDate(toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : task.dueDate))
+    setEditNegotiationValue(String(task.negotiation?.totalValue ?? parseCurrencyInput(negotiationPreview?.value ?? '')))
     setEditLogo(task.logoUrl)
     setIsEditing(false)
   }
@@ -266,6 +296,22 @@ export function TaskCard({ task }: TaskCardProps) {
                   className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
 
+                {isNegotiationCard && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">
+                      Valor total
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editNegotiationValue}
+                      onChange={(e) => setEditNegotiationValue(e.target.value)}
+                      className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">
                     {isNegotiationCard ? 'Previsão de fechamento' : 'Encerramento do contrato'}
@@ -313,6 +359,20 @@ export function TaskCard({ task }: TaskCardProps) {
                   <p className="text-sm font-semibold text-white leading-snug tracking-tight">
                     {task.title}
                   </p>
+                  {isNegotiationCard && task.leadId && onOpenLead && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onOpenLead(task.leadId as string)
+                      }}
+                      className="shrink-0 p-1.5 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer transition-colors"
+                      title="Abrir conversa no WhatsApp"
+                      aria-label={`Abrir conversa de ${task.title} no WhatsApp`}
+                    >
+                      <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
 
                 {isNegotiationCard ? (
