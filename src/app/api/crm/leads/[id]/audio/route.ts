@@ -19,10 +19,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { id } = await params
-  const lead = await prisma.lead.findUnique({ where: { id } })
+  const [lead, formData] = await Promise.all([
+    prisma.lead.findUnique({ where: { id } }),
+    request.formData(),
+  ])
   if (!lead) return NextResponse.json({ error: 'Lead nao encontrado' }, { status: 404 })
 
-  const formData = await request.formData()
   const file = formData.get('audio')
   if (!(file instanceof Blob)) {
     return NextResponse.json({ error: 'Arquivo de audio nao enviado' }, { status: 400 })

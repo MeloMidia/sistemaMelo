@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Smile, Paperclip, Mic, Check, MessageSquare, Lock, CalendarPlus, RefreshCw, Play, Pause, Square, Trash2, Pencil, X as XIcon } from 'lucide-react'
+import { Send, Smile, Paperclip, Mic, Check, MessageSquare, Lock, CalendarPlus, RefreshCw, Play, Pause, Square, Trash2, Pencil, LoaderCircle, X as XIcon } from 'lucide-react'
 import {
   useLeadMessages,
   useSendAudioMessage,
@@ -1082,7 +1082,9 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
           aria-label={recordingState === 'recording' ? 'Parar gravação' : recordingState === 'preview' ? 'Enviar áudio' : 'Enviar mensagem'}
           title={recordingState === 'recording' ? 'Parar gravação' : recordingState === 'preview' ? 'Enviar áudio' : 'Enviar mensagem'}
         >
-          {recordingState === 'recording' ? (
+          {sendAudio.isPending ? (
+            <LoaderCircle className="w-4 h-4 animate-spin" />
+          ) : recordingState === 'recording' ? (
             <Square className="w-4 h-4 fill-current" />
           ) : recordingState === 'preview' ? (
             <Send className="w-5 h-5 fill-current ml-0.5" />
