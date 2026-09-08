@@ -27,8 +27,15 @@ const TEMPLATES = [
   "Fico aguardando seu retorno. Qualquer dúvida, estou à disposição!"
 ]
 
+function getSupportedRecordingMimeType() {
+  const mimeTypes = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm']
+  return mimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType))
+}
+
 function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOutbound: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const durationSecondsRef = useRef(0)
+  const durationProbeRef = useRef(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [progress, setProgress] = useState(0)
@@ -37,47 +44,80 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
 
   const playbackRates = [1, 1.5, 2]
 
-  function togglePlay() {
-    if (!audioRef.current) return
+  async function togglePlay() {
+    const audio = audioRef.current
+    if (!audio) return
     if (isPlaying) {
-      audioRef.current.pause()
-    } else {
-      audioRef.current.play()
+      audio.pause()
+      return
+    }
+
+    try {
+      await audio.play()
+    } catch (error) {
+      console.error('Erro ao reproduzir áudio:', error)
+      setIsPlaying(false)
     }
   }
 
   function handleTimeUpdate() {
-    if (!audioRef.current) return
-    const current = audioRef.current.currentTime
-    const dur = audioRef.current.duration || 0
+    const audio = audioRef.current
+    if (!audio) return
+    const current = audio.currentTime
+    const dur = Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration
+      : durationSecondsRef.current
     if (dur > 0) {
-      setProgress((current / dur) * 100)
+      setProgress(Math.min(100, Math.max(0, (current / dur) * 100)))
     }
     setCurrentTime(formatTime(current))
   }
 
   function handleLoadedMetadata() {
-    if (!audioRef.current) return
-    const dur = audioRef.current.duration
-    if (!isFinite(dur)) {
+    const audio = audioRef.current
+    if (!audio) return
+    const dur = audio.duration
+    if (!Number.isFinite(dur) || dur <= 0) {
       // Arquivos opus/ogg do WhatsApp não têm duração no cabeçalho do stream.
       // Seek para um número enorme força o browser a encontrar o fim do arquivo.
-      audioRef.current.currentTime = 1e101
+      if (!durationProbeRef.current) {
+        durationProbeRef.current = true
+        audio.currentTime = 1e101
+      }
     } else {
+      durationSecondsRef.current = dur
       setDuration(formatTime(dur))
     }
   }
 
   function handleSeeked() {
-    if (!audioRef.current) return
-    const dur = audioRef.current.duration
-    if (isFinite(dur)) {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const dur = audio.duration
+    if (durationProbeRef.current) {
+      durationProbeRef.current = false
+      const resolvedDuration = Number.isFinite(dur) && dur > 0 ? dur : audio.currentTime
+      if (Number.isFinite(resolvedDuration) && resolvedDuration > 0) {
+        durationSecondsRef.current = resolvedDuration
+        setDuration(formatTime(resolvedDuration))
+      }
+
+      // Reset only the technical metadata probe, never a user seek.
+      audio.currentTime = 0
+      setProgress(0)
+      setCurrentTime('0:00')
+      return
+    }
+
+    if (Number.isFinite(dur) && dur > 0) {
+      durationSecondsRef.current = dur
       setDuration(formatTime(dur))
-      audioRef.current.currentTime = 0
     }
   }
 
   function handleAudioEnded() {
+    if (audioRef.current) audioRef.current.currentTime = 0
     setIsPlaying(false)
     setProgress(0)
     setCurrentTime('0:00')
@@ -100,12 +140,17 @@ function MessageAudioPlayer({ messageId, isOutbound }: { messageId: string; isOu
   }
 
   function handleProgressBarClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!audioRef.current) return
+    const audio = audioRef.current
+    if (!audio) return
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const width = rect.width
-    const percentage = clickX / width
-    audioRef.current.currentTime = percentage * audioRef.current.duration
+    const percentage = Math.min(1, Math.max(0, clickX / width))
+    const dur = Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration
+      : durationSecondsRef.current
+    if (dur <= 0) return
+    audio.currentTime = percentage * dur
   }
 
   return (
@@ -368,7 +413,8 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
     let stream: MediaStream | null = null
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      const mimeType = getSupportedRecordingMimeType()
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
       recordedChunksRef.current = []
 
       recorder.ondataavailable = (e) => {
@@ -377,7 +423,7 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
 
       recorder.onstop = () => {
         stream?.getTracks().forEach((track) => track.stop())
-        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || mimeType || 'audio/webm' })
         setRecordedBlob(blob)
         setPreviewUrl(URL.createObjectURL(blob))
         setRecordingState('preview')

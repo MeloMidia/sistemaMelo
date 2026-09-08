@@ -5,7 +5,10 @@ import { authOptions } from '@/lib/auth'
 import { sendAudioMessage } from '@/lib/evolution-client'
 import { emitCrmEvent } from '@/lib/crm-events'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { prepareWhatsAppVoiceAudio } from '@/lib/audio-converter'
 import { randomUUID } from 'crypto'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -28,11 +31,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Arquivo de audio vazio' }, { status: 400 })
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const base64Audio = buffer.toString('base64')
   const content = '[midia enviada - tipo: audio]'
 
   try {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const preparedAudio = await prepareWhatsAppVoiceAudio({
+      buffer,
+      mimeType: file.type || null,
+    })
+    const base64Audio = preparedAudio.buffer.toString('base64')
     const result = await sendAudioMessage(lead.phone, base64Audio)
     const message = await prisma.message.upsert({
       where: { whatsappMessageId: result.key.id },

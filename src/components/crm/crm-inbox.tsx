@@ -1,7 +1,7 @@
 'use client'
 
 import { useDeferredValue, useState, type CSSProperties } from 'react'
-import { CheckCheck, MessageCircle, Search, Wifi, WifiOff, X } from 'lucide-react'
+import { CheckCheck, ListFilter, MessageCircle, Search, Wifi, WifiOff, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
@@ -13,6 +13,8 @@ import { LeadProfilePanel } from './lead-profile-panel'
 import { KanbanLeads } from './kanban-leads'
 
 type Filter = 'all' | 'unread'
+const ALL_STAGES = 'all'
+const NO_STAGE = '__no_stage__'
 export type CrmView = 'inbox' | 'pipeline'
 type ChatTab = 'logs' | 'notes' | 'chat'
 
@@ -71,11 +73,18 @@ export function CrmInbox({
   const [localView, setLocalView] = useState<CrmView>('inbox')
   const view = controlledView ?? localView
   const [filter, setFilter] = useState<Filter>('all')
+  const [stageFilter, setStageFilter] = useState(ALL_STAGES)
   const [search, setSearch] = useState('')
+  const [syncedOpenLeadId, setSyncedOpenLeadId] = useState(openLeadId)
   const deferredSearch = useDeferredValue(search.trim())
   const queryClient = useQueryClient()
   const { data: connection } = useConnection()
   useCrmStream()
+
+  if (openLeadId !== syncedOpenLeadId) {
+    setSyncedOpenLeadId(openLeadId)
+    if (openLeadId) setSelectedId(openLeadId)
+  }
 
   const conversationsQuery = useQuery<CrmConversation[]>({
     queryKey: ['crm-conversations', deferredSearch],
@@ -98,10 +107,26 @@ export function CrmInbox({
   })
 
   const conversations = conversationsQuery.data ?? []
+  const stageOptions = Array.from(
+    new Map(
+      conversations
+        .flatMap((conversation) => conversation.stage ? [conversation.stage] : [])
+        .map((stage) => [stage.id, stage] as const)
+    ).values()
+  ).sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'))
+  const hasUnassignedStage = conversations.some((conversation) => !conversation.stage)
+
+  function matchesStage(conversation: CrmConversation) {
+    if (stageFilter === ALL_STAGES) return true
+    if (stageFilter === NO_STAGE) return !conversation.stage
+    return conversation.stage?.id === stageFilter
+  }
+
   const visibleConversations = (() => {
     const term = normalizeSearch(search.trim())
     const phoneTerm = search.replace(/\D/g, '')
     return conversations.filter((conversation) => {
+      if (!matchesStage(conversation)) return false
       if (filter === 'unread' && !conversation.isUnread) return false
       if (!term) return true
       const searchableContent = [
@@ -119,11 +144,7 @@ export function CrmInbox({
   })()
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
-  const unreadCount = conversations.filter((conversation) => conversation.isUnread).length
-
-  if (openLeadId && openLeadId !== selectedId) {
-    setSelectedId(openLeadId)
-  }
+  const unreadCount = conversations.filter((conversation) => matchesStage(conversation) && conversation.isUnread).length
 
   // Volta pra aba "Chat" ao trocar de conversa, sem usar efeito (ajuste de estado
   // durante a renderização — ver https://react.dev/learn/you-might-not-need-an-effect).
@@ -193,6 +214,20 @@ export function CrmInbox({
             <button onClick={() => setFilter('unread')} className={`h-7 rounded-md text-xs font-medium transition-colors ${filter === 'unread' ? 'mf-inbox-filter-active' : 'text-slate-500 hover:text-[#151817]'}`}>
               Não lidas{unreadCount ? ` (${unreadCount})` : ''}
             </button>
+          </div>
+
+          <div className="mf-inbox-stage-filter-wrap relative mt-2">
+            <ListFilter className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2" aria-hidden="true" />
+            <select
+              value={stageFilter}
+              onChange={(event) => setStageFilter(event.target.value)}
+              className="mf-inbox-stage-filter h-9 w-full rounded-lg border pl-9 pr-8 text-xs outline-none transition-colors"
+              aria-label="Filtrar conversas por estágio"
+            >
+              <option value={ALL_STAGES}>Todos os estágios</option>
+              {stageOptions.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
+              {hasUnassignedStage && <option value={NO_STAGE}>Sem estágio</option>}
+            </select>
           </div>
         </div>
 

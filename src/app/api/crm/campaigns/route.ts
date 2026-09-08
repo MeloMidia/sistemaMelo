@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { prepareWhatsAppVoiceAudio } from '@/lib/audio-converter'
+
+export const runtime = 'nodejs'
 
 // GET /api/crm/campaigns — lista campanhas (sem mediaBase64)
 export async function GET() {
@@ -75,14 +78,28 @@ export async function POST(request: Request) {
 
   if (!leads.length) return NextResponse.json({ error: 'Nenhum lead encontrado com o filtro selecionado' }, { status: 400 })
 
+  let mediaBase64 = body.mediaBase64 || null
+  let mimeType = body.mimeType || null
+  let fileName = body.fileName || null
+
+  if (mediaBase64 && body.mediaType === 'audio') {
+    const preparedAudio = await prepareWhatsAppVoiceAudio({
+      buffer: Buffer.from(mediaBase64, 'base64'),
+      mimeType,
+    })
+    mediaBase64 = preparedAudio.buffer.toString('base64')
+    mimeType = preparedAudio.mimeType
+    fileName = preparedAudio.fileName
+  }
+
   const campaign = await prisma.bulkCampaign.create({
     data: {
       title: body.title.trim(),
       message: body.message?.trim() || null,
-      mediaBase64: body.mediaBase64 || null,
+      mediaBase64,
       mediaType: body.mediaType || null,
-      mimeType: body.mimeType || null,
-      fileName: body.fileName || null,
+      mimeType,
+      fileName,
       mediaCaption: body.mediaCaption?.trim() || null,
       status: 'SCHEDULED',
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : new Date(),

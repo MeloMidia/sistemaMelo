@@ -332,7 +332,40 @@ export function useSendMessage(leadId: string | null) {
       if (!res.ok) throw new Error(data.error || 'Failed to send message')
       return data
     },
-    onSuccess: () => {
+    onMutate: async (input) => {
+      const payload = typeof input === 'string' ? { content: input } : input
+      const queryKey = ['crm-messages', leadId]
+      await qc.cancelQueries({ queryKey })
+
+      const previousMessages = qc.getQueryData<Message[]>(queryKey)
+      const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const optimisticMessage: Message = {
+        id: optimisticId,
+        leadId: leadId ?? '',
+        whatsappMessageId: optimisticId,
+        direction: 'OUTBOUND',
+        content: payload.internal ? `[Nota Interna] ${payload.content}` : payload.content,
+        status: payload.internal ? null : 'SENT',
+        createdAt: new Date().toISOString(),
+      }
+
+      qc.setQueryData<Message[]>(queryKey, (current) => [
+        ...(current ?? []),
+        optimisticMessage,
+      ])
+
+      return { previousMessages, optimisticId }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousMessages !== undefined) {
+        qc.setQueryData(['crm-messages', leadId], context.previousMessages)
+      }
+    },
+    onSuccess: (message: Message, _input, context) => {
+      qc.setQueryData<Message[]>(['crm-messages', leadId], (current) => {
+        const withoutOptimistic = (current ?? []).filter((item) => item.id !== context?.optimisticId)
+        return [...withoutOptimistic, message]
+      })
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
       qc.invalidateQueries({ queryKey: ['crm-stages'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
@@ -345,7 +378,8 @@ export function useSendAudioMessage(leadId: string | null) {
   return useMutation({
     mutationFn: async (audioBlob: Blob) => {
       const formData = new FormData()
-      formData.append('audio', audioBlob, 'audio.webm')
+      const extension = audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('mp4') ? 'm4a' : 'webm'
+      formData.append('audio', audioBlob, `audio.${extension}`)
       const res = await fetch(`/api/crm/leads/${leadId}/audio`, {
         method: 'POST',
         body: formData,

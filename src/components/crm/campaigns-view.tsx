@@ -17,6 +17,11 @@ const STATUS_CONFIG = {
   CANCELLED: { label: 'Cancelado', color: '#64748b', bg: '#1e293b40' },
 }
 
+function getSupportedRecordingMimeType() {
+  const mimeTypes = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm']
+  return mimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType))
+}
+
 function StatusBadge({ status }: { status: BulkCampaign['status'] }) {
   const cfg = STATUS_CONFIG[status]
   return (
@@ -195,11 +200,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : 'audio/ogg'
+      const mimeType = getSupportedRecordingMimeType() ?? 'audio/webm'
       const mr = new MediaRecorder(stream, { mimeType })
       chunksRef.current = []
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }

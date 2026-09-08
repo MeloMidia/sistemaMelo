@@ -4,9 +4,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
 import { checkPromoExpirations } from '@/lib/promo-notify'
+import { prepareWhatsAppVoiceAudio } from '@/lib/audio-converter'
 
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const BATCH_SIZE = 8
+
+export const runtime = 'nodejs'
 
 function sleep(ms: number) {
   return new Promise((res) => setTimeout(res, ms))
@@ -86,12 +89,32 @@ export async function POST(request: Request) {
   let sent = 0
   let failed = 0
   const errors: { name: string; phone: string; error: string }[] = []
+  let audioBase64 = campaign.mediaBase64
+
+  if (audioBase64 && campaign.mediaType === 'audio') {
+    const preparedAudio = await prepareWhatsAppVoiceAudio({
+      buffer: Buffer.from(audioBase64, 'base64'),
+      mimeType: campaign.mimeType,
+    })
+    audioBase64 = preparedAudio.buffer.toString('base64')
+
+    if (preparedAudio.converted || campaign.mimeType !== preparedAudio.mimeType || campaign.fileName !== preparedAudio.fileName) {
+      await prisma.bulkCampaign.update({
+        where: { id: campaign.id },
+        data: {
+          mediaBase64: audioBase64,
+          mimeType: preparedAudio.mimeType,
+          fileName: preparedAudio.fileName,
+        },
+      })
+    }
+  }
 
   for (const item of pending) {
     const phone = item.lead.phone
     try {
-      if (campaign.mediaBase64 && campaign.mediaType === 'audio') {
-        await sendAudioMessage(phone, campaign.mediaBase64)
+      if (audioBase64 && campaign.mediaType === 'audio') {
+        await sendAudioMessage(phone, audioBase64)
         if (campaign.message?.trim()) {
           await sleep(1500)
           await sendTextMessage(phone, campaign.message)
