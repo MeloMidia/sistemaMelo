@@ -31,11 +31,11 @@ function MeloMidiaLogoMark({ compact = false }: { compact?: boolean }) {
       role="img"
     >
       <Image
-        src="/logo-melo-midia.jpeg"
+        src="/logo-melo-midia.svg"
         alt=""
-        width={1080}
-        height={1080}
-        sizes={compact ? '30px' : '34px'}
+        width={1917}
+        height={1017}
+        unoptimized
         className="mf-melo-midia-logo-img"
       />
     </span>

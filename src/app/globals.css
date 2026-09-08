@@ -227,7 +227,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-melo-midia-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 5px;
 }
 [data-theme="light"] .mf-melo-midia-logo {
   border-color: rgba(21, 24, 23, 0.08);
