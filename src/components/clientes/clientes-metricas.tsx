@@ -563,7 +563,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
               {expandedKpi === 'ativos' ? 'Nenhum cliente ativo nesse período.' : `Ninguém ${expandedKpi === 'entradas' ? 'entrou' : 'saiu'} nesse período.`}
             </p>
           ) : (
-            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-0.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[360px] overflow-y-auto pr-0.5">
               {expandedList.map(t => {
                 const eventDate = expandedKpi === 'entradas' ? t.createdAt : t.churnedAt
                 const isActiveClient = expandedKpi === 'ativos'
