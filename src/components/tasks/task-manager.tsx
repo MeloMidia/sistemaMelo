@@ -71,9 +71,10 @@ interface DroppableColumnProps {
   borderClass: string
   bgClass: string
   headerClass: string
+  className?: string
 }
 
-function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass }: DroppableColumnProps) {
+function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass, className }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id })
 
   return (
@@ -81,7 +82,7 @@ function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyM
       ref={setNodeRef}
       className={`rounded-2xl border flex flex-col overflow-hidden transition-colors
         ${isOver ? 'ring-2 ring-blue-500/50' : ''}
-        ${borderClass} ${bgClass}`}
+        ${borderClass} ${bgClass} ${className ?? ''}`}
     >
       <div className={`p-5 border-b flex items-center justify-between ${headerClass}`}>
         <div className="flex items-center gap-3">
@@ -249,15 +250,17 @@ export function TaskManager() {
   }
 
   return (
-    <div className="mf-workspace flex-1 p-6 overflow-y-auto">
+    <div className="mf-workspace flex-1 p-4 md:p-6 overflow-y-auto">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* 3-column grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
+        {/* 3-column grid — só chega a 3 colunas a partir de xl (1280px);
+            entre md e xl fica em 2, senão fica muito apertado em monitores
+            menores/antigos (a sidebar de 220px já come parte da largura). */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 xl:gap-6 min-h-[500px]">
           {/* Column 1: Task Queue */}
           <DroppableColumn
             id="col-queue"
@@ -313,7 +316,7 @@ export function TaskManager() {
             ))}
           </DroppableColumn>
 
-          {/* Column 4: Priority */}
+          {/* Column 4: Priority — ocupa a linha toda em 2 colunas, senão fica sozinha e estreita */}
           <DroppableColumn
             id="col-priority"
             title="Tarefa do dia - Matheus"
@@ -325,6 +328,7 @@ export function TaskManager() {
             borderClass="border-amber-500/15"
             bgClass="bg-amber-500/[0.02]"
             headerClass="border-amber-500/15 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-amber-100"
+            className="md:col-span-2 xl:col-span-1"
           >
             {priorityTasks.map((task) => (
               <DraggableTask key={task.id} task={task}>
