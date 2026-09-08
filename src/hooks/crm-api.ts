@@ -308,8 +308,8 @@ export function useDeleteLead() {
 export function useLeadMessages(leadId: string | null) {
   return useQuery<Message[]>({
     queryKey: ['crm-messages', leadId],
-    queryFn: async () => {
-      const res = await fetch(`/api/crm/leads/${leadId}/messages`)
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/crm/leads/${leadId}/messages`, { signal })
       if (!res.ok) throw new Error('Failed to fetch messages')
       return res.json()
     },
@@ -366,9 +366,9 @@ export function useSendMessage(leadId: string | null) {
         const withoutOptimistic = (current ?? []).filter((item) => item.id !== context?.optimisticId)
         return [...withoutOptimistic, message]
       })
-      qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
-      qc.invalidateQueries({ queryKey: ['crm-stages'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      // A mensagem ja foi substituida no cache; o SSE atualiza a lista de
+      // conversas sem forcar novas consultas pesadas de board e dashboard.
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
     },
   })
 }
@@ -390,8 +390,7 @@ export function useSendAudioMessage(leadId: string | null) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
-      qc.invalidateQueries({ queryKey: ['crm-stages'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
     },
   })
 }
@@ -412,8 +411,7 @@ export function useSendMediaMessage(leadId: string | null) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-messages', leadId] })
-      qc.invalidateQueries({ queryKey: ['crm-stages'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
     },
   })
 }

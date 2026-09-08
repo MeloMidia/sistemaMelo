@@ -320,11 +320,13 @@ export function LeadConversaTab({ leadId }: LeadConversaTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isWhatsappConnected = connection?.status === 'open'
 
-  // Auto-sync ao abrir e a cada 30s enquanto a conversa estiver aberta
+  // Faz uma sincronizacao inicial e uma verificacao de recuperacao espacada.
+  // Mensagens novas normalmente chegam pelo webhook/SSE, evitando chamadas
+  // frequentes a Evolution API durante o atendimento.
   useEffect(() => {
     if (!leadId) return
     syncMessages(leadId)
-    const interval = setInterval(() => syncMessages(leadId), 30_000)
+    const interval = setInterval(() => syncMessages(leadId), 120_000)
     return () => clearInterval(interval)
   }, [leadId, syncMessages])
 

@@ -9,7 +9,7 @@ import {
 import {
   Users, UserPlus, UserMinus, Percent, ChevronLeft, ChevronRight,
   ArrowUpRight, Zap, Megaphone, BookOpen, AlertTriangle, Loader2,
-  TrendingUp, TrendingDown, X,
+  TrendingUp, TrendingDown, X, MessageCircle,
 } from 'lucide-react'
 import { isChurnColumnTitle, isLegacyChurn } from '@/lib/clientes'
 import type { Task } from '@/types'
@@ -59,14 +59,15 @@ function formatRange(start: Date, end: Date) {
 function inRange(d: string | null | undefined, s: Date, e: Date) {
   if (!d) return false; const dt = new Date(d); return dt >= s && dt <= e
 }
+function isAtivoEm(task: ClienteTask, reference: Date) {
+  if (task.isLegacyChurn) return false
+  const createdAt = new Date(task.createdAt)
+  const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
+  return createdAt <= reference && (!churnedAt || churnedAt > reference)
+}
 /** Quantos clientes já haviam entrado e ainda não tinham saído até uma data de referência. */
 function countAtivosEm(tasks: ClienteTask[], reference: Date) {
-  return tasks.filter(task => {
-    if (task.isLegacyChurn) return false
-    const createdAt = new Date(task.createdAt)
-    const churnedAt = task.churnedAt ? new Date(task.churnedAt) : null
-    return createdAt <= reference && (!churnedAt || churnedAt > reference)
-  }).length
+  return tasks.filter(task => isAtivoEm(task, reference)).length
 }
 
 /* ── Custom Tooltip ─────────────────────────────────────────────────────── */
@@ -98,17 +99,22 @@ function ChartTip({ active, payload, label }: { active?: boolean; payload?: read
 
 /* ── Featured KPI card (primeiro, destaque com gradiente) ───────────────── */
 function FeaturedCard({
-  label, value, sub, delta, icon: Icon,
-}: { label: string; value: number; sub: string; delta?: number; icon: React.ElementType }) {
+  label, value, sub, delta, icon: Icon, onClick, active,
+}: { label: string; value: number; sub: string; delta?: number; icon: React.ElementType; onClick?: () => void; active?: boolean }) {
   const hasDelta = delta !== undefined
   const up = (delta ?? 0) >= 0
+  const Tag = onClick ? 'button' : 'div'
+  const tagExtraProps = onClick ? { type: 'button' as const, onClick, 'aria-pressed': active } : {}
   return (
-    <div
-      className="mf-metrics-inverse rounded-2xl p-6 flex flex-col justify-between min-h-[160px]"
+    <Tag
+      {...tagExtraProps}
+      className={`mf-metrics-inverse rounded-2xl p-6 flex flex-col justify-between min-h-[160px] text-left w-full ${onClick ? 'cursor-pointer' : ''}`}
       style={{
         background: 'linear-gradient(135deg, #151817 0%, #252B34 72%, #2854DF 160%)',
-        boxShadow: '0 14px 30px rgba(21,24,23,0.16)',
-        border: '1px solid rgba(255,255,255,0.16)',
+        boxShadow: active
+          ? '0 14px 30px rgba(21,24,23,0.16), 0 0 0 2px rgba(16,185,129,0.5)'
+          : '0 14px 30px rgba(21,24,23,0.16)',
+        border: active ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.16)',
         flex: '1.4 1 0',
       }}
     >
@@ -132,7 +138,7 @@ function FeaturedCard({
           <p className="text-[11px] text-white/45 mt-2">{sub}</p>
         )}
       </div>
-    </div>
+    </Tag>
   )
 }
 
@@ -179,7 +185,7 @@ function KpiCard({
 }
 
 /* ── Main ───────────────────────────────────────────────────────────────── */
-export function ClientesMetricas() {
+export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string) => void }) {
   const [today] = useState(() => new Date())
   const todayMs = today.getTime()
 
@@ -264,6 +270,12 @@ export function ClientesMetricas() {
   // corrente isso coincide com "agora", mas num mês passado mostra a foto de então,
   // não a contagem atual (senão o card fica igual em qualquer período escolhido).
   const totalAtivos = useMemo(() => countAtivosEm(clienteTasks, end), [clienteTasks, end])
+  const clientesAtivos = useMemo(
+    () => clienteTasks
+      .filter(task => isAtivoEm(task, end))
+      .sort((first, second) => first.title.localeCompare(second.title, 'pt-BR')),
+    [clienteTasks, end],
+  )
 
   const entradasPeriodo = useMemo(
     () => clienteTasks.filter(task => inRange(task.createdAt, start, end)),
@@ -345,8 +357,14 @@ export function ClientesMetricas() {
   [mentoriaTasks, todayMs, in60])
 
   /* ── Lista expandível — quem entrou / quem saiu ───────────────────────── */
-  const [expandedKpi, setExpandedKpi] = useState<'entradas' | 'saidas' | null>(null)
-  const expandedList = expandedKpi === 'entradas' ? entradasPeriodo : expandedKpi === 'saidas' ? saidasPeriodo : []
+  const [expandedKpi, setExpandedKpi] = useState<'ativos' | 'entradas' | 'saidas' | null>(null)
+  const expandedList = expandedKpi === 'ativos'
+    ? clientesAtivos
+    : expandedKpi === 'entradas'
+      ? entradasPeriodo
+      : expandedKpi === 'saidas'
+        ? saidasPeriodo
+        : []
 
   /* ── Nav mês ─────────────────────────────────────────────────────────── */
   const isNow = selYear === today.getFullYear() && selMonth === today.getMonth()
@@ -477,6 +495,8 @@ export function ClientesMetricas() {
           delta={deltaAtivos}
           sub={hasComparison ? comparisonLabel : 'base ativa neste momento'}
           icon={Users}
+          active={expandedKpi === 'ativos'}
+          onClick={() => setExpandedKpi(k => k === 'ativos' ? null : 'ativos')}
         />
         <KpiCard
           label={periodMode === 'total' ? 'Entradas totais' : 'Entradas no período'}
@@ -523,9 +543,11 @@ export function ClientesMetricas() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-[14px] font-bold text-white">
-                {expandedKpi === 'entradas' ? 'Quem entrou' : 'Quem saiu'}
+                {expandedKpi === 'ativos' ? 'Clientes ativos' : expandedKpi === 'entradas' ? 'Quem entrou' : 'Quem saiu'}
               </p>
-              <p className="text-[11px] text-white/35 mt-0.5">{periodLabel} · Processos + Mentoria</p>
+              <p className="text-[11px] text-white/35 mt-0.5">
+                {expandedKpi === 'ativos' ? `No fim de ${periodLabel.toLocaleLowerCase()}` : periodLabel} · Processos + Mentoria
+              </p>
             </div>
             <button
               onClick={() => setExpandedKpi(null)}
@@ -538,19 +560,20 @@ export function ClientesMetricas() {
 
           {expandedList.length === 0 ? (
             <p className="text-[12px] text-white/25 text-center py-8">
-              Ninguém {expandedKpi === 'entradas' ? 'entrou' : 'saiu'} nesse período.
+              {expandedKpi === 'ativos' ? 'Nenhum cliente ativo nesse período.' : `Ninguém ${expandedKpi === 'entradas' ? 'entrou' : 'saiu'} nesse período.`}
             </p>
           ) : (
             <div className="space-y-2 max-h-[320px] overflow-y-auto pr-0.5">
               {expandedList.map(t => {
                 const eventDate = expandedKpi === 'entradas' ? t.createdAt : t.churnedAt
+                const isActiveClient = expandedKpi === 'ativos'
                 return (
                   <div key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
                       style={{
-                        background: expandedKpi === 'entradas' ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)',
-                        color: expandedKpi === 'entradas' ? '#10b981' : '#f43f5e',
+                        background: isActiveClient || expandedKpi === 'entradas' ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)',
+                        color: isActiveClient || expandedKpi === 'entradas' ? '#10b981' : '#f43f5e',
                       }}>
                       {t.title.charAt(0).toUpperCase()}
                     </div>
@@ -561,9 +584,25 @@ export function ClientesMetricas() {
                         {expandedKpi === 'saidas' && t.churnReason ? ` · ${t.churnReason}` : ''}
                       </p>
                     </div>
-                    <span className="text-[11px] text-white/35 shrink-0">
-                      {eventDate ? new Date(eventDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
-                    </span>
+                    {isActiveClient ? (
+                      onOpenLead && t.leadId ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenLead(t.leadId!)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-400/10 transition-colors"
+                          aria-label={`Abrir conversa de ${t.title}`}
+                          title="Abrir conversa"
+                        >
+                          <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-emerald-300/60 shrink-0">Ativo</span>
+                      )
+                    ) : (
+                      <span className="text-[11px] text-white/35 shrink-0">
+                        {eventDate ? new Date(eventDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
+                      </span>
+                    )}
                   </div>
                 )
               })}

@@ -1,24 +1,35 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { signOut, useSession } from 'next-auth/react'
-import { KanbanBoard } from '@/components/kanban/kanban-board'
-import { TaskManager } from '@/components/tasks/task-manager'
-import { DashboardView } from '@/components/dashboard/dashboard-view'
-import { MentoriaBoard } from '@/components/mentoria/mentoria-board'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
   Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp,
 } from 'lucide-react'
-import { AutomacaoMLView } from '@/components/automacao-ml/automacao-ml-view'
-import { ClientesMetricas } from '@/components/clientes/clientes-metricas'
-import { CrmInbox, type CrmView } from '@/components/crm/crm-inbox'
+import type { CrmView } from '@/components/crm/crm-inbox'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
-import { AgendaView } from '@/components/agenda/agenda-view'
-import { ClientesView } from '@/components/clientes/clientes-view'
-import { CarteiraView } from '@/components/clientes/carteira-view'
+
+function ViewLoading() {
+  return (
+    <div className="flex-1 min-h-0 flex items-center justify-center" aria-live="polite">
+      <span className="text-sm" style={{ color: 'var(--nm-text-muted)' }}>Carregando...</span>
+    </div>
+  )
+}
+
+const KanbanBoard = dynamic(() => import('@/components/kanban/kanban-board').then((module) => module.KanbanBoard), { loading: ViewLoading })
+const TaskManager = dynamic(() => import('@/components/tasks/task-manager').then((module) => module.TaskManager), { loading: ViewLoading })
+const DashboardView = dynamic(() => import('@/components/dashboard/dashboard-view').then((module) => module.DashboardView), { loading: ViewLoading })
+const MentoriaBoard = dynamic(() => import('@/components/mentoria/mentoria-board').then((module) => module.MentoriaBoard), { loading: ViewLoading })
+const AutomacaoMLView = dynamic(() => import('@/components/automacao-ml/automacao-ml-view').then((module) => module.AutomacaoMLView), { loading: ViewLoading })
+const ClientesMetricas = dynamic(() => import('@/components/clientes/clientes-metricas').then((module) => module.ClientesMetricas), { loading: ViewLoading })
+const CrmInbox = dynamic(() => import('@/components/crm/crm-inbox').then((module) => module.CrmInbox), { loading: ViewLoading })
+const AgendaView = dynamic(() => import('@/components/agenda/agenda-view').then((module) => module.AgendaView), { loading: ViewLoading })
+const ClientesView = dynamic(() => import('@/components/clientes/clientes-view').then((module) => module.ClientesView), { loading: ViewLoading })
+const CarteiraView = dynamic(() => import('@/components/clientes/carteira-view').then((module) => module.CarteiraView), { loading: ViewLoading })
 
 type Theme = 'dark' | 'light'
 type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
@@ -357,7 +368,7 @@ export default function HomePage() {
         {activeTab === 'carteira'     && <CarteiraView />}
         {activeTab === 'tasks'        && <TaskManager />}
         {activeTab === 'dashboard'    && <DashboardView />}
-        {activeTab === 'metricas'     && <ClientesMetricas />}
+        {activeTab === 'metricas'     && <ClientesMetricas onOpenLead={openLeadInCrm} />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} view={crmView} onViewChange={setCrmView} />}
         {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" onOpenLead={openLeadInCrm} />}

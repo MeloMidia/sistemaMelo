@@ -88,13 +88,14 @@ export function CrmInbox({
 
   const conversationsQuery = useQuery<CrmConversation[]>({
     queryKey: ['crm-conversations', deferredSearch],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const query = deferredSearch ? `?q=${encodeURIComponent(deferredSearch)}` : ''
-      const response = await fetch(`/api/crm/conversations${query}`)
+      const response = await fetch(`/api/crm/conversations${query}`, { signal })
       if (!response.ok) throw new Error('Não foi possível carregar as conversas.')
       return response.json()
     },
-    refetchInterval: 15_000,
+    enabled: view === 'inbox',
+    refetchInterval: view === 'inbox' && !deferredSearch ? 15_000 : false,
   })
 
   const markAsRead = useMutation({

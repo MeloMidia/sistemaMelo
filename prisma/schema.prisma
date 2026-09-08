@@ -26,6 +26,8 @@ model Column {
   source    String   @default("kanban")
   createdAt DateTime @default(now())
   tasks     Task[]
+
+  @@index([source, order])
 }
 
 model Task {
@@ -61,6 +63,7 @@ model Task {
 
   @@index([source, churnedAt])
   @@index([source, createdAt])
+  @@index([source, columnId, order])
 }
 
 model Tag {
@@ -164,6 +167,9 @@ model Lead {
   @@index([closedAt])
   @@index([createdAt])
   @@index([stageEnteredAt])
+  @@index([updatedAt])
+  @@index([stageId, followUpColumn, updatedAt])
+  @@index([followUpColumn, updatedAt])
 }
 
 model FollowUpLog {
@@ -195,6 +201,9 @@ model Message {
   content           String
   status            MessageStatus?
   createdAt         DateTime         @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([createdAt, direction])
 }
 
 model CrmTag {
@@ -213,6 +222,7 @@ model LeadTag {
   tag    CrmTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([leadId, tagId])
+  @@index([tagId, leadId])
 }
 
 model Negotiation {
