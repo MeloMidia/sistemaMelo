@@ -29,9 +29,28 @@ function inputExtension(mimeType: string | null | undefined) {
   return 'audio'
 }
 
-function runFfmpeg(args: string[]) {
+async function resolveFfmpegPath() {
+  const configuredPath = process.env.FFMPEG_BIN ?? process.env.FFMPEG_PATH
+  const candidates = [configuredPath, ffmpegStatic].filter(
+    (candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0,
+  )
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate)
+      return candidate
+    } catch {
+      // Try the next configured binary, then the system PATH.
+    }
+  }
+
+  return 'ffmpeg'
+}
+
+async function runFfmpeg(args: string[]) {
+  const ffmpegPath = await resolveFfmpegPath()
+
   return new Promise<void>((resolve, reject) => {
-    const ffmpegPath = typeof ffmpegStatic === 'string' && ffmpegStatic ? ffmpegStatic : 'ffmpeg'
     const child = spawn(ffmpegPath, args, { windowsHide: true })
     let stderr = ''
 
@@ -39,7 +58,13 @@ function runFfmpeg(args: string[]) {
       stderr += chunk.toString()
     })
 
-    child.on('error', reject)
+    child.on('error', (error) => {
+      reject(
+        new Error(
+          `FFmpeg nao esta disponivel no servidor. Configure FFMPEG_BIN ou instale o binario no ambiente de producao. ${error.message}`,
+        ),
+      )
+    })
     child.on('close', (code) => {
       if (code === 0) {
         resolve()
