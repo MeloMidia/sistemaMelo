@@ -912,6 +912,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-pipeline-dialog-footer { align-items: center; background: var(--mf-well); border-top: 1px solid var(--mf-line); display: flex; flex-direction: row; justify-content: flex-end; margin: 0; padding: 14px 20px; }
 .mf-pipeline-dialog-footer button { min-width: 94px; }
 
+.mf-kanban-column-filter-label { min-width: 0; }
+.mf-kanban-column-filter-select { max-width: 100%; }
+
 /* Agenda — live temporal marker for the current day. */
 .mf-agenda-view { padding: 0 !important; }
 .mf-agenda-week-scroll { overscroll-behavior: contain; padding: 0 !important; scrollbar-gutter: stable; }
@@ -958,6 +961,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 @media (max-width: 640px) {
+  .mf-kanban-column-filter { padding-left: 12px; padding-right: 12px; padding-top: 12px; }
+  .mf-kanban-column-filter > div { align-items: stretch; flex-direction: column; }
+  .mf-kanban-column-filter-label { align-items: stretch; flex-direction: column; gap: 8px; }
+  .mf-kanban-column-filter-label > svg { align-self: flex-start; }
+  .mf-kanban-column-filter-select { min-width: 0; width: 100%; }
+  .mf-kanban-column-filter-clear { align-self: flex-start; }
   .mf-agenda-header { gap: 10px; padding: 12px !important; }
   .mf-agenda-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
   .mf-agenda-week-controls { margin-left: 0 !important; }
@@ -1193,78 +1202,6 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; t
   .mf-mobile-menu-tool { background: var(--mf-well); color: var(--mf-muted); font-size: 12px; font-weight: 600; }
   .mf-mobile-menu-tool svg { height: 16px; width: 16px; }
   .mf-mobile-menu-tool.is-danger { color: var(--mf-danger); }
-  .nm-sidebar, .mf-sidebar {
-    align-items: center;
-    backdrop-filter: blur(18px);
-    background: color-mix(in srgb, var(--mf-surface) 88%, transparent) !important;
-    border: 1px solid var(--mf-line);
-    border-radius: 20px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    box-shadow: var(--mf-shadow-float) !important;
-    display: flex;
-    flex-direction: row !important;
-    height: 66px;
-    left: 10px;
-    min-height: 66px;
-    overflow: hidden;
-    position: fixed !important;
-    right: 10px;
-    width: auto !important;
-    z-index: 90;
-  }
-  .mf-sidebar-brand { display: none !important; }
-  .mf-sidebar-nav {
-    align-items: center;
-    display: flex !important;
-    flex: 1 1 auto;
-    gap: 6px;
-    height: 100%;
-    min-width: 0;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    padding: 8px !important;
-    scrollbar-width: none;
-  }
-  .mf-sidebar-nav::-webkit-scrollbar { display: none; }
-  .mf-sidebar-nav > p, .mf-sidebar-nav > .pt-2 { display: none !important; }
-  .mf-sidebar-nav > button, .mf-nav-item-group { flex: 0 0 auto; }
-  .mf-nav-item {
-    flex-direction: column;
-    gap: 4px !important;
-    height: 50px;
-    justify-content: center;
-    min-width: 78px;
-    padding: 7px 10px !important;
-    border-radius: 15px !important;
-  }
-  .mf-nav-item svg { height: 16px !important; width: 16px !important; }
-  .mf-nav-item-label {
-    display: block !important;
-    font-size: 10px !important;
-    line-height: 1 !important;
-    max-width: 66px;
-    text-align: center;
-  }
-  .mf-nav-active-dot, .mf-nav-subitem { display: none !important; }
-  .mf-sidebar-footer {
-    align-items: center;
-    border-left: 1px solid var(--mf-line);
-    border-top: 0 !important;
-    display: flex !important;
-    gap: 4px;
-    height: 100%;
-    padding: 8px !important;
-  }
-  .mf-sidebar-user { display: none !important; }
-  .mf-sidebar-whatsapp, .mf-sidebar-theme, .mf-sidebar-signout { flex: 0 0 auto; }
-  .mf-sidebar-whatsapp button, .mf-sidebar-theme, .mf-sidebar-signout {
-    height: 42px !important;
-    justify-content: center !important;
-    min-width: 42px;
-    padding: 0 !important;
-    width: 42px !important;
-  }
-  .mf-sidebar-footer span { display: none !important; }
   .mf-sidebar { display: none !important; }
 }
 

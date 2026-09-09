@@ -120,7 +120,7 @@ function MobileNavigation({
   onSignOut: () => void
 }) {
   const primaryItems = [OPERACIONAL[0], COMERCIAL[0], COMERCIAL[2], COMERCIAL[4]] as const
-  const moreItems = [...OPERACIONAL, ...COMERCIAL].filter((item) => !MOBILE_PRIMARY_IDS.has(item.id as ActiveTab))
+  const areaItems = [...OPERACIONAL, ...COMERCIAL]
   const moreIsActive = menuOpen || !MOBILE_PRIMARY_IDS.has(activeTab)
 
   return (
@@ -138,7 +138,7 @@ function MobileNavigation({
             <header className="mf-mobile-menu-header">
               <div>
                 <p className="mf-eyebrow">Navegação</p>
-                <h2 id="mobile-menu-title">Todas as áreas</h2>
+                <h2 id="mobile-menu-title">Escolher área</h2>
               </div>
               <button type="button" onClick={onToggleMenu} aria-label="Fechar menu" className="mf-mobile-menu-close">
                 <X aria-hidden="true" />
@@ -146,8 +146,8 @@ function MobileNavigation({
             </header>
 
             <div className="mf-mobile-menu-grid">
-              {moreItems.map((item) => (
-                <MobileNavItem key={item.id} item={item as typeof moreItems[number] & { id: ActiveTab }} active={activeTab === item.id} onSelect={onSelect} />
+              {areaItems.map((item) => (
+                <MobileNavItem key={item.id} item={item as typeof areaItems[number] & { id: ActiveTab }} active={activeTab === item.id} onSelect={onSelect} />
               ))}
               <button
                 type="button"
@@ -186,7 +186,7 @@ function MobileNavigation({
           aria-controls="mobile-menu-panel"
         >
           <MoreHorizontal aria-hidden="true" />
-          <span>Mais</span>
+          <span>Áreas</span>
         </button>
       </nav>
     </>

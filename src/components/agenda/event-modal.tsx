@@ -98,14 +98,13 @@ export function EventModal({
   const [autoFilledNote, setAutoFilledNote] = useState('')
 
   // Sale conversion states
-  const wasAlreadyRealizada = mode === 'edit' && event?.status === 'REALIZADA'
   const [convertedToSale, setConvertedToSale] = useState<boolean | null>(null)
   const [saleValue, setSaleValue] = useState('')
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationValue, setCelebrationValue] = useState(0)
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null)
 
-  const showSaleQuestion = status === 'REALIZADA' && !wasAlreadyRealizada
+  const showSaleQuestion = true
 
   const selectedLead = (leads ?? []).find((l) => l.id === leadId)
   const filteredLeads = leadSearch.trim()
@@ -200,10 +199,6 @@ export function EventModal({
             : 'AGENDADA'
 
     setStatus(nextStatus)
-    if (nextStatus !== 'REALIZADA') {
-      setConvertedToSale(null)
-      setSaleValue('')
-    }
   }
 
   const isPending =
@@ -497,7 +492,7 @@ export function EventModal({
             </select>
           </div>
 
-          {/* Sale conversion question — appears when status is REALIZADA and wasn't before */}
+          {/* Sale conversion question is required for every agenda event. */}
           {showSaleQuestion && (
             <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3.5 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
               <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Converteu em venda?</p>

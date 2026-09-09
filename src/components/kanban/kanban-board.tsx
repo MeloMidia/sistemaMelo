@@ -254,7 +254,7 @@ export function KanbanBoard({
           </header>
         )}
         {showColumnFilter && (
-          <div className="shrink-0 px-6 pt-6">
+          <div className="mf-kanban-column-filter shrink-0 px-6 pt-6">
             <div
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3"
               style={{
@@ -263,13 +263,13 @@ export function KanbanBoard({
                 border: '1px solid var(--nm-border)',
               }}
             >
-              <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--nm-text-muted)' }}>
+              <label className="mf-kanban-column-filter-label flex items-center gap-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--nm-text-muted)' }}>
                 <ListFilter className="size-4" />
                 <span>Coluna</span>
                 <select
                   value={selectedColumn?.id ?? ''}
                   onChange={(event) => setSelectedColumnId(event.target.value)}
-                  className="h-9 min-w-[220px] rounded-lg px-3 text-sm font-semibold normal-case outline-none"
+                  className="mf-kanban-column-filter-select h-9 min-w-[220px] rounded-lg px-3 text-sm font-semibold normal-case outline-none"
                   style={{
                     background: 'var(--nm-bg)',
                     color: 'var(--nm-text-primary)',
@@ -290,7 +290,7 @@ export function KanbanBoard({
                   size="sm"
                   variant="ghost"
                   onClick={() => setSelectedColumnId('')}
-                  className="h-9 gap-2 rounded-lg text-xs font-semibold cursor-pointer"
+                  className="mf-kanban-column-filter-clear h-9 gap-2 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ color: 'var(--nm-text-secondary)' }}
                 >
                   <X className="size-4" />
