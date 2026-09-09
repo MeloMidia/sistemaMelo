@@ -49,6 +49,17 @@ export interface QrCodeResult {
   base64?: string
 }
 
+function normalizeBase64Image(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  if (trimmed.startsWith('data:image/')) return trimmed
+
+  return `data:image/png;base64,${trimmed}`
+}
+
 export async function getQrCode(): Promise<QrCodeResult> {
   const res = await evolutionRequest(`/instance/connect/${INSTANCE}`)
   if (!res.ok) {
@@ -57,7 +68,26 @@ export async function getQrCode(): Promise<QrCodeResult> {
   }
   const data = await res.json()
   // Diferentes versões da Evolution API retornam {base64} ou {qrcode:{base64}}
-  const base64: string | undefined = data?.base64 ?? data?.qrcode?.base64 ?? undefined
+  const base64 =
+    normalizeBase64Image(data?.base64) ??
+    normalizeBase64Image(data?.qrcode?.base64) ??
+    normalizeBase64Image(data?.qrcode)
+
+  if (!base64) {
+    const state =
+      typeof data?.instance?.state === 'string'
+        ? data.instance.state
+        : typeof data?.instance?.status === 'string'
+          ? data.instance.status
+          : undefined
+
+    if (state === 'open') {
+      throw new Error('A instancia ja esta conectada na Evolution API.')
+    }
+
+    throw new Error('A Evolution API respondeu sem imagem de QR code.')
+  }
+
   return { base64 }
 }
 

@@ -7,9 +7,18 @@ const BASE_URL = getEvolutionBaseUrl()
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!BASE_URL || !API_KEY || !INSTANCE) {
+    return NextResponse.json(
+      { error: 'Env vars EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME nao configuradas.' },
+      { status: 400 }
+    )
+  }
 
   const res = await fetch(`${BASE_URL}/instance/connect/${INSTANCE}`, {
     headers: { apikey: API_KEY },
