@@ -733,6 +733,87 @@ export function useConnection() {
   })
 }
 
+export interface UnansweredLeadAlert {
+  id: string
+  name: string | null
+  phone: string
+  profilePicUrl: string | null
+  stage: { id: string; name: string | null; color: string | null } | null
+  assignedTo: { id: string; name: string | null } | null
+  lastMessage: { id: string; content: string; createdAt: string }
+}
+
+export interface DuplicateLeadCandidate {
+  id: string
+  name: string | null
+  phone: string
+  profilePicUrl: string | null
+  createdAt: string
+  stage: { id: string; name: string; color: string } | null
+  assignedTo: { id: string; name: string } | null
+  _count: { messages: number; tasks: number; events: number; negotiations: number }
+}
+
+export interface DuplicateLeadGroup {
+  key: string
+  reason: 'phone'
+  leads: DuplicateLeadCandidate[]
+}
+
+export function useUnansweredLeadAlerts(enabled: boolean, hours = 24) {
+  return useQuery<{ hours: number; total: number; hasMore: boolean; items: UnansweredLeadAlert[] }>({
+    queryKey: ['crm-unanswered-alerts', hours],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/alerts/unanswered?hours=${hours}&limit=50`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error ?? 'Não foi possível carregar os alertas.')
+      return data
+    },
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: enabled ? 60_000 : false,
+  })
+}
+
+export function useDuplicateLeadGroups(enabled: boolean) {
+  return useQuery<{ scanned: number; truncated: boolean; total: number; groups: DuplicateLeadGroup[] }>({
+    queryKey: ['crm-duplicate-leads'],
+    queryFn: async () => {
+      const res = await fetch('/api/crm/duplicates')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error ?? 'Não foi possível localizar duplicados.')
+      return data
+    },
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useMergeLeads() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ keepId, mergeId }: { keepId: string; mergeId: string }) => {
+      const res = await fetch('/api/crm/leads/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId, mergeId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error ?? 'Não foi possível mesclar os leads.')
+      return data as { ok: true; keptLeadId: string; mergedLeadId: string }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-duplicate-leads'] })
+      qc.invalidateQueries({ queryKey: ['crm-unanswered-alerts'] })
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
+      qc.invalidateQueries({ queryKey: ['crm-leads-lite'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
 export function useQrCode(enabled: boolean) {
   return useQuery<{ base64?: string }, Error>({
     queryKey: ['crm-qrcode'],

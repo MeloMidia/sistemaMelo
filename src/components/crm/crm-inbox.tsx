@@ -11,6 +11,7 @@ import { LeadNotesTab } from './lead-notes-tab'
 import { LeadLogsTab } from './lead-logs-tab'
 import { LeadProfilePanel } from './lead-profile-panel'
 import { KanbanLeads } from './kanban-leads'
+import { LeadAttentionTools } from './lead-attention-tools'
 
 type Filter = 'all' | 'unread'
 const ALL_STAGES = 'all'
@@ -95,6 +96,7 @@ export function CrmInbox({
       return response.json()
     },
     enabled: view === 'inbox',
+    staleTime: 5_000,
     refetchInterval: view === 'inbox' && !deferredSearch ? 15_000 : false,
   })
 
@@ -230,6 +232,7 @@ export function CrmInbox({
               {hasUnassignedStage && <option value={NO_STAGE}>Sem estágio</option>}
             </select>
           </div>
+          <LeadAttentionTools onOpenLead={(leadId) => setSelectedId(leadId)} />
         </div>
 
         <div className="flex-1 overflow-y-auto">

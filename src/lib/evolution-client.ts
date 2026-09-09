@@ -12,6 +12,7 @@ function evolutionRequest(path: string, init?: RequestInit): Promise<Response> {
   }
   return fetch(`${BASE_URL}${path}`, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(10_000),
     headers: {
       'Content-Type': 'application/json',
       apikey: API_KEY,
