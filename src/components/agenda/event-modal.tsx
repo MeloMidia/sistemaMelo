@@ -16,6 +16,7 @@ import { useLeadsLite, useStages, useUpdateLead } from '@/hooks/crm-api'
 import { getLeadDisplayName, formatPhoneNumber } from '@/lib/phone'
 import { WEEKDAY_LABELS } from '@/lib/agenda-date'
 import type { AgendaEvent, AgendaEventStatus } from '@/types/agenda'
+import type { LeadStage } from '@/types/crm'
 
 interface EventModalProps {
   mode: 'create' | 'edit'
@@ -48,6 +49,16 @@ function parseDateInputValue(value: string): Date {
   return new Date(y, m - 1, d)
 }
 
+const CLOSED_STAGE_NAMES = ['fechados', 'fechado', 'vendido', 'vendidos', 'venda', 'vendas', 'ganho', 'ganhos']
+
+function normalizeStageName(name: string) {
+  return name.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+}
+
+function isClosedStageCandidate(stage: Pick<LeadStage, 'name' | 'isClosed'>) {
+  return Boolean(stage.isClosed) || CLOSED_STAGE_NAMES.includes(normalizeStageName(stage.name))
+}
+
 export function EventModal({
   mode,
   initialDate,
@@ -62,7 +73,7 @@ export function EventModal({
 }: EventModalProps) {
   const { data: categories } = useEventCategories()
   const { data: leads } = useLeadsLite()
-  const { data: stages } = useStages()
+  const { data: stages, refetch: refetchStages } = useStages()
   const updateLead = useUpdateLead()
   const createEvent = useCreateAgendaEvent()
   const updateEvent = useUpdateAgendaEvent()
@@ -213,7 +224,8 @@ export function EventModal({
     if (showSaleQuestion && convertedToSale === true && saleValue) {
       const val = parseFloat(saleValue.replace(',', '.'))
       if (!isNaN(val) && val > 0) {
-        const closedStage = stages?.find((stage) => stage.name.trim().toLocaleLowerCase('pt-BR') === 'fechados')
+        const pipelineStages = stages?.length ? stages : (await refetchStages()).data
+        const closedStage = pipelineStages?.find(isClosedStageCandidate)
         if (!leadId || !closedStage) {
           setError(!leadId
             ? 'Vincule um lead para registrar a venda.'

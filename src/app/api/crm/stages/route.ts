@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { ensureCrmPipeline } from '@/lib/crm-pipeline'
+import { ensureCrmPipeline, isClosedCrmStage } from '@/lib/crm-pipeline'
 
 const LEADS_PER_STAGE = 100
 
@@ -55,8 +55,14 @@ export async function POST(request: Request) {
   const lastStage = await prisma.leadStage.findFirst({ orderBy: { order: 'desc' } })
   const newOrder = (lastStage?.order ?? 0) + 1000
 
+  const stageName = name.trim()
   const stage = await prisma.leadStage.create({
-    data: { name: name.trim(), color: color || '#3b82f6', order: newOrder },
+    data: {
+      name: stageName,
+      color: color || '#3b82f6',
+      order: newOrder,
+      isClosed: isClosedCrmStage(stageName),
+    },
   })
 
   return NextResponse.json(stage)

@@ -2,6 +2,16 @@ import { prisma } from '@/lib/prisma'
 
 export const CRM_ENTRY_STAGE_NAME = 'Novos leads'
 export const CRM_CLOSED_STAGE_NAME = 'Fechados'
+export const CRM_CLOSED_STAGE_ALIASES = [
+  CRM_CLOSED_STAGE_NAME,
+  'Fechado',
+  'Vendido',
+  'Vendidos',
+  'Venda',
+  'Vendas',
+  'Ganho',
+  'Ganhos',
+] as const
 
 /** Etapas iniciais criadas somente quando a base comercial está vazia. */
 export const DEFAULT_CRM_PIPELINE = [
@@ -15,12 +25,17 @@ export const DEFAULT_CRM_PIPELINE = [
 
 type CrmStageIdentity = { name: string; isClosed?: boolean | null }
 
+function normalizeCrmStageName(name: string) {
+  return name.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+}
+
 export function isClosedCrmStage(stage: CrmStageIdentity | string | null | undefined) {
   if (!stage) return false
   if (typeof stage !== 'string' && stage.isClosed) return true
 
   const name = typeof stage === 'string' ? stage : stage.name
-  return name?.trim().toLocaleLowerCase('pt-BR') === CRM_CLOSED_STAGE_NAME.toLocaleLowerCase('pt-BR')
+  const normalizedName = normalizeCrmStageName(name)
+  return CRM_CLOSED_STAGE_ALIASES.some((alias) => normalizeCrmStageName(alias) === normalizedName)
 }
 
 /**
@@ -81,6 +96,17 @@ export async function ensureCrmPipeline() {
   }
 
   if (!entryStage) throw new Error('Não foi possível preparar o pipeline do CRM.')
+
+  const stages = await prisma.leadStage.findMany({
+    select: { id: true, name: true, isClosed: true },
+  })
+  const closedStage = stages.find((stage) => isClosedCrmStage(stage))
+  if (closedStage && !closedStage.isClosed) {
+    await prisma.leadStage.update({
+      where: { id: closedStage.id },
+      data: { isClosed: true },
+    })
+  }
 
   return entryStage
 }

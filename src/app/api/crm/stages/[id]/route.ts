@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { CRM_CLOSED_STAGE_NAME, CRM_ENTRY_STAGE_NAME } from '@/lib/crm-pipeline'
+import { CRM_ENTRY_STAGE_NAME, isClosedCrmStage } from '@/lib/crm-pipeline'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -18,14 +18,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     })
     if (!currentStage) return NextResponse.json({ error: 'Etapa não encontrada' }, { status: 404 })
 
+    const stageName = typeof name === 'string' ? name.trim() : currentStage.name
     const stage = await prisma.leadStage.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
+        ...(name !== undefined && { name: stageName }),
         ...(color !== undefined && { color }),
         ...(order !== undefined && { order }),
         ...(currentStage.isEntry || currentStage.name === CRM_ENTRY_STAGE_NAME ? { isEntry: true } : {}),
-        ...(currentStage.isClosed || currentStage.name === CRM_CLOSED_STAGE_NAME ? { isClosed: true } : {}),
+        ...(currentStage.isClosed || isClosedCrmStage(stageName) ? { isClosed: true } : {}),
       },
     })
     return NextResponse.json(stage)
