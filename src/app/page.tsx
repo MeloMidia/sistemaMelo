@@ -7,7 +7,7 @@ import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp,
+  Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp, MoreHorizontal, X,
 } from 'lucide-react'
 import type { CrmView } from '@/components/crm/crm-inbox'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
@@ -73,6 +73,125 @@ const COMERCIAL = [
   { id: 'metricas',  icon: Users,         label: 'Métricas',  color: '#a855f7' },
   { id: 'agenda',    icon: Calendar,      label: 'Agenda',    color: '#f97316' },
 ] as const
+
+const MOBILE_PRIMARY_IDS = new Set<ActiveTab>(['kanban', 'crm', 'dashboard', 'agenda'])
+
+function MobileNavItem({
+  item,
+  active,
+  onSelect,
+}: {
+  item: { id: ActiveTab; icon: React.ElementType; label: string; color: string }
+  active: boolean
+  onSelect: (id: ActiveTab) => void
+}) {
+  const Icon = item.icon
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item.id)}
+      className={`mf-mobile-nav-item ${active ? 'is-active' : ''}`}
+      style={{ '--mobile-item-color': item.color } as React.CSSProperties}
+      aria-current={active ? 'page' : undefined}
+    >
+      <Icon aria-hidden="true" />
+      <span>{item.label}</span>
+    </button>
+  )
+}
+
+function MobileNavigation({
+  activeTab,
+  menuOpen,
+  theme,
+  onSelect,
+  onOpenCrmKanban,
+  onToggleMenu,
+  onToggleTheme,
+  onSignOut,
+}: {
+  activeTab: ActiveTab
+  menuOpen: boolean
+  theme: Theme
+  onSelect: (id: ActiveTab) => void
+  onOpenCrmKanban: () => void
+  onToggleMenu: () => void
+  onToggleTheme: () => void
+  onSignOut: () => void
+}) {
+  const primaryItems = [OPERACIONAL[0], COMERCIAL[0], COMERCIAL[2], COMERCIAL[4]] as const
+  const moreItems = [...OPERACIONAL, ...COMERCIAL].filter((item) => !MOBILE_PRIMARY_IDS.has(item.id as ActiveTab))
+  const moreIsActive = menuOpen || !MOBILE_PRIMARY_IDS.has(activeTab)
+
+  return (
+    <>
+      {menuOpen && (
+        <div className="mf-mobile-menu-layer" onClick={onToggleMenu}>
+          <section
+            className="mf-mobile-menu"
+            id="mobile-menu-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-menu-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="mf-mobile-menu-header">
+              <div>
+                <p className="mf-eyebrow">Navegação</p>
+                <h2 id="mobile-menu-title">Todas as áreas</h2>
+              </div>
+              <button type="button" onClick={onToggleMenu} aria-label="Fechar menu" className="mf-mobile-menu-close">
+                <X aria-hidden="true" />
+              </button>
+            </header>
+
+            <div className="mf-mobile-menu-grid">
+              {moreItems.map((item) => (
+                <MobileNavItem key={item.id} item={item as typeof moreItems[number] & { id: ActiveTab }} active={activeTab === item.id} onSelect={onSelect} />
+              ))}
+              <button
+                type="button"
+                onClick={onOpenCrmKanban}
+                className={`mf-mobile-menu-item ${activeTab === 'crm' ? 'is-active' : ''}`}
+              >
+                <Kanban aria-hidden="true" />
+                <span>CRM Pipeline</span>
+              </button>
+            </div>
+
+            <div className="mf-mobile-menu-tools">
+              <WhatsappSettings />
+              <button type="button" onClick={onToggleTheme} className="mf-mobile-menu-tool">
+                {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+                <span>{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
+              </button>
+              <button type="button" onClick={onSignOut} className="mf-mobile-menu-tool is-danger">
+                <LogOut aria-hidden="true" />
+                <span>Sair</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      <nav className="mf-mobile-nav" aria-label="Navegação principal">
+        {primaryItems.map((item) => (
+          <MobileNavItem key={item.id} item={item} active={activeTab === item.id} onSelect={onSelect} />
+        ))}
+        <button
+          type="button"
+          onClick={onToggleMenu}
+          className={`mf-mobile-nav-item ${moreIsActive ? 'is-active' : ''}`}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu-panel"
+        >
+          <MoreHorizontal aria-hidden="true" />
+          <span>Mais</span>
+        </button>
+      </nav>
+    </>
+  )
+}
 
 function SectionLabel({ label, expanded }: { label: string; expanded: boolean }) {
   if (!expanded) return <div className="my-2 mx-auto w-5 h-px" style={{ background: 'var(--nm-border)' }} />
@@ -144,6 +263,7 @@ export default function HomePage() {
   const [expanded, setExpanded]           = useState(true)
   const [crmOpenLeadId, setCrmOpenLeadId] = useState<string | null>(null)
   const [crmView, setCrmView]             = useState<CrmView>('inbox')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [theme, setTheme]                 = useState<Theme>(readAppliedTheme)
   const { data: session } = useSession()
 
@@ -151,6 +271,11 @@ export default function HomePage() {
     applyTheme(theme)
     saveTheme(theme)
   }, [theme])
+
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileMenuOpen])
 
   function toggleTheme() {
     setTheme((current) => {
@@ -168,6 +293,13 @@ export default function HomePage() {
   function openCrmKanban() {
     setCrmView('pipeline')
     setActiveTab('crm')
+    setMobileMenuOpen(false)
+  }
+
+  function selectMobileTab(id: ActiveTab) {
+    if (id === 'crm') setCrmView('inbox')
+    setActiveTab(id)
+    setMobileMenuOpen(false)
   }
 
   // Neumorphic nav item — pressed when active, raised when hovered
@@ -374,6 +506,17 @@ export default function HomePage() {
         {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" onOpenLead={openLeadInCrm} />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
+
+      <MobileNavigation
+        activeTab={activeTab}
+        menuOpen={mobileMenuOpen}
+        theme={theme}
+        onSelect={selectMobileTab}
+        onOpenCrmKanban={openCrmKanban}
+        onToggleMenu={() => setMobileMenuOpen((open) => !open)}
+        onToggleTheme={toggleTheme}
+        onSignOut={() => signOut()}
+      />
     </div>
   )
 }
