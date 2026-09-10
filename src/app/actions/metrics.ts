@@ -3,6 +3,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isClosedCrmStage } from '@/lib/crm-pipeline'
+import { getClosedLeadSaleValue, summarizeClosedLeadSales } from '@/lib/dashboard-sales'
 import { normalizeDateToBrazilDay } from '@/lib/date-range'
 import { prisma } from '@/lib/prisma'
 
@@ -131,17 +132,13 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
     if (event.status === 'NAO_REALIZADA') meetingsNotHeld += 1
   }
 
-  let revenue = 0
-  let salesWithoutValue = 0
   for (const sale of closedLeads) {
-    if (sale.closedAt) addToDay(days, sale.closedAt, 'vendas')
-    if (typeof sale.value === 'number' && Number.isFinite(sale.value)) revenue += sale.value
-    else salesWithoutValue += 1
+    if (sale.closedAt && getClosedLeadSaleValue(sale.value) !== null) addToDay(days, sale.closedAt, 'vendas')
   }
+  const { revenue, salesCount, salesWithoutValue } = summarizeClosedLeadSales(closedLeads)
 
   const inboundMessages = messageCounts.find((item) => item.direction === 'INBOUND')?._count._all ?? 0
   const outboundMessages = messageCounts.find((item) => item.direction === 'OUTBOUND')?._count._all ?? 0
-  const salesCount = closedLeads.length
   const newLeads = createdLeads.length
   const closedStageIds = new Set(stages.filter((stage) => isClosedCrmStage(stage)).map((stage) => stage.id))
 

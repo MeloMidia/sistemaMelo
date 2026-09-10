@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
-    "test": "tsx --test src/lib/crm-lead-rules.test.ts",
+    "test": "tsx --test src/lib/crm-lead-rules.test.ts src/lib/dashboard-sales.test.ts",
     "start": "next start",
     "lint": "eslint"
   },
