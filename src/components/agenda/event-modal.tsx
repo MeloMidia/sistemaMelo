@@ -259,10 +259,6 @@ export function EventModal({
       return
     }
 
-    if (showSaleQuestion && convertedToSale === null) {
-      setError('Informe se houve conversão em venda')
-      return
-    }
     if (showSaleQuestion && convertedToSale === true && !saleValue.trim()) {
       setError('Informe o valor da venda')
       return
@@ -504,7 +500,7 @@ export function EventModal({
             </select>
           </div>
 
-          {/* Sale conversion question is required for every agenda event. */}
+          {/* Sale conversion is optional unless the user marks the event as a sale. */}
           {showSaleQuestion && (
             <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3.5 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
               <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Converteu em venda?</p>
