@@ -60,14 +60,14 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
   const { start, end } = toValidRange(startDate, endDate)
   const inRange = { gte: start, lte: end }
 
-  const [createdLeads, closedLeads, events, messageCounts, contactedLeads, stages] = await Promise.all([
+  const [createdLeads, closedLeads, events, messageCounts, contactedLeads, stages, revenueOverride] = await Promise.all([
     prisma.lead.findMany({
       where: { stageEnteredAt: inRange },
       select: { stageEnteredAt: true },
     }),
     prisma.lead.findMany({
       where: { closedAt: inRange },
-      select: { closedAt: true, value: true },
+      select: { id: true, name: true, closedAt: true, value: true },
     }),
     prisma.agendaEvent.findMany({
       where: {
@@ -103,6 +103,9 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
         _count: { select: { leads: true } },
       },
     }),
+    prisma.revenueOverride.findUnique({
+      where: { periodStart_periodEnd: { periodStart: start, periodEnd: end } },
+    }),
   ])
 
   const days = new Map<string, DailyPoint>()
@@ -135,7 +138,27 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
   for (const sale of closedLeads) {
     if (sale.closedAt && getClosedLeadSaleValue(sale.value) !== null) addToDay(days, sale.closedAt, 'vendas')
   }
-  const { revenue, salesCount, salesWithoutValue } = summarizeClosedLeadSales(closedLeads)
+  const { revenue: revenueAuto, salesCount, salesWithoutValue } = summarizeClosedLeadSales(closedLeads)
+  // Ajuste manual sobrepõe o valor exibido/usado no faturamento, mas não mexe
+  // em salesCount/leadToSaleRate nem nos leads do CRM — só o número mostrado.
+  const revenue = revenueOverride?.value ?? revenueAuto
+
+  // Lista das vendas do período, pra edição manual no dashboard — vendas sem
+  // valor informado (getClosedLeadSaleValue === null) vêm primeiro, já que
+  // são as que precisam de atenção; dentro de cada grupo, mais recente primeiro.
+  const sales = [...closedLeads]
+    .sort((a, b) => {
+      const aMissing = getClosedLeadSaleValue(a.value) === null
+      const bMissing = getClosedLeadSaleValue(b.value) === null
+      if (aMissing !== bMissing) return aMissing ? -1 : 1
+      return (b.closedAt?.getTime() ?? 0) - (a.closedAt?.getTime() ?? 0)
+    })
+    .map((sale) => ({
+      id: sale.id,
+      name: sale.name,
+      value: sale.value,
+      closedAt: sale.closedAt,
+    }))
 
   const inboundMessages = messageCounts.find((item) => item.direction === 'INBOUND')?._count._all ?? 0
   const outboundMessages = messageCounts.find((item) => item.direction === 'OUTBOUND')?._count._all ?? 0
@@ -156,6 +179,8 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
       meetingsNotHeld,
       salesCount,
       revenue,
+      revenueAuto,
+      revenueOverridden: revenueOverride !== null,
       salesWithoutValue,
       leadToSaleRate: newLeads > 0 ? (salesCount / newLeads) * 100 : 0,
       meetingShowRate: meetingsScheduled > 0 ? (meetingsCompleted / meetingsScheduled) * 100 : 0,
@@ -163,6 +188,7 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
         .filter((stage) => !closedStageIds.has(stage.id))
         .reduce((total, stage) => total + stage._count.leads, 0),
     },
+    sales,
     daily: Array.from(days.values()).sort((a, b) => a.date.getTime() - b.date.getTime()),
     pipeline: stages.map((stage) => ({
       id: stage.id,
@@ -172,4 +198,36 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
       isClosed: closedStageIds.has(stage.id),
     })),
   }
+}
+
+/**
+ * Define (ou remove, passando value: null) um ajuste manual do "Faturamento
+ * confirmado" pro período exato [startDate, endDate] — o mesmo par que o
+ * seletor de período do dashboard sempre gera pra um preset/dia dado, então
+ * o ajuste "gruda" naquele período específico (ex: "este mês") mesmo que o
+ * usuário troque de período e volte depois.
+ */
+export async function setRevenueOverride(startDate: Date, endDate: Date, value: number | null) {
+  const session = await getServerSession(authOptions)
+  if (!session) throw new Error('Unauthorized')
+
+  const { start, end } = toValidRange(startDate, endDate)
+
+  if (value === null) {
+    await prisma.revenueOverride.deleteMany({
+      where: { periodStart: start, periodEnd: end },
+    })
+    return { revenueOverridden: false }
+  }
+
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error('Valor inválido para o faturamento.')
+  }
+
+  await prisma.revenueOverride.upsert({
+    where: { periodStart_periodEnd: { periodStart: start, periodEnd: end } },
+    create: { periodStart: start, periodEnd: end, value },
+    update: { value },
+  })
+  return { revenueOverridden: true }
 }

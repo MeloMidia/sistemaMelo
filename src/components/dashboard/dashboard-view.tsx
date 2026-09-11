@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   BadgeDollarSign,
@@ -8,17 +9,20 @@ import {
   CircleAlert,
   CircleCheckBig,
   Loader2,
+  PencilLine,
   Radio,
   Target,
   UserRoundCheck,
   UserRoundPlus,
 } from 'lucide-react'
-import { type DateRange, type PeriodKey } from '@/lib/date-range'
+import { type DateRange, type PeriodKey, getDateRange } from '@/lib/date-range'
 import { useDashboardData, useDashboardPrev, type DashboardData } from '@/hooks/api'
 import { KpiCard, type KpiDelta } from './kpi-card'
 import { PeriodSelector } from './period-selector'
 import { FunnelChart } from './funnel-chart'
 import { DailyLineChart } from './daily-line-chart'
+import { SalesEditModal } from './sales-edit-modal'
+import { RevenueOverrideModal } from './revenue-override-modal'
 
 type MetricTotals = DashboardData['metrics']
 
@@ -33,6 +37,8 @@ const EMPTY_METRICS: MetricTotals = {
   meetingsNotHeld: 0,
   salesCount: 0,
   revenue: 0,
+  revenueAuto: 0,
+  revenueOverridden: false,
   salesWithoutValue: 0,
   leadToSaleRate: 0,
   meetingShowRate: 0,
@@ -72,9 +78,12 @@ const REVENUE_GOAL_2 = 65000
 const REVENUE_GOAL_3 = 80000
 
 export function DashboardView() {
+  const queryClient = useQueryClient()
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [showComparison, setShowComparison] = useState(true)
   const [customRange, setCustomRange] = useState<DateRange>(defaultCustomRange)
+  const [salesModalOpen, setSalesModalOpen] = useState(false)
+  const [revenueModalOpen, setRevenueModalOpen] = useState(false)
 
   const { data: currentData, isLoading, isFetching } = useDashboardData(period, customRange)
   const { data: previousData } = useDashboardPrev(period, showComparison, customRange)
@@ -138,15 +147,29 @@ export function DashboardView() {
             <div className="absolute bottom-0 right-0 h-32 w-2/3 bg-[radial-gradient(ellipse_at_bottom_right,rgba(40,84,223,0.26),transparent_72%)]" />
             <div className="relative flex h-full flex-col justify-between gap-7">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#AFC0FF]">Faturamento confirmado</p>
+                <button
+                  onClick={() => setRevenueModalOpen(true)}
+                  className="group -m-1 rounded-xl p-1 text-left transition-colors hover:bg-white/[0.04]"
+                  title="Editar o valor do faturamento confirmado"
+                >
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#AFC0FF]">
+                    Faturamento confirmado
+                    {metrics.revenueOverridden && (
+                      <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-[#9CE2B8]">
+                        ajustado manualmente
+                      </span>
+                    )}
+                  </p>
                   <p className="mt-3 text-4xl font-bold tracking-[-0.055em] text-white tabular-nums sm:text-5xl">
                     {formatMoney(metrics.revenue)}
                   </p>
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
                     Soma dos valores dos leads movidos para <strong className="font-semibold text-slate-200">Fechados</strong>.
+                    <span className="inline-flex items-center gap-1 font-semibold text-[#9CE2B8] opacity-0 transition-opacity group-hover:opacity-100">
+                      <PencilLine className="h-3 w-3" /> Editar
+                    </span>
                   </p>
-                </div>
+                </button>
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] text-[#AFC0FF]">
                   <BadgeDollarSign className="h-5 w-5" />
                 </div>
@@ -288,12 +311,16 @@ export function DashboardView() {
               </div>
               <UserRoundCheck className="h-5 w-5 text-[#35A66F]" />
             </div>
-            <div className="mt-6 rounded-2xl bg-[#F5FBF7] p-4">
+            <button
+              onClick={() => setSalesModalOpen(true)}
+              className="mt-6 w-full rounded-2xl bg-[#F5FBF7] p-4 text-left transition-colors hover:bg-[#EBF7EF]"
+              title="Ver e editar as vendas do período"
+            >
               <p className="text-3xl font-bold tracking-[-0.04em] text-[#1C573A] tabular-nums">{formatNumber(metrics.salesWithoutValue)}</p>
               <p className="mt-1 text-xs leading-relaxed text-[#467359]">
                 venda(s) fechada(s) sem valor informado. Elas entram na quantidade de vendas, mas não no faturamento.
               </p>
-            </div>
+            </button>
           </div>
         </section>
 
@@ -349,6 +376,25 @@ export function DashboardView() {
           )}
         </section>
       </div>
+
+      {salesModalOpen && (
+        <SalesEditModal sales={currentData?.sales ?? []} onClose={() => setSalesModalOpen(false)} />
+      )}
+
+      {revenueModalOpen && (() => {
+        const { start, end } = getDateRange(period, customRange)
+        return (
+          <RevenueOverrideModal
+            start={start}
+            end={end}
+            revenue={metrics.revenue}
+            revenueAuto={metrics.revenueAuto}
+            revenueOverridden={metrics.revenueOverridden}
+            onClose={() => setRevenueModalOpen(false)}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ['dashboard'] })}
+          />
+        )
+      })()}
     </div>
   )
 }

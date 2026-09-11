@@ -107,6 +107,20 @@ model DashboardGoal {
   updatedAt DateTime @updatedAt
 }
 
+// Ajuste manual do "Faturamento confirmado" pra um período exato do dashboard
+// (mesmo par start/end que o seletor de período gera) — sobrepõe a soma
+// automática dos valores das vendas fechadas, sem alterar os leads no CRM.
+model RevenueOverride {
+  id          String   @id @default(cuid())
+  periodStart DateTime
+  periodEnd   DateTime
+  value       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([periodStart, periodEnd])
+}
+
 model SdrDailyLog {
   id            String   @id @default(cuid())
   date          DateTime @unique

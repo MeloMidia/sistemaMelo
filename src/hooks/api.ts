@@ -280,6 +280,7 @@ export type DashboardData = {
   metrics: Awaited<ReturnType<typeof getDashboardData>>['metrics']
   daily: Awaited<ReturnType<typeof getDashboardData>>['daily']
   pipeline: Awaited<ReturnType<typeof getDashboardData>>['pipeline']
+  sales: Awaited<ReturnType<typeof getDashboardData>>['sales']
   generatedAt: Awaited<ReturnType<typeof getDashboardData>>['generatedAt']
 }
 
@@ -298,6 +299,7 @@ export function useDashboardData(period: PeriodKey, customRange?: DateRange) {
         metrics: current.metrics,
         daily: current.daily,
         pipeline: current.pipeline,
+        sales: current.sales,
         generatedAt: current.generatedAt,
       }
     },
@@ -317,6 +319,7 @@ export function useDashboardPrev(period: PeriodKey, enabled: boolean, customRang
         metrics: previous.metrics,
         daily: previous.daily,
         pipeline: previous.pipeline,
+        sales: previous.sales,
         generatedAt: previous.generatedAt,
       }
     },
