@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { signOut, useSession } from 'next-auth/react'
 import {
-  LayoutDashboard, ClipboardList, LogOut, User, BarChart, Users,
+  LayoutDashboard, ClipboardList, ClipboardCheck, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
   Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp, MoreHorizontal, X,
 } from 'lucide-react'
@@ -32,7 +32,7 @@ const ClientesView = dynamic(() => import('@/components/clientes/clientes-view')
 const CarteiraView = dynamic(() => import('@/components/clientes/carteira-view').then((module) => module.CarteiraView), { loading: ViewLoading })
 
 type Theme = 'dark' | 'light'
-type ActiveTab = 'kanban' | 'mentoria' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'acoes' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
 
 function MeloMidiaLogoMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -60,6 +60,7 @@ const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 const OPERACIONAL = [
   { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#2854DF' },
   { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#2854DF' },
+  { id: 'acoes',        icon: ClipboardCheck,  label: 'Ações',        color: '#14b8a6' },
   { id: 'clientes',     icon: Building2,       label: 'PromoADS',     color: '#2854DF' },
   { id: 'carteira',     icon: Briefcase,       label: 'Carteira',     color: '#2854DF' },
   { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#2854DF' },
@@ -496,6 +497,7 @@ export default function HomePage() {
         style={{ background: pageBg }}>
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
+        {activeTab === 'acoes'        && <KanbanBoard source="acoes" title="Ações" description="Organize ideias e iniciativas por estágio de decisão e execução." taskLabel="ação" countLabel="ações" eyebrow="Operacional" headerIcon={ClipboardCheck} />}
         {activeTab === 'clientes'     && <ClientesView />}
         {activeTab === 'carteira'     && <CarteiraView />}
         {activeTab === 'tasks'        && <TaskManager />}
@@ -503,7 +505,7 @@ export default function HomePage() {
         {activeTab === 'metricas'     && <ClientesMetricas onOpenLead={openLeadInCrm} />}
         {activeTab === 'automacao-ml' && <AutomacaoMLView />}
         {activeTab === 'crm'          && <CrmInbox openLeadId={crmOpenLeadId} view={crmView} onViewChange={setCrmView} />}
-        {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" onOpenLead={openLeadInCrm} />}
+        {activeTab === 'negotiations' && <KanbanBoard source="negotiations" title="Negociações" description="Visualize e gerencie suas negociações." taskLabel="negociação" countLabel="negociações" onOpenLead={openLeadInCrm} />}
         {activeTab === 'agenda'       && <AgendaView onOpenLeadInCrm={openLeadInCrm} />}
       </main>
 

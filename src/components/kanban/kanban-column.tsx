@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import type { Column as ColumnType } from '@/types'
+import type { Column as ColumnType, Task as TaskType } from '@/types'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { TaskCard } from './task-card'
 import { useCreateTask, useDeleteColumn, useUpdateColumn } from '@/hooks/api'
-import { Plus, MoreHorizontal, Trash2, Pencil, GripVertical, Check, X, ImagePlus, Palette } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash2, Pencil, GripVertical, Check, X, ImagePlus, Palette, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,11 +16,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ACTION_CLIENT_VALIDATION_DAYS,
+  buildActionClientDueDate,
+  buildActionClientTaskDescription,
+  parseActionClientTaskDescription,
+} from '@/lib/action-clients'
 
 interface KanbanColumnProps {
   column: ColumnType
   source?: string
   taskLabel?: string
+  assessoriaClients?: TaskType[]
   onOpenLead?: (leadId: string) => void
 }
 
@@ -93,13 +100,14 @@ function parseDateLocal(value: string) {
   return new Date(year, month - 1, day, 12, 0, 0).toISOString()
 }
 
-export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente', onOpenLead }: KanbanColumnProps) {
+export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente', assessoriaClients = [], onOpenLead }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
   const [newNegotiationService, setNewNegotiationService] = useState('')
   const [newNegotiationValue, setNewNegotiationValue] = useState('')
+  const [addingClientId, setAddingClientId] = useState<string | null>(null)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(column.title)
   const [editColumnColor, setEditColumnColor] = useState(column.color || getDefaultColumnTitleColor(column.title))
@@ -108,6 +116,16 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
   const deleteColumn = useDeleteColumn()
   const updateColumn = useUpdateColumn()
   const isNegotiationBoard = source === 'negotiations'
+  const isActionsBoard = source === 'acoes'
+  const isActionsValidationColumn = isActionsBoard && normalizeTitle(column.title) === 'validando novas acoes'
+  const actionClientsAlreadyInColumn = isActionsValidationColumn
+    ? new Set(column.tasks
+      .map((task) => parseActionClientTaskDescription(task.description)?.clientId)
+      .filter((clientId): clientId is string => Boolean(clientId)))
+    : new Set<string>()
+  const availableAssessoriaClients = isActionsValidationColumn
+    ? assessoriaClients.filter((client) => !actionClientsAlreadyInColumn.has(client.id))
+    : assessoriaClients
 
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `column-droppable-${column.id}`,
@@ -145,10 +163,39 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
     setNewTaskDueDate('')
     setNewNegotiationService('')
     setNewNegotiationValue('')
+    setAddingClientId(null)
     setIsAddingTask(false)
   }
 
-  const handleAddTask = () => {
+  const handleAddActionClient = async (client: TaskType) => {
+    if (!isActionsValidationColumn || createTask.isPending || addingClientId) return
+
+    const createdAt = new Date().toISOString()
+    const dueAt = buildActionClientDueDate(new Date(createdAt))
+    const actionTitle = newTaskTitle.trim() || 'Nova ação'
+
+    setAddingClientId(client.id)
+    try {
+      await createTask.mutateAsync({
+        title: client.title,
+        description: buildActionClientTaskDescription({
+          actionTitle,
+          clientId: client.id,
+          clientTitle: client.title,
+          createdAt,
+          dueAt,
+        }),
+        columnId: column.id,
+        dueDate: dueAt,
+        logoUrl: client.logoUrl || undefined,
+        source,
+      })
+    } finally {
+      setAddingClientId(null)
+    }
+  }
+
+  const handleAddTask = async () => {
     const title = newTaskTitle.trim()
     const service = newNegotiationService.trim()
     const negotiationValue = parseCurrencyInput(newNegotiationValue)
@@ -157,7 +204,9 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
     if (title && canCreateNegotiation) {
       createTask.mutate({
         title,
-        description: isNegotiationBoard ? `${service} · ${formatCurrency(negotiationValue)}` : undefined,
+        description: isNegotiationBoard
+          ? `${service} · ${formatCurrency(negotiationValue)}`
+          : undefined,
         columnId: column.id,
         dueDate: newTaskDueDate ? parseDateLocal(newTaskDueDate) : undefined,
         logoUrl: newTaskLogo || undefined,
@@ -352,13 +401,13 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
       <div ref={setDroppableRef} className="flex-1 p-3 space-y-2 min-h-[80px] overflow-y-auto max-h-[calc(100vh-260px)]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onOpenLead={onOpenLead} />
+            <TaskCard key={task.id} task={task} columnTitle={column.title} onOpenLead={onOpenLead} />
           ))}
         </SortableContext>
 
         {column.tasks.length === 0 && !isAddingTask && (
           <div className="flex items-center justify-center h-20 text-slate-600 text-sm">
-            {taskLabel === 'negociação' ? 'Nenhuma negociação' : 'Nenhum cliente'}
+            {isNegotiationBoard ? 'Nenhuma negociação' : isActionsBoard ? 'Nenhuma ação' : 'Nenhum cliente'}
           </div>
         )}
       </div>
@@ -371,13 +420,57 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddTask()
+                if (e.key === 'Enter' && !isActionsValidationColumn) handleAddTask()
                   if (e.key === 'Escape') resetAddTaskForm()
                 }}
-              placeholder={isNegotiationBoard ? 'Nome do cliente...' : `Nome ${taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
+              placeholder={isActionsValidationColumn ? 'Nome da ação (opcional)...' : isNegotiationBoard ? 'Nome do cliente...' : `Nome ${isActionsBoard || taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
               autoFocus
               className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
             />
+
+            {isActionsValidationColumn && (
+              <div
+                className="rounded-xl p-3"
+                style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.16)' }}
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-teal-200">
+                    <Users className="h-3.5 w-3.5" />
+                    Clientes da Assessoria
+                  </span>
+                  <span className="rounded-md bg-teal-400/10 px-2 py-0.5 text-[11px] font-bold text-teal-100 tabular-nums">
+                    {availableAssessoriaClients.length}
+                  </span>
+                </div>
+                <p className="mb-2 text-[11px] leading-relaxed text-white/45">
+                  Adicione um cliente por vez. O prazo de {ACTION_CLIENT_VALIDATION_DAYS} dias começa quando ele entrar na coluna.
+                </p>
+                {assessoriaClients.length === 0 ? (
+                  <p className="py-3 text-center text-[11px] text-white/35">Nenhum cliente ativo encontrado.</p>
+                ) : availableAssessoriaClients.length === 0 ? (
+                  <p className="py-3 text-center text-[11px] text-white/35">Todos os clientes ativos já estão nesta coluna.</p>
+                ) : (
+                  <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
+                    {availableAssessoriaClients.map((client) => (
+                      <div key={client.id} className="flex items-center gap-2 rounded-lg bg-white/[0.035] px-2.5 py-1.5">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-teal-400/10 text-[10px] font-bold text-teal-200">
+                          {client.title.charAt(0).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-white/75">{client.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleAddActionClient(client)}
+                          disabled={createTask.isPending || Boolean(addingClientId)}
+                          className="shrink-0 rounded-md bg-teal-400/10 px-2 py-1 text-[10px] font-bold text-teal-100 transition-colors hover:bg-teal-400/20 disabled:pointer-events-none disabled:opacity-45"
+                        >
+                          {addingClientId === client.id ? 'Adicionando' : 'Adicionar'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isNegotiationBoard && (
               <>
@@ -420,19 +513,20 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
               </>
             )}
 
-            {/* Logo upload */}
-            <div className="flex items-center gap-2.5">
-              <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] text-slate-400 hover:text-white text-xs font-medium w-full">
-                <ImagePlus className="w-3.5 h-3.5 shrink-0" />
-                {newTaskLogo ? 'Trocar logo' : 'Adicionar logo'}
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-              </label>
-              {newTaskLogo && (
-                <img src={newTaskLogo} alt="logo preview" className="w-8 h-8 rounded-lg object-cover border border-white/[0.1] shrink-0" />
-              )}
-            </div>
+            {!isActionsBoard && (
+              <div className="flex items-center gap-2.5">
+                <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] text-slate-400 hover:text-white text-xs font-medium w-full">
+                  <ImagePlus className="w-3.5 h-3.5 shrink-0" />
+                  {newTaskLogo ? 'Trocar logo' : 'Adicionar logo'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+                </label>
+                {newTaskLogo && (
+                  <img src={newTaskLogo} alt="logo preview" className="w-8 h-8 rounded-lg object-cover border border-white/[0.1] shrink-0" />
+                )}
+              </div>
+            )}
 
-            {!isNegotiationBoard && (
+            {!isNegotiationBoard && !isActionsBoard && (
               <div>
                 <label className="text-[11px] text-slate-500 font-medium mb-1 block">Encerramento do contrato</label>
                 <Input
@@ -445,17 +539,21 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
             )}
 
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleAddTask}
-                disabled={
-                  !newTaskTitle.trim()
-                  || (isNegotiationBoard && (!newNegotiationService.trim() || !newTaskDueDate || parseCurrencyInput(newNegotiationValue) <= 0))
-                }
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer rounded-lg"
-              >
-                Adicionar
-              </Button>
+              {!isActionsValidationColumn && (
+                <Button
+                  size="sm"
+                  onClick={handleAddTask}
+                  disabled={
+                    createTask.isPending
+                    ||
+                    !newTaskTitle.trim()
+                    || (isNegotiationBoard && (!newNegotiationService.trim() || !newTaskDueDate || parseCurrencyInput(newNegotiationValue) <= 0))
+                  }
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs cursor-pointer rounded-lg"
+                >
+                  Adicionar
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"

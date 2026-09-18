@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -24,21 +24,41 @@ import { Button } from '@/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChurnDragHandler } from '@/hooks/use-churn-drag'
 import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
+import { isChurnColumnTitle } from '@/lib/clientes'
+import {
+  buildActionClientDecisionDescription,
+  parseActionClientTaskDescription,
+} from '@/lib/action-clients'
+
+function normalizeColumnTitle(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+}
 
 export function KanbanBoard({
   source = 'kanban',
   title,
   description,
   taskLabel = 'cliente',
+  countLabel,
+  eyebrow = 'Pipeline comercial',
+  headerIcon: HeaderIcon = TrendingUp,
   onOpenLead,
 }: {
   source?: string
   title?: string
   description?: string
   taskLabel?: string
+  countLabel?: string
+  eyebrow?: string
+  headerIcon?: React.ElementType
   onOpenLead?: (leadId: string) => void
 }) {
   const { data: columns, isLoading } = useColumns(source)
+  const { data: assessoriaColumns } = useColumns('kanban')
   const createColumn = useCreateColumn(source)
   const reorderTasks = useReorderTasks()
   const reorderColumns = useReorderColumns()
@@ -50,6 +70,7 @@ export function KanbanBoard({
   const [newColumnTitle, setNewColumnTitle] = useState('')
   const [newColumnColor, setNewColumnColor] = useState(TITLE_COLOR_PRESETS[0])
   const [selectedColumnId, setSelectedColumnId] = useState('')
+  const [deadlineTick, setDeadlineTick] = useState(0)
 
   const selectedColumn = useMemo(
     () => (columns ?? []).find((column) => column.id === selectedColumnId) ?? null,
@@ -60,11 +81,80 @@ export function KanbanBoard({
     [columns, selectedColumn]
   )
   const showColumnFilter = source === 'kanban' && (columns?.length ?? 0) > 1
+  const assessoriaClients = useMemo(
+    () => source === 'acoes'
+      ? (assessoriaColumns ?? [])
+        .flatMap((column) => isChurnColumnTitle(column.title)
+          ? []
+          : column.tasks.filter((task) => !task.churnedAt))
+        .sort((first, second) => first.title.localeCompare(second.title, 'pt-BR'))
+      : [],
+    [assessoriaColumns, source]
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   )
+
+  useEffect(() => {
+    if (source !== 'acoes') return
+
+    const intervalId = window.setInterval(() => {
+      setDeadlineTick((current) => current + 1)
+    }, 60_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [source])
+
+  useEffect(() => {
+    if (source !== 'acoes' || !columns?.length || reorderTasks.isPending) return
+
+    const validationColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'validando novas acoes')
+    const decideColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'decidir')
+
+    const now = Date.now()
+    const expiredValidationTasks = validationColumn && decideColumn
+      ? validationColumn.tasks.filter((task) => {
+        const payload = parseActionClientTaskDescription(task.description)
+        if (!payload?.dueAt) return false
+        const dueTime = new Date(payload.dueAt).getTime()
+        return Number.isFinite(dueTime) && dueTime <= now
+      })
+      : []
+    if (expiredValidationTasks.length === 0) return
+
+    const decidedAt = new Date().toISOString()
+    const expiredValidationIds = new Set(expiredValidationTasks.map((task) => task.id))
+    const nextColumns = columns.map((column) => {
+      if (validationColumn && column.id === validationColumn.id) {
+        return { ...column, tasks: column.tasks.filter((task) => !expiredValidationIds.has(task.id)) }
+      }
+      if (decideColumn && column.id === decideColumn.id) {
+        return {
+          ...column,
+          tasks: [
+            ...column.tasks,
+            ...expiredValidationTasks.map((task) => ({
+              ...task,
+              columnId: decideColumn.id,
+              description: buildActionClientDecisionDescription(task.description, decidedAt),
+            })),
+          ],
+        }
+      }
+      return column
+    })
+
+    queryClient.setQueryData<Column[]>(['columns', source], nextColumns)
+    reorderTasks.mutate(nextColumns.flatMap((column) => (
+      column.tasks.map((task, index) => ({
+        id: task.id,
+        columnId: column.id,
+        order: (index + 1) * 1000,
+      }))
+    )))
+  }, [columns, deadlineTick, queryClient, reorderTasks, source])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
@@ -242,15 +332,17 @@ export function KanbanBoard({
           <header className="mf-negotiations-header shrink-0 flex items-center justify-between gap-4 px-6 py-5" aria-labelledby="negotiations-title">
             <div className="flex items-center gap-3 min-w-0">
               <div className="mf-negotiations-mark size-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
-                <TrendingUp className="size-5" />
+                <HeaderIcon className="size-5" />
               </div>
               <div className="min-w-0">
-                <p className="mf-eyebrow mb-1">Pipeline comercial</p>
+                <p className="mf-eyebrow mb-1">{eyebrow}</p>
                 <h1 id="negotiations-title" className="text-xl font-bold tracking-tight" style={{ color: 'var(--mf-ink)' }}>{title}</h1>
                 {description && <p className="text-xs mt-1" style={{ color: 'var(--mf-muted)' }}>{description}</p>}
               </div>
             </div>
-            <span className="mf-negotiations-count shrink-0 text-xs font-semibold tabular-nums">{(columns ?? []).reduce((total, column) => total + column.tasks.length, 0)} negociações</span>
+            <span className="mf-negotiations-count shrink-0 text-xs font-semibold tabular-nums">
+              {(columns ?? []).reduce((total, column) => total + column.tasks.length, 0)} {countLabel ?? taskLabel}
+            </span>
           </header>
         )}
         {showColumnFilter && (
@@ -304,7 +396,14 @@ export function KanbanBoard({
           <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {visibleColumns.map((column) => (
-              <KanbanColumn key={column.id} column={column} source={source} taskLabel={taskLabel} onOpenLead={onOpenLead} />
+              <KanbanColumn
+                key={column.id}
+                column={column}
+                source={source}
+                taskLabel={taskLabel}
+                assessoriaClients={assessoriaClients}
+                onOpenLead={onOpenLead}
+              />
             ))}
 
             {/* Add column */}

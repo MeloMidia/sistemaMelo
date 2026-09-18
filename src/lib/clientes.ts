@@ -4,7 +4,7 @@ import type { Task } from '@/types'
  * Palavras-chave que identificam uma coluna de encerramento/saída
  * nos quadros de Processos e Mentoria (ex: "Encerrado", "Cancelados").
  */
-export const CHURN_COLUMN_KEYWORDS = ['encerrado', 'cancelado', 'inativo', 'churned']
+export const CHURN_COLUMN_KEYWORDS = ['encerrado', 'cancelado', 'inativo', 'finalizou', 'finalizado', 'churned']
 
 export function isChurnColumnTitle(title: string): boolean {
   const normalized = title.toLowerCase()

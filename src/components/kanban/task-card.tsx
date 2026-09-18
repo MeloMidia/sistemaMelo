@@ -7,14 +7,35 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
   ImagePlus, Plus, ClipboardList, User, MessageCircle,
-  CheckCircle2, Clock
+  CheckCircle2, Clock, Users
 } from 'lucide-react'
 import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
+import {
+  buildActionClientCompletionDescription,
+  buildActionClientPracticeChecklistDescription,
+  buildActionClientPracticeActionsDescription,
+  getActionClientDaysRemaining,
+  getActionClientStageDaysElapsed,
+  normalizePracticeChecklist,
+  normalizePracticeActions,
+  parseActionClientsDescription,
+  parseActionClientTaskDescription,
+} from '@/lib/action-clients'
+import type { ActionClientPracticeAction } from '@/lib/action-clients'
 
 interface TaskCardProps {
   task: TaskType
+  columnTitle?: string
   onOpenLead?: (leadId: string) => void
+}
+
+function normalizeTitle(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('pt-BR')
 }
 
 // Extrai "YYYY-MM-DD" de um Date/string sem perder dia por timezone
@@ -76,14 +97,21 @@ function formatCurrency(value: number) {
   })
 }
 
-export function TaskCard({ task, onOpenLead }: TaskCardProps) {
+export function TaskCard({ task, columnTitle, onOpenLead }: TaskCardProps) {
   const isNegotiationCard = task.source === 'negotiations'
+  const isActionsCard = task.source === 'acoes'
+  const normalizedColumnTitle = normalizeTitle(columnTitle ?? '')
+  const isActionValidationCard = isActionsCard && normalizedColumnTitle === 'validando novas acoes'
+  const isActionDecisionCard = isActionsCard && normalizedColumnTitle === 'decidir'
+  const isActionAnalysisCard = isActionsCard && normalizedColumnTitle === 'em analise'
+  const isActionPracticeCard = isActionsCard && normalizedColumnTitle === 'quais acoes por em pratica'
+  const isActionExecutionCard = isActionsCard && normalizedColumnTitle === 'em pratica'
   const negotiationExpectedCloseAt = task.negotiation?.expectedCloseAt ?? (isNegotiationCard ? task.dueDate : null)
   // Card inline edit state
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDueDate, setEditDueDate] = useState(
-    toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : task.dueDate)
+    toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : isActionsCard ? null : task.dueDate)
   )
   const negotiationPreview = isNegotiationCard ? parseNegotiationPreview(task.description) : null
   const initialNegotiationValue = task.negotiation?.totalValue ?? parseCurrencyInput(negotiationPreview?.value ?? '')
@@ -100,14 +128,57 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
   const createTask = useCreateTask()
   const { data: columns } = useColumns('tasks')
   const { data: kanbanColumns } = useColumns()
+  const { data: actionColumns } = useColumns('acoes')
   const { data: cardTasks } = useKanbanCardTasks(task.id)
   const negotiationService = negotiationPreview?.service || task.description || 'Negociação criada a partir do lead'
   const negotiationValue = negotiationPreview?.value || ''
+  const actionClientTask = isActionsCard ? parseActionClientTaskDescription(task.description) : null
+  const actionClients = isActionsCard ? parseActionClientsDescription(task.description) : []
+  const actionDaysRemaining = isActionValidationCard
+    ? getActionClientDaysRemaining(actionClientTask?.dueAt ?? task.dueDate)
+    : null
+  const actionProgressDays = isActionDecisionCard
+    ? getActionClientStageDaysElapsed(actionClientTask?.decidedAt ?? actionClientTask?.dueAt ?? task.dueDate)
+    : isActionAnalysisCard
+      ? getActionClientStageDaysElapsed(actionClientTask?.analysisAt)
+      : isActionPracticeCard
+        ? getActionClientStageDaysElapsed(actionClientTask?.practiceAt ?? actionClientTask?.analysisAt)
+        : isActionExecutionCard
+          ? getActionClientStageDaysElapsed(actionClientTask?.executionAt ?? actionClientTask?.practiceAt)
+      : null
+  const actionTimingDay = actionProgressDays ?? actionDaysRemaining
+  const actionTimingTone = actionProgressDays !== null
+    ? actionProgressDays <= 2
+      ? 'green'
+      : actionProgressDays === 3
+        ? 'yellow'
+        : 'red'
+    : actionDaysRemaining !== null
+      ? actionDaysRemaining === 0
+        ? 'red'
+        : actionDaysRemaining <= 1
+          ? 'yellow'
+          : 'green'
+      : null
+  const actionTimingClass = actionTimingTone === 'red'
+    ? 'bg-red-500/10 text-red-400 border-red-500/15'
+    : actionTimingTone === 'yellow'
+      ? 'bg-amber-500/10 text-amber-300 border-amber-500/15'
+      : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/15'
+  const actionTimingLabel = actionProgressDays !== null
+    ? `Dia ${actionProgressDays}`
+    : actionDaysRemaining !== null
+      ? actionDaysRemaining === 0 ? 'Hoje' : `${actionDaysRemaining}d`
+      : null
 
   // Task creation modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [taskDesc, setTaskDesc] = useState('')
   const [taskDueDate, setTaskDueDate] = useState('')
+  const [practiceActions, setPracticeActions] = useState(() => normalizePracticeActions(actionClientTask?.practiceActions))
+  const [practiceChecklist, setPracticeChecklist] = useState<ActionClientPracticeAction[]>(
+    () => normalizePracticeChecklist(actionClientTask?.practiceActions)
+  )
 
   const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
   const completedCardTasks = (cardTasks ?? []).filter(t => t.completedAt)
@@ -156,7 +227,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
     updateTask.mutate({
       id: task.id,
       title: editTitle.trim(),
-      dueDate: editDueDate ? parseDateLocal(editDueDate) : null,
+      dueDate: !isActionsCard && editDueDate ? parseDateLocal(editDueDate) : null,
       logoUrl: editLogo,
       ...(isNegotiationCard ? {
         description: `${negotiationService} \u00b7 ${formatCurrency(nextNegotiationValue ?? 0)}`,
@@ -168,7 +239,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
 
   const handleCancel = () => {
     setEditTitle(task.title)
-    setEditDueDate(toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : task.dueDate))
+    setEditDueDate(toLocalDateString(isNegotiationCard ? negotiationExpectedCloseAt : isActionsCard ? null : task.dueDate))
     setEditNegotiationValue(String(task.negotiation?.totalValue ?? parseCurrencyInput(negotiationPreview?.value ?? '')))
     setEditLogo(task.logoUrl)
     setIsEditing(false)
@@ -186,15 +257,70 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
     updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })
   }
 
+  const handlePracticeActionChange = (index: number, value: string) => {
+    setPracticeActions((current) => current.map((action, actionIndex) => (
+      actionIndex === index ? value : action
+    )))
+  }
+
+  const handleSavePracticeActions = () => {
+    const description = buildActionClientPracticeActionsDescription(task.description, practiceActions)
+    if (!description) return
+
+    updateTask.mutate({
+      id: task.id,
+      description,
+    })
+  }
+
+  const handleCompletePracticeAction = (index: number) => {
+    if (!actionClientTask) return
+
+    const nextChecklist = practiceChecklist.map((action, actionIndex) => (
+      actionIndex === index
+        ? { ...action, completedAt: action.completedAt ? undefined : new Date().toISOString() }
+        : action
+    ))
+    setPracticeChecklist(nextChecklist)
+
+    const filledActions = nextChecklist.filter((action) => action.text.trim())
+    const allActionsCompleted = filledActions.length > 0 && filledActions.every((action) => action.completedAt)
+    if (!allActionsCompleted) {
+      const description = buildActionClientPracticeChecklistDescription(task.description, nextChecklist)
+      if (description) updateTask.mutate({ id: task.id, description })
+      return
+    }
+
+    const validationColumn = actionColumns?.find((column) => normalizeTitle(column.title) === 'validando novas acoes')
+    const description = buildActionClientCompletionDescription(task.description, new Date().toISOString())
+    if (!description || !validationColumn) return
+
+    const validationOrder = Math.max(0, ...validationColumn.tasks.map((validationTask) => validationTask.order)) + 1000
+    updateTask.mutate({
+      id: task.id,
+      description,
+      columnId: validationColumn.id,
+      order: validationOrder,
+    }, {
+      onSuccess: () => setModalOpen(false),
+    })
+  }
+
   // ── Modal open handler ────────────────────────────────
   const handleOpenModal = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest('button') || target.closest('input') || target.closest('textarea')) return
-    if (isEditing) return
+    if (isEditing || (isActionsCard && !isActionPracticeCard && !isActionExecutionCard)) return
+    if (isActionPracticeCard) {
+      setPracticeActions(normalizePracticeActions(actionClientTask?.practiceActions))
+    }
+    if (isActionExecutionCard) {
+      setPracticeChecklist(normalizePracticeChecklist(actionClientTask?.practiceActions))
+    }
     setModalOpen(true)
   }
 
-  const dueDate = isNegotiationCard ? null : (task.dueDate ? new Date(task.dueDate) : null)
+  const dueDate = isNegotiationCard || isActionsCard ? null : (task.dueDate ? new Date(task.dueDate) : null)
   const negotiationCloseDate = isNegotiationCard && negotiationExpectedCloseAt ? new Date(negotiationExpectedCloseAt) : null
   const isOverdue = dueDate && dueDate < new Date()
   const isNegotiationCloseOverdue = negotiationCloseDate && negotiationCloseDate < new Date()
@@ -233,7 +359,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
           opacity: isDragging ? 0.5 : 1,
           transition: 'box-shadow 0.2s ease, transform 0.15s ease, opacity 0.15s ease',
         }}
-        className={`group relative p-3.5 rounded-xl nm-card-hover ${!isEditing ? 'cursor-pointer' : ''}`}
+        className={`group relative p-3.5 rounded-xl nm-card-hover ${!isEditing && (!isActionsCard || isActionPracticeCard || isActionExecutionCard) ? 'cursor-pointer' : ''}`}
       >
         <div className="flex items-start gap-2.5">
           {/* Drag handle */}
@@ -252,6 +378,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
               /* ── Edit mode ── */
               <div className="space-y-2.5" onClick={(e) => e.stopPropagation()}>
                 {/* Logo edit */}
+                {!isActionsCard && (
                 <div className="flex items-center gap-3">
                   {editLogo ? (
                     <img
@@ -282,6 +409,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                   )}
                   <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
                 </div>
+                )}
 
                 {/* Title edit */}
                 <Input
@@ -291,7 +419,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                     if (e.key === 'Enter') handleSave()
                     if (e.key === 'Escape') handleCancel()
                   }}
-                  placeholder="Nome do cliente..."
+                  placeholder={isActionsCard ? 'Nome da ação...' : 'Nome do cliente...'}
                   autoFocus
                   className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white rounded-lg focus-visible:ring-1 focus-visible:ring-white/20"
                 />
@@ -312,6 +440,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                   </div>
                 )}
 
+                {!isActionsCard && (
                 <div>
                   <label className="text-[10px] text-slate-500 font-semibold mb-1 block uppercase tracking-wider">
                     {isNegotiationCard ? 'Previsão de fechamento' : 'Encerramento do contrato'}
@@ -323,6 +452,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                     className="h-8 text-sm bg-white/[0.04] border-white/[0.12] text-white [color-scheme:dark] rounded-lg"
                   />
                 </div>
+                )}
 
                 {/* Save / Cancel */}
                 <div className="flex gap-2 pt-0.5">
@@ -377,7 +507,18 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
 
                 {isNegotiationCard ? (
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{negotiationService}</p>
-                ) : task.description ? (
+                ) : isActionsCard && actionClients.length > 0 ? (
+                  <div className="mt-3 rounded-lg bg-teal-400/[0.06] px-2.5 py-2 ring-1 ring-teal-400/15">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-teal-200">
+                      <Users className="h-3 w-3" />
+                      {actionClients.length} clientes da Assessoria
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-white/45">
+                      {actionClients.slice(0, 4).map((client) => client.title).join(', ')}
+                      {actionClients.length > 4 ? ` +${actionClients.length - 4}` : ''}
+                    </p>
+                  </div>
+                ) : !isActionsCard && task.description ? (
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
                 ) : null}
 
@@ -409,6 +550,12 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                    {isActionsCard && actionClientTask && actionTimingDay !== null && actionTimingLabel && (
+                      <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${actionTimingClass}`}>
+                        <Clock className="w-3 h-3 shrink-0" />
+                        {actionTimingLabel}
+                      </span>
+                    )}
                     {dueDate && (
                       <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
                         isOverdue
@@ -425,7 +572,7 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                         Prioridade
                       </span>
                     )}
-                    {activeTasks.length > 0 && (
+                    {!isActionsCard && activeTasks.length > 0 && (
                       <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
                         <ClipboardList className="w-3 h-3 shrink-0" />
                         {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
@@ -518,7 +665,11 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                 <h2 className="text-lg font-bold text-white leading-tight truncate">{task.title}</h2>
                 {isNegotiationCard ? (
                   <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{negotiationService}</p>
-                ) : task.description ? (
+                ) : isActionPracticeCard ? (
+                  <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">Quais ações pôr em prática</p>
+                ) : isActionsCard && actionClients.length > 0 ? (
+                  <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{actionClients.length} clientes da Assessoria vinculados</p>
+                ) : !isActionsCard && task.description ? (
                   <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
                 ) : null}
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -534,6 +685,12 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                     }`}>
                       <Calendar className="w-3 h-3" />
                       Fecha {formatDateBR(negotiationCloseDate)}
+                    </span>
+                  )}
+                  {isActionsCard && actionClientTask && actionTimingDay !== null && actionTimingLabel && (
+                    <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${actionTimingClass}`}>
+                      <Clock className="w-3 h-3" />
+                      {actionTimingLabel}
                     </span>
                   )}
                   {!isNegotiationCard && dueDate && (
@@ -561,6 +718,169 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+              {isActionExecutionCard && actionClientTask ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-emerald-400/[0.055] p-4 ring-1 ring-emerald-400/15">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-200">Checklist de execucao</p>
+                        <p className="mt-1 text-sm font-semibold text-white">Conclua as acoes deste cliente</p>
+                      </div>
+                      {actionTimingLabel && (
+                        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold tabular-nums ${actionTimingClass}`}>
+                          {actionTimingLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed text-white/45">
+                      Ao finalizar todas as acoes, o cliente volta automaticamente para Validando novas acoes.
+                    </p>
+                  </div>
+
+                  {practiceChecklist.filter((action) => action.text.trim()).map((action) => {
+                    const index = practiceChecklist.indexOf(action)
+                    return (
+                      <div key={index} className={`flex items-center gap-3 rounded-2xl p-3 ring-1 transition-colors ${action.completedAt ? 'bg-emerald-400/[0.06] ring-emerald-400/20' : 'bg-white/[0.025] ring-white/[0.055]'}`}>
+                        <button
+                          type="button"
+                          onClick={() => handleCompletePracticeAction(index)}
+                          disabled={updateTask.isPending}
+                          className={`flex min-h-10 flex-1 items-center gap-3 rounded-xl px-2 text-left transition-colors disabled:pointer-events-none disabled:opacity-50 ${action.completedAt ? 'text-emerald-200' : 'text-white hover:bg-white/[0.04]'}`}
+                        >
+                          <CheckCircle2 className={`h-5 w-5 shrink-0 ${action.completedAt ? 'fill-emerald-400/20 text-emerald-300' : 'text-white/25'}`} />
+                          <span className={`text-sm leading-relaxed ${action.completedAt ? 'line-through opacity-70' : ''}`}>{action.text}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCompletePracticeAction(index)}
+                          disabled={updateTask.isPending}
+                          className={`min-h-10 shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-50 ${action.completedAt ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.05] text-white/45 hover:bg-emerald-400/10 hover:text-emerald-200'}`}
+                        >
+                          {action.completedAt ? 'Finalizado' : 'Finalizar'}
+                        </button>
+                      </div>
+                    )
+                  })}
+
+                  {practiceChecklist.every((action) => !action.text.trim()) && (
+                    <p className="rounded-xl bg-amber-400/[0.06] px-3 py-3 text-center text-xs text-amber-200/75 ring-1 ring-amber-400/15">
+                      Cadastre as acoes na etapa anterior para iniciar o checklist.
+                    </p>
+                  )}
+
+                  {(actionClientTask.completionHistory?.length ?? 0) > 0 && (
+                    <div className="border-t border-white/[0.06] pt-3">
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-white/35">Historico de conclusoes</p>
+                      <div className="space-y-1.5">
+                        {actionClientTask.completionHistory?.slice().reverse().map((record, index) => (
+                          <div key={`${record.completedAt}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.025] px-3 py-2 text-xs">
+                            <span className="text-white/65">Ciclo concluido</span>
+                            <span className="text-white/40">{formatDateBR(record.completedAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : isActionPracticeCard && actionClientTask ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-teal-400/[0.055] p-4 ring-1 ring-teal-400/15">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-teal-200">Ações para execução</p>
+                        <p className="mt-1 text-sm font-semibold text-white">{task.title}</p>
+                      </div>
+                      {actionTimingLabel && (
+                        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold tabular-nums ${actionTimingClass}`}>
+                          {actionTimingLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed text-white/45">
+                      Defina até três ações para colocar em prática com este cliente.
+                    </p>
+                  </div>
+
+                  {practiceActions.map((action, index) => (
+                    <label key={index} className="block rounded-2xl bg-white/[0.025] p-3 ring-1 ring-white/[0.055]">
+                      <span className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-white/45">
+                        {index + 1} - Ação
+                      </span>
+                      <textarea
+                        value={action}
+                        onChange={(event) => handlePracticeActionChange(index, event.target.value)}
+                        rows={2}
+                        className="min-h-16 w-full resize-none rounded-xl border border-white/[0.09] bg-white/[0.04] px-3 py-2 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-slate-600 focus:border-teal-300/40 focus:ring-2 focus:ring-teal-300/10"
+                        placeholder="Descreva a ação..."
+                      />
+                    </label>
+                  ))}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setPracticeActions(normalizePracticeActions(actionClientTask.practiceActions))}
+                      className="h-9 rounded-xl bg-white/[0.04] px-3 text-xs font-semibold text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                    >
+                      Desfazer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSavePracticeActions}
+                      disabled={updateTask.isPending}
+                      className="h-9 rounded-xl bg-teal-500/15 px-4 text-xs font-bold text-teal-100 ring-1 ring-teal-400/20 transition-colors hover:bg-teal-500/25 disabled:pointer-events-none disabled:opacity-45"
+                    >
+                      {updateTask.isPending ? 'Salvando...' : 'Salvar ações'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <>
+              {isActionsCard && actionClientTask && (
+                <div className="rounded-2xl bg-teal-400/[0.055] p-4 ring-1 ring-teal-400/15">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-teal-200">Ação em validação</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{actionClientTask.actionTitle}</p>
+                    </div>
+                    <span className={`rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums ${
+                      actionDaysRemaining === 0
+                        ? 'bg-red-500/10 text-red-300'
+                        : 'bg-teal-400/10 text-teal-100'
+                    }`}>
+                      {actionDaysRemaining === 0 ? 'Hoje' : `${actionDaysRemaining ?? 0}d`}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-white/45">
+                    Quando a contagem chegar a zero, este cliente vai automaticamente para a coluna Decidir.
+                  </p>
+                </div>
+              )}
+
+              {isActionsCard && actionClients.length > 0 && (
+                <div className="rounded-2xl bg-teal-400/[0.055] p-4 ring-1 ring-teal-400/15">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-teal-300" />
+                      <span className="text-sm font-semibold text-slate-200">Clientes da Assessoria</span>
+                    </div>
+                    <span className="rounded-lg bg-teal-400/10 px-2.5 py-1 text-xs font-bold text-teal-100 tabular-nums">
+                      {actionClients.length}
+                    </span>
+                  </div>
+                  <div className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                    {actionClients.map((client) => (
+                      <div key={client.id} className="flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.035] px-3 py-2 ring-1 ring-white/[0.04]">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 text-[11px] font-bold text-teal-200">
+                          {client.title.charAt(0).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 truncate text-sm font-medium text-white/75">{client.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="w-4 h-4 text-blue-400" />
@@ -622,6 +942,8 @@ export function TaskCard({ task, onOpenLead }: TaskCardProps) {
                     </div>
                   ))}
                 </div>
+              )}
+              </>
               )}
             </div>
           </div>
