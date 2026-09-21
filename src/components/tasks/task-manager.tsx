@@ -57,7 +57,7 @@ function toDateInputValue(date: Date | string | null | undefined): string {
   return `${y}-${m}-${day}`
 }
 
-const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Matheus', 'Higor']
+const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Guilherme', 'Higor']
 
 interface DroppableColumnProps {
   id: string
@@ -319,7 +319,7 @@ export function TaskManager() {
           {/* Column 4: Priority — ocupa a linha toda em 2 colunas, senão fica sozinha e estreita */}
           <DroppableColumn
             id="col-priority"
-            title="Tarefa do dia - Matheus"
+            title="Tarefa do dia - Guilherme"
             icon={Star}
             count={priorityTasks.length}
             tasks={priorityTasks}
