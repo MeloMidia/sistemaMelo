@@ -175,7 +175,8 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
 
     const createdAt = new Date().toISOString()
     const dueAt = buildActionClientDueDate(new Date(createdAt))
-    const actionTitle = newTaskTitle.trim() || 'Nova ação'
+    const actionTitle = newTaskTitle.trim()
+    if (!actionTitle) return
 
     setAddingClientId(client.id)
     try {
@@ -417,7 +418,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
 
       {/* Add task */}
       <div className="p-3 pt-0">
-        {isAddingTask ? (
+        {(!isActionsBoard || isActionsValidationColumn) && (isAddingTask ? (
           <div className="space-y-2.5">
             <Input
               value={newTaskTitle}
@@ -426,7 +427,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
                 if (e.key === 'Enter' && !isActionsValidationColumn) handleAddTask()
                   if (e.key === 'Escape') resetAddTaskForm()
                 }}
-              placeholder={isActionsValidationColumn ? 'Nome da ação (opcional)...' : isNegotiationBoard ? 'Nome do cliente...' : `Nome ${isActionsBoard || taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
+              placeholder={isActionsValidationColumn ? 'Nome da nova ação...' : isNegotiationBoard ? 'Nome do cliente...' : `Nome ${isActionsBoard || taskLabel === 'negociação' ? 'da' : 'do'} ${taskLabel}...`}
               autoFocus
               className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
             />
@@ -446,7 +447,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
                   </span>
                 </div>
                 <p className="mb-2 text-[11px] leading-relaxed text-white/45">
-                  Adicione um cliente por vez. O prazo de {ACTION_CLIENT_VALIDATION_DAYS} dias começa quando ele entrar na coluna.
+                  Informe a nova ação e adicione um cliente por vez. O prazo de {ACTION_CLIENT_VALIDATION_DAYS} dias começa quando ele entrar na coluna.
                 </p>
                 {assessoriaClients.length === 0 ? (
                   <p className="py-3 text-center text-[11px] text-white/35">Nenhum cliente ativo encontrado.</p>
@@ -463,7 +464,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
                         <button
                           type="button"
                           onClick={() => handleAddActionClient(client)}
-                          disabled={createTask.isPending || Boolean(addingClientId)}
+                          disabled={createTask.isPending || Boolean(addingClientId) || !newTaskTitle.trim()}
                           className="shrink-0 rounded-md bg-teal-400/10 px-2 py-1 text-[10px] font-bold text-teal-100 transition-colors hover:bg-teal-400/20 disabled:pointer-events-none disabled:opacity-45"
                         >
                           {addingClientId === client.id ? 'Adicionando' : 'Adicionar'}
@@ -575,7 +576,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
             <Plus className="w-4 h-4" />
             Nova {taskLabel}
           </button>
-        )}
+        ))}
       </div>
     </div>
   )

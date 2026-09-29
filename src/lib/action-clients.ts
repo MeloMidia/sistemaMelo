@@ -30,6 +30,7 @@ export interface ActionClientTaskPayload {
 }
 
 type ActionClientStageTimestamp = 'decidedAt' | 'analysisAt' | 'practiceAt' | 'executionAt'
+export type ActionClientProgressStage = 'decision' | 'analysis' | 'practice' | 'execution'
 
 export function buildActionClientsDescription(clients: ActionClientSnapshot[]) {
   return `${ACTION_CLIENTS_PREFIX}${JSON.stringify(clients.map((client) => ({
@@ -59,6 +60,20 @@ export function parseActionClientsDescription(description: string | null | undef
 
 export function buildActionClientTaskDescription(payload: ActionClientTaskPayload) {
   return `${ACTION_CLIENT_TASK_PREFIX}${JSON.stringify(payload)}`
+}
+
+export function buildActionClientActionTitleDescription(
+  description: string | null | undefined,
+  actionTitle: string
+) {
+  const payload = parseActionClientTaskDescription(description)
+  const normalizedTitle = actionTitle.trim()
+  if (!payload || !normalizedTitle) return description ?? null
+
+  return buildActionClientTaskDescription({
+    ...payload,
+    actionTitle: normalizedTitle,
+  })
 }
 
 export function parseActionClientTaskDescription(description: string | null | undefined): ActionClientTaskPayload | null {
@@ -161,6 +176,31 @@ export function getActionClientDecisionDays(decidedAt: string | null | undefined
 
 export function getActionClientStageDaysElapsed(startedAt: string | null | undefined) {
   return getActionClientDecisionDays(startedAt)
+}
+
+export function getActionClientStageStart(
+  stage: ActionClientProgressStage,
+  payload: ActionClientTaskPayload | null,
+  fallback: string
+) {
+  if (stage === 'decision') {
+    return payload?.decidedAt ?? payload?.dueAt ?? payload?.createdAt ?? fallback
+  }
+
+  if (stage === 'analysis') {
+    return payload?.analysisAt ?? payload?.decidedAt ?? payload?.createdAt ?? fallback
+  }
+
+  if (stage === 'practice') {
+    return payload?.practiceAt ?? payload?.analysisAt ?? payload?.decidedAt ?? payload?.createdAt ?? fallback
+  }
+
+  return payload?.executionAt
+    ?? payload?.practiceAt
+    ?? payload?.analysisAt
+    ?? payload?.decidedAt
+    ?? payload?.createdAt
+    ?? fallback
 }
 
 export function normalizePracticeChecklist(actions: Array<string | ActionClientPracticeAction> | null | undefined) {

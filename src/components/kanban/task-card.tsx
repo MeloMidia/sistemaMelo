@@ -12,11 +12,14 @@ import {
 import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 import {
+  buildActionClientActionTitleDescription,
   buildActionClientCompletionDescription,
   buildActionClientPracticeChecklistDescription,
   buildActionClientPracticeActionsDescription,
+  buildActionClientDueDate,
   getActionClientDaysRemaining,
   getActionClientStageDaysElapsed,
+  getActionClientStageStart,
   normalizePracticeChecklist,
   normalizePracticeActions,
   parseActionClientsDescription,
@@ -131,17 +134,26 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
   const actionClientTask = isActionsCard ? parseActionClientTaskDescription(task.description) : null
   const actionClients = isActionsCard ? parseActionClientsDescription(task.description) : []
   const actionDaysRemaining = isActionValidationCard
-    ? getActionClientDaysRemaining(actionClientTask?.dueAt ?? task.dueDate)
+    ? getActionClientDaysRemaining(
+      actionClientTask?.dueAt
+      ?? task.dueDate
+      ?? buildActionClientDueDate(new Date(task.createdAt))
+    )
     : null
-  const actionProgressDays = isActionDecisionCard
-    ? getActionClientStageDaysElapsed(actionClientTask?.decidedAt ?? actionClientTask?.dueAt ?? task.dueDate)
+  const actionProgressStage = isActionDecisionCard
+    ? 'decision'
     : isActionAnalysisCard
-      ? getActionClientStageDaysElapsed(actionClientTask?.analysisAt)
+      ? 'analysis'
       : isActionPracticeCard
-        ? getActionClientStageDaysElapsed(actionClientTask?.practiceAt ?? actionClientTask?.analysisAt)
+        ? 'practice'
         : isActionExecutionCard
-          ? getActionClientStageDaysElapsed(actionClientTask?.executionAt ?? actionClientTask?.practiceAt)
-      : null
+          ? 'execution'
+          : null
+  const actionProgressDays = actionProgressStage
+    ? getActionClientStageDaysElapsed(
+      getActionClientStageStart(actionProgressStage, actionClientTask, task.createdAt)
+    )
+    : null
   const actionTimingDay = actionProgressDays ?? actionDaysRemaining
   const actionTimingTone = actionProgressDays !== null
     ? actionProgressDays <= 2
@@ -170,6 +182,7 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
   // Task creation modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [taskDesc, setTaskDesc] = useState('')
+  const [actionTitle, setActionTitle] = useState(actionClientTask?.actionTitle ?? '')
   const [taskDueDate, setTaskDueDate] = useState('')
   const [practiceActions, setPracticeActions] = useState(() => normalizePracticeActions(actionClientTask?.practiceActions))
   const [practiceChecklist, setPracticeChecklist] = useState<ActionClientPracticeAction[]>(
@@ -269,6 +282,18 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
     })
   }
 
+  const handleSaveActionTitle = () => {
+    const description = buildActionClientActionTitleDescription(task.description, actionTitle)
+    if (!description || !actionTitle.trim()) return
+
+    updateTask.mutate({
+      id: task.id,
+      description,
+    }, {
+      onSuccess: () => setModalOpen(false),
+    })
+  }
+
   const handleCompletePracticeAction = (index: number) => {
     if (!actionClientTask) return
 
@@ -306,7 +331,10 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
   const handleOpenModal = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest('button') || target.closest('input') || target.closest('textarea')) return
-    if (isEditing || (isActionsCard && !isActionPracticeCard && !isActionExecutionCard)) return
+    if (isEditing || (isActionsCard && !isActionDecisionCard && !isActionPracticeCard && !isActionExecutionCard)) return
+    if (isActionDecisionCard) {
+      setActionTitle(actionClientTask?.actionTitle ?? '')
+    }
     if (isActionPracticeCard) {
       setPracticeActions(normalizePracticeActions(actionClientTask?.practiceActions))
     }
@@ -503,6 +531,8 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
 
                 {isNegotiationCard ? (
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{negotiationService}</p>
+                ) : isActionsCard && actionClientTask ? (
+                  <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{actionClientTask.actionTitle}</p>
                 ) : isActionsCard && actionClients.length > 0 ? (
                   <div className="mt-3 rounded-lg bg-teal-400/[0.06] px-2.5 py-2 ring-1 ring-teal-400/15">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-teal-200">
@@ -546,7 +576,7 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                    {isActionsCard && actionClientTask && actionTimingDay !== null && actionTimingLabel && (
+                    {isActionsCard && actionTimingDay !== null && actionTimingLabel && (
                       <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${actionTimingClass}`}>
                         <Clock className="w-3 h-3 shrink-0" />
                         {actionTimingLabel}
@@ -714,7 +744,35 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-              {isActionExecutionCard && actionClientTask ? (
+              {isActionDecisionCard && actionClientTask ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-amber-400/[0.055] p-4 ring-1 ring-amber-400/15">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-200">Definir nova ação</p>
+                    <p className="mt-1 text-sm leading-relaxed text-white/55">
+                      Confirme o que será analisado para este cliente antes de avançar para Em análise.
+                    </p>
+                  </div>
+                  <label className="block rounded-2xl bg-white/[0.025] p-3 ring-1 ring-white/[0.055]">
+                    <span className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-white/45">Ação</span>
+                    <Input
+                      value={actionTitle}
+                      onChange={(event) => setActionTitle(event.target.value)}
+                      placeholder="Descreva a nova ação..."
+                      className="h-11 rounded-xl border-white/[0.09] bg-white/[0.04] text-sm text-white placeholder:text-slate-600"
+                    />
+                  </label>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveActionTitle}
+                      disabled={updateTask.isPending || !actionTitle.trim()}
+                      className="h-9 rounded-xl bg-amber-500/15 px-4 text-xs font-bold text-amber-100 ring-1 ring-amber-400/20 transition-colors hover:bg-amber-500/25 disabled:pointer-events-none disabled:opacity-45"
+                    >
+                      {updateTask.isPending ? 'Salvando...' : 'Salvar nova ação'}
+                    </button>
+                  </div>
+                </div>
+              ) : isActionExecutionCard && actionClientTask ? (
                 <div className="space-y-3">
                   <div className="rounded-2xl bg-emerald-400/[0.055] p-4 ring-1 ring-emerald-400/15">
                     <div className="mb-3 flex items-center justify-between gap-3">
