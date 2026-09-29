@@ -22,11 +22,13 @@ import {
   buildActionClientTaskDescription,
   parseActionClientTaskDescription,
 } from '@/lib/action-clients'
+import { getActionStage, type ActionStage } from '@/lib/action-stages'
 
 interface KanbanColumnProps {
   column: ColumnType
   source?: string
   taskLabel?: string
+  actionStage?: ActionStage
   assessoriaClients?: TaskType[]
   onOpenLead?: (leadId: string) => void
 }
@@ -100,7 +102,7 @@ function parseDateLocal(value: string) {
   return new Date(year, month - 1, day, 12, 0, 0).toISOString()
 }
 
-export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente', assessoriaClients = [], onOpenLead }: KanbanColumnProps) {
+export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente', actionStage, assessoriaClients = [], onOpenLead }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
@@ -117,7 +119,8 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
   const updateColumn = useUpdateColumn()
   const isNegotiationBoard = source === 'negotiations'
   const isActionsBoard = source === 'acoes'
-  const isActionsValidationColumn = isActionsBoard && normalizeTitle(column.title) === 'validando novas acoes'
+  const resolvedActionStage = isActionsBoard ? actionStage ?? getActionStage(column) : null
+  const isActionsValidationColumn = resolvedActionStage === 'validation'
   const actionClientsAlreadyInColumn = isActionsValidationColumn
     ? new Set(column.tasks
       .map((task) => parseActionClientTaskDescription(task.description)?.clientId)
@@ -401,7 +404,7 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
       <div ref={setDroppableRef} className="flex-1 p-3 space-y-2 min-h-[80px] overflow-y-auto max-h-[calc(100vh-260px)]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} columnTitle={column.title} onOpenLead={onOpenLead} />
+            <TaskCard key={task.id} task={task} columnTitle={column.title} actionStage={resolvedActionStage ?? undefined} onOpenLead={onOpenLead} />
           ))}
         </SortableContext>
 

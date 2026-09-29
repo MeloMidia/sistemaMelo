@@ -23,19 +23,13 @@ import {
   parseActionClientTaskDescription,
 } from '@/lib/action-clients'
 import type { ActionClientPracticeAction } from '@/lib/action-clients'
+import { getActionStage, getActionStageFromTitle, type ActionStage } from '@/lib/action-stages'
 
 interface TaskCardProps {
   task: TaskType
   columnTitle?: string
+  actionStage?: ActionStage
   onOpenLead?: (leadId: string) => void
-}
-
-function normalizeTitle(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase('pt-BR')
 }
 
 // Extrai "YYYY-MM-DD" de um Date/string sem perder dia por timezone
@@ -97,15 +91,17 @@ function formatCurrency(value: number) {
   })
 }
 
-export function TaskCard({ task, columnTitle, onOpenLead }: TaskCardProps) {
+export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCardProps) {
   const isNegotiationCard = task.source === 'negotiations'
   const isActionsCard = task.source === 'acoes'
-  const normalizedColumnTitle = normalizeTitle(columnTitle ?? '')
-  const isActionValidationCard = isActionsCard && normalizedColumnTitle === 'validando novas acoes'
-  const isActionDecisionCard = isActionsCard && normalizedColumnTitle === 'decidir'
-  const isActionAnalysisCard = isActionsCard && normalizedColumnTitle === 'em analise'
-  const isActionPracticeCard = isActionsCard && normalizedColumnTitle === 'quais acoes por em pratica'
-  const isActionExecutionCard = isActionsCard && normalizedColumnTitle === 'em pratica'
+  const resolvedActionStage = isActionsCard
+    ? actionStage ?? getActionStageFromTitle(columnTitle ?? '')
+    : null
+  const isActionValidationCard = resolvedActionStage === 'validation'
+  const isActionDecisionCard = resolvedActionStage === 'decision'
+  const isActionAnalysisCard = resolvedActionStage === 'analysis'
+  const isActionPracticeCard = resolvedActionStage === 'practice'
+  const isActionExecutionCard = resolvedActionStage === 'execution'
   const negotiationExpectedCloseAt = task.negotiation?.expectedCloseAt ?? (isNegotiationCard ? task.dueDate : null)
   // Card inline edit state
   const [isEditing, setIsEditing] = useState(false)
@@ -291,7 +287,7 @@ export function TaskCard({ task, columnTitle, onOpenLead }: TaskCardProps) {
       return
     }
 
-    const validationColumn = actionColumns?.find((column) => normalizeTitle(column.title) === 'validando novas acoes')
+    const validationColumn = actionColumns?.find((column) => getActionStage(column, actionColumns) === 'validation')
     const description = buildActionClientCompletionDescription(task.description, new Date().toISOString())
     if (!description || !validationColumn) return
 

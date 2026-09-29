@@ -29,14 +29,7 @@ import {
   buildActionClientDecisionDescription,
   parseActionClientTaskDescription,
 } from '@/lib/action-clients'
-
-function normalizeColumnTitle(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase('pt-BR')
-}
+import { getActionStage } from '@/lib/action-stages'
 
 export function KanbanBoard({
   source = 'kanban',
@@ -110,8 +103,8 @@ export function KanbanBoard({
   useEffect(() => {
     if (source !== 'acoes' || !columns?.length || reorderTasks.isPending) return
 
-    const validationColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'validando novas acoes')
-    const decideColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'decidir')
+    const validationColumn = columns.find((column) => getActionStage(column, columns) === 'validation')
+    const decideColumn = columns.find((column) => getActionStage(column, columns) === 'decision')
 
     const now = Date.now()
     const expiredValidationTasks = validationColumn && decideColumn
@@ -401,6 +394,7 @@ export function KanbanBoard({
                 column={column}
                 source={source}
                 taskLabel={taskLabel}
+                actionStage={source === 'acoes' ? getActionStage(column, columns ?? []) ?? undefined : undefined}
                 assessoriaClients={assessoriaClients}
                 onOpenLead={onOpenLead}
               />
@@ -507,7 +501,12 @@ export function KanbanBoard({
       <DragOverlay>
         {activeTask ? (
           <div className="w-[290px] opacity-90">
-            <TaskCard task={activeTask} />
+            <TaskCard
+              task={activeTask}
+              actionStage={source === 'acoes'
+                ? getActionStage((columns ?? []).find((column) => column.id === activeTask.columnId) ?? { title: '' }, columns ?? []) ?? undefined
+                : undefined}
+            />
           </div>
         ) : null}
       </DragOverlay>

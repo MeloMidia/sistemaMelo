@@ -8,6 +8,7 @@ import {
   buildActionClientPracticeDescription,
   parseActionClientTaskDescription,
 } from '@/lib/action-clients'
+import { getActionStage } from '@/lib/action-stages'
 
 const NEGOTIATIONS_SOURCE = 'negotiations'
 const NEGOTIATION_STAGES = ['Não atribuídas', 'Em negociação', 'Ganho', 'Perdido']
@@ -17,14 +18,6 @@ const NEGOTIATION_STAGE_COLORS = ['#60a5fa', '#f59e0b', '#22c55e', '#ef4444']
 const ACTIONS_SOURCE = 'acoes'
 const ACTION_STAGES = ['Validando novas ações', 'Decidir', 'Em análise', 'Quais ações pôr em prática', 'Em prática']
 const ACTION_STAGE_COLORS = ['#60a5fa', '#f59e0b', '#8b5cf6', '#14b8a6', '#22c55e']
-
-function normalizeColumnTitle(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase('pt-BR')
-}
 
 async function ensureBoard(source: string, stages: string[], colors: string[]) {
   const existingCount = await prisma.column.count({ where: { source } })
@@ -47,10 +40,10 @@ async function advanceExpiredActionClients() {
     orderBy: { order: 'asc' },
   })
 
-  const validationColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'validando novas acoes')
-  const decideColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'decidir')
-  const analysisColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'em analise')
-  const practiceColumn = columns.find((column) => normalizeColumnTitle(column.title) === 'quais acoes por em pratica')
+  const validationColumn = columns.find((column) => getActionStage(column, columns) === 'validation')
+  const decideColumn = columns.find((column) => getActionStage(column, columns) === 'decision')
+  const analysisColumn = columns.find((column) => getActionStage(column, columns) === 'analysis')
+  const practiceColumn = columns.find((column) => getActionStage(column, columns) === 'practice')
 
   const now = Date.now()
   const nowIso = new Date().toISOString()
