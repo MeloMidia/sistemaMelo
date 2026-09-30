@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkPromoExpirations } from '@/lib/promo-notify'
 import { daysBetweenDateStrings, toDateOnlyString, todayBrazilDateString } from '@/lib/clientes'
+import { getConnectionState, fetchAllGroups } from '@/lib/evolution-client'
 
 /**
- * Rota de uso único: roda checkPromoExpirations() fora do try/catch que o
- * cron usa pra nunca quebrar o envio de campanha — aqui o erro real (se
- * houver) aparece na resposta, em vez de só no log do servidor.
- * Protegida por sessão. Remover depois de usar.
+ * Rota de uso único: diagnostica por que o aviso de promoção vencendo (que
+ * já disparou "notified: 5" com sucesso do lado da Evolution API) pode não
+ * ter chegado de fato no grupo — confere se a instância está conectada e se
+ * o JID configurado em EVOLUTION_NOTIFY_GROUP_JID bate com algum grupo real
+ * que a instância enxerga. Não reenvia a mensagem. Protegida por sessão.
+ * Remover depois de usar.
  */
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -30,17 +32,22 @@ export async function GET() {
     })
     .filter((t) => t.daysLeft <= 3)
 
+  const out: Record<string, unknown> = { jidMasked, todayStr, tasksAtivos: tasks.length, atRisk }
+
   try {
-    const result = await checkPromoExpirations()
-    return NextResponse.json({ ok: true, jidMasked, todayStr, tasksAtivos: tasks.length, atRisk, result })
+    out.connection = await getConnectionState()
   } catch (err) {
-    return NextResponse.json({
-      ok: false,
-      jidMasked,
-      todayStr,
-      tasksAtivos: tasks.length,
-      atRisk,
-      error: err instanceof Error ? err.message : String(err),
-    }, { status: 500 })
+    out.connectionError = err instanceof Error ? err.message : String(err)
   }
+
+  try {
+    const groups = await fetchAllGroups()
+    out.groupsCount = groups.length
+    out.groupMatch = groups.find((g) => g.id === jid) ?? null
+    out.groupsSample = groups.slice(0, 15).map((g) => ({ id: g.id, subject: g.subject, size: g.size }))
+  } catch (err) {
+    out.groupsError = err instanceof Error ? err.message : String(err)
+  }
+
+  return NextResponse.json(out)
 }

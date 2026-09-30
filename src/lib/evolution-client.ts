@@ -46,6 +46,19 @@ export async function getConnectionState(): Promise<ConnectionStateResult> {
   return res.json()
 }
 
+export interface GroupSummary {
+  id: string
+  subject?: string
+  size?: number
+}
+
+export async function fetchAllGroups(): Promise<GroupSummary[]> {
+  const res = await evolutionRequest(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`)
+  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
+}
+
 export interface QrCodeResult {
   base64?: string
 }
