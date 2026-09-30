@@ -58,8 +58,8 @@ const THEME_COOKIE_KEY = 'mf-theme'
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 const OPERACIONAL = [
-  { id: 'kanban',       icon: LayoutDashboard, label: 'Processos',    color: '#2854DF' },
-  { id: 'mentoria',     icon: GraduationCap,   label: 'Mentoria',     color: '#2854DF' },
+  { id: 'kanban',       icon: LayoutDashboard, label: 'Decola',       color: '#2854DF' },
+  { id: 'mentoria',     icon: GraduationCap,   label: 'Evolução',     color: '#2854DF' },
   { id: 'acoes',        icon: ClipboardCheck,  label: 'Ações',        color: '#14b8a6' },
   { id: 'clientes',     icon: Building2,       label: 'PromoADS',     color: '#2854DF' },
   { id: 'carteira',     icon: Briefcase,       label: 'Carteira',     color: '#2854DF' },
