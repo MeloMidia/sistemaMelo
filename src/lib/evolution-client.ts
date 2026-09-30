@@ -53,7 +53,10 @@ export interface GroupSummary {
 }
 
 export async function fetchAllGroups(): Promise<GroupSummary[]> {
-  const res = await evolutionRequest(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`)
+  // Instâncias com muitos grupos demoram mais que o timeout padrão de 10s.
+  const res = await evolutionRequest(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`, {
+    signal: AbortSignal.timeout(30_000),
+  })
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : []

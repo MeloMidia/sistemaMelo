@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { daysBetweenDateStrings, toDateOnlyString, todayBrazilDateString } from '@/lib/clientes'
 import { getConnectionState, fetchAllGroups } from '@/lib/evolution-client'
 
+export const maxDuration = 60
+
 /**
  * Rota de uso único: diagnostica por que o aviso de promoção vencendo (que
  * já disparou "notified: 5" com sucesso do lado da Evolution API) pode não
