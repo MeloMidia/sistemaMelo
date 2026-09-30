@@ -250,17 +250,20 @@ export function TaskManager() {
   }
 
   return (
-    <div className="mf-workspace flex-1 p-4 md:p-6 overflow-y-auto">
+    <div className="mf-workspace @container/tasks flex-1 p-4 md:p-6 overflow-y-auto">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* 3-column grid — só chega a 3 colunas a partir de xl (1280px);
-            entre md e xl fica em 2, senão fica muito apertado em monitores
-            menores/antigos (a sidebar de 220px já come parte da largura). */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 xl:gap-6 min-h-[500px]">
+        {/* 3-column grid — reage ao espaço disponível de verdade (container
+            query), não à largura da janela inteira. Breakpoint por viewport
+            (md/xl) ignorava os 220px da sidebar; num notebook de 13-14"
+            (1366-1440px, geralmente com escala do Windows em 125-150%) isso
+            fazia o board virar 3 colunas com espaço real de sobra bem menor
+            do que o cálculo por viewport assumia. */}
+        <div className="grid grid-cols-1 @[640px]/tasks:grid-cols-2 @[960px]/tasks:grid-cols-3 gap-4 @[640px]/tasks:gap-5 @[960px]/tasks:gap-6 min-h-[500px]">
           {/* Column 1: Task Queue */}
           <DroppableColumn
             id="col-queue"
@@ -328,7 +331,7 @@ export function TaskManager() {
             borderClass="border-amber-500/15"
             bgClass="bg-amber-500/[0.02]"
             headerClass="border-amber-500/15 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-amber-100"
-            className="md:col-span-2 xl:col-span-1"
+            className="@[640px]/tasks:col-span-2 @[960px]/tasks:col-span-1"
           >
             {priorityTasks.map((task) => (
               <DraggableTask key={task.id} task={task}>
@@ -403,7 +406,7 @@ export function TaskManager() {
                 <p className="text-sm font-medium">Nenhuma tarefa concluída nos últimos 30 dias</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 @[520px]/tasks:grid-cols-2 @[820px]/tasks:grid-cols-3 gap-2.5">
                 {completedTasks.map((task) => (
                   <HistoryItem key={task.id} task={task} />
                 ))}
