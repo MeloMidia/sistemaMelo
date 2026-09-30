@@ -46,20 +46,18 @@ export async function getConnectionState(): Promise<ConnectionStateResult> {
   return res.json()
 }
 
-export interface GroupSummary {
+export interface GroupInfoResult {
   id: string
   subject?: string
   size?: number
+  desc?: string
 }
 
-export async function fetchAllGroups(): Promise<GroupSummary[]> {
-  // Instâncias com muitos grupos demoram mais que o timeout padrão de 10s.
-  const res = await evolutionRequest(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`, {
-    signal: AbortSignal.timeout(30_000),
-  })
+/** Consulta um único grupo pelo JID — bem mais rápido que listar todos. */
+export async function getGroupInfo(groupJid: string): Promise<GroupInfoResult> {
+  const res = await evolutionRequest(`/group/findGroupInfos/${INSTANCE}?groupJid=${encodeURIComponent(groupJid)}`)
   if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
-  const data = await res.json()
-  return Array.isArray(data) ? data : []
+  return res.json()
 }
 
 export interface QrCodeResult {

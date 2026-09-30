@@ -3,17 +3,17 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { daysBetweenDateStrings, toDateOnlyString, todayBrazilDateString } from '@/lib/clientes'
-import { getConnectionState, fetchAllGroups } from '@/lib/evolution-client'
+import { getConnectionState, getGroupInfo } from '@/lib/evolution-client'
 
 export const maxDuration = 60
 
 /**
  * Rota de uso único: diagnostica por que o aviso de promoção vencendo (que
  * já disparou "notified: 5" com sucesso do lado da Evolution API) pode não
- * ter chegado de fato no grupo — confere se a instância está conectada e se
- * o JID configurado em EVOLUTION_NOTIFY_GROUP_JID bate com algum grupo real
- * que a instância enxerga. Não reenvia a mensagem. Protegida por sessão.
- * Remover depois de usar.
+ * ter chegado de fato no grupo. fetchAllGroups (listar todos os grupos)
+ * estava estourando timeout mesmo em 30s — troca por uma consulta direta
+ * ao JID configurado (bem mais leve/rápida). Não manda nenhuma mensagem.
+ * Protegida por sessão. Remover depois de usar.
  */
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -42,13 +42,12 @@ export async function GET() {
     out.connectionError = err instanceof Error ? err.message : String(err)
   }
 
-  try {
-    const groups = await fetchAllGroups()
-    out.groupsCount = groups.length
-    out.groupMatch = groups.find((g) => g.id === jid) ?? null
-    out.groupsSample = groups.slice(0, 15).map((g) => ({ id: g.id, subject: g.subject, size: g.size }))
-  } catch (err) {
-    out.groupsError = err instanceof Error ? err.message : String(err)
+  if (jid) {
+    try {
+      out.groupInfo = await getGroupInfo(jid)
+    } catch (err) {
+      out.groupInfoError = err instanceof Error ? err.message : String(err)
+    }
   }
 
   return NextResponse.json(out)
