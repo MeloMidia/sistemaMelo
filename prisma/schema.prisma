@@ -121,6 +121,14 @@ model RevenueOverride {
   @@unique([periodStart, periodEnd])
 }
 
+// Nome de exibição customizado pra cada coluna de responsável da Carteira
+// (a chave interna, usada como valor de Task.assignee, continua fixa —
+// só o texto mostrado na tela é editável).
+model ResponsavelLabel {
+  key   String @id
+  label String
+}
+
 model SdrDailyLog {
   id            String   @id @default(cuid())
   date          DateTime @unique

@@ -80,6 +80,35 @@ export function useReorderColumns() {
   })
 }
 
+// ——— Responsáveis (Carteira) ———
+export function useResponsavelLabels() {
+  return useQuery<{ key: string; label: string }[]>({
+    queryKey: ['responsavel-labels'],
+    queryFn: async () => {
+      const res = await fetch('/api/carteira/responsaveis')
+      if (!res.ok) throw new Error('Failed to fetch responsavel labels')
+      return res.json()
+    },
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateResponsavelLabel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ key, label }: { key: string; label: string }) => {
+      const res = await fetch('/api/carteira/responsaveis', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, label }),
+      })
+      if (!res.ok) throw new Error('Failed to update responsavel label')
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['responsavel-labels'] }),
+  })
+}
+
 // ——— Tasks ———
 export function useAllTasks() {
   return useQuery<Task[]>({

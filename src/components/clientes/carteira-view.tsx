@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -14,9 +14,9 @@ import {
   useDraggable,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { useColumns, useUpdateTask } from '@/hooks/api'
+import { useColumns, useUpdateTask, useResponsavelLabels, useUpdateResponsavelLabel } from '@/hooks/api'
 import type { Task } from '@/types'
-import { Loader2, Users } from 'lucide-react'
+import { Loader2, Pencil, Users } from 'lucide-react'
 import { isChurnColumnTitle } from '@/lib/clientes'
 
 // ── Responsáveis ──────────────────────────────────────────────────────────────
@@ -91,16 +91,73 @@ function ClientCardStatic({ task }: { task: Task }) {
   )
 }
 
+// ── Nome editável ─────────────────────────────────────────────────────────────
+
+function EditableName({
+  label,
+  onSave,
+}: {
+  label: string
+  onSave: (value: string) => void
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [value, setValue] = useState(label)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing) inputRef.current?.select()
+  }, [isEditing])
+
+  function commit() {
+    setIsEditing(false)
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== label) onSave(trimmed)
+    else setValue(label)
+  }
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit() }
+          if (e.key === 'Escape') { setValue(label); setIsEditing(false) }
+        }}
+        className="text-sm font-semibold text-white bg-white/[0.06] rounded-md px-1.5 py-0.5 -mx-1.5 outline-none ring-1 ring-white/20 w-full"
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => { setValue(label); setIsEditing(true) }}
+      className="group/name flex items-center gap-1.5 text-left min-w-0"
+      title="Clique para editar o nome"
+    >
+      <p className="text-sm font-semibold text-white truncate">{label}</p>
+      <Pencil className="w-3 h-3 text-slate-600 opacity-0 group-hover/name:opacity-100 shrink-0 transition-opacity" />
+    </button>
+  )
+}
+
 // ── Coluna droppável ──────────────────────────────────────────────────────────
 
 function ColResponsavel({
   responsavel,
+  label,
   tasks,
   activeId,
+  onRename,
 }: {
   responsavel: typeof RESPONSAVEIS[number]
+  label: string
   tasks: Task[]
   activeId: string | null
+  onRename: (value: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: responsavel.id })
 
@@ -126,10 +183,10 @@ function ColResponsavel({
           className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
           style={{ backgroundColor: responsavel.bg, color: responsavel.color }}
         >
-          {responsavel.id.charAt(0)}
+          {label.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">{responsavel.id}</p>
+          <EditableName label={label} onSave={onRename} />
           <p className="text-[10px] text-slate-600 mt-0.5">responsável</p>
         </div>
         <span
@@ -198,7 +255,14 @@ function ColSemResponsavel({ tasks, activeId }: { tasks: Task[]; activeId: strin
 export function CarteiraView() {
   const { data: columns, isLoading } = useColumns('kanban')
   const updateTask = useUpdateTask()
+  const { data: responsavelLabels } = useResponsavelLabels()
+  const updateResponsavelLabel = useUpdateResponsavelLabel()
   const [activeId, setActiveId] = useState<string | null>(null)
+
+  const getLabel = useCallback(
+    (id: ResponsavelId) => responsavelLabels?.find((l) => l.key === id)?.label ?? id,
+    [responsavelLabels]
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -273,7 +337,7 @@ export function CarteiraView() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
                   style={{ backgroundColor: r.bg, color: r.color, border: `1px solid ${r.border}` }}
                 >
-                  {r.id.charAt(0)} · {count}
+                  {getLabel(r.id as ResponsavelId).charAt(0).toUpperCase()} · {count}
                 </div>
               )
             })}
@@ -286,8 +350,10 @@ export function CarteiraView() {
             <ColResponsavel
               key={r.id}
               responsavel={r}
+              label={getLabel(r.id as ResponsavelId)}
               tasks={getTasksByResponsavel(r.id as ResponsavelId)}
               activeId={activeId}
+              onRename={(value) => updateResponsavelLabel.mutate({ key: r.id, label: value })}
             />
           ))}
         </div>
