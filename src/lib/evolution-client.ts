@@ -60,6 +60,13 @@ export async function getGroupInfo(groupJid: string): Promise<GroupInfoResult> {
   return res.json()
 }
 
+/** Identifica o número WhatsApp que a instância está usando (dono da sessão). */
+export async function fetchInstanceInfo(): Promise<unknown> {
+  const res = await evolutionRequest(`/instance/fetchInstances?instanceName=${INSTANCE}`)
+  if (!res.ok) throw new Error(`Evolution API retornou ${res.status}`)
+  return res.json()
+}
+
 export interface QrCodeResult {
   base64?: string
 }
