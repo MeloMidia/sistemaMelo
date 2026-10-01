@@ -333,7 +333,10 @@ export function useDashboardData(period: PeriodKey, customRange?: DateRange) {
       }
     },
     staleTime: 60_000,
-    refetchInterval: 30_000,
+    // Métricas agregadas não precisam de atualização quase em tempo real —
+    // 30s gerava uma query pesada (vários groupBy/findMany) sem necessidade
+    // enquanto a aba de Dashboard fica aberta.
+    refetchInterval: 120_000,
   })
 }
 

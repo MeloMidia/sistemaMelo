@@ -15,7 +15,9 @@ export function useStages() {
       return res.json()
     },
     staleTime: 10_000,
-    refetchInterval: 20_000,
+    // A SSE (useCrmStream) já invalida isso quando chega evento — esse
+    // polling é só um plano B, não precisa ser tão frequente.
+    refetchInterval: 45_000,
   })
 }
 
@@ -516,7 +518,7 @@ export function useLeadsByLabel() {
       return res.json()
     },
     staleTime: 20_000,
-    refetchInterval: 30_000,
+    refetchInterval: 45_000,
   })
 }
 
@@ -597,7 +599,7 @@ export function useFollowUp() {
       return res.json()
     },
     staleTime: 10_000,
-    refetchInterval: 20_000,
+    refetchInterval: 45_000,
   })
 }
 
