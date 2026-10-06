@@ -17,13 +17,14 @@ function sleep(ms: number) {
 
 export async function POST(request: Request) {
   const auth = request.headers.get('authorization')
-  const vercelCron = request.headers.get('x-vercel-cron-signature')
   const session = await getServerSession(authOptions)
 
+  // O Vercel Cron só se autentica via `Authorization: Bearer <CRON_SECRET>`
+  // (enviado automaticamente quando a env CRON_SECRET existe no projeto).
+  // Não existe header de assinatura — sem CRON_SECRET o cron recebe 401.
   const authed =
     session ||
     (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) ||
-    (!CRON_SECRET && vercelCron) ||
     process.env.NODE_ENV !== 'production'
 
   if (!authed) {
