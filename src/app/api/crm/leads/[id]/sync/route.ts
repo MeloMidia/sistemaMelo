@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { findMessages } from '@/lib/evolution-client'
-import { emitCrmEvent } from '@/lib/crm-events'
 import { importWhatsappMessage } from '@/lib/whatsapp-sync'
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,10 +25,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       if (!result) continue
       if (result.created) importedCount++
       else updatedCount++
-    }
-
-    if (importedCount > 0 || updatedCount > 0) {
-      emitCrmEvent({ type: 'new-message', leadId: lead.id, message: { importedCount, updatedCount } })
     }
 
     return NextResponse.json({ success: true, imported: importedCount, updated: updatedCount })

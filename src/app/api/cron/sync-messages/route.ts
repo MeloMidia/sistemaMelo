@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { findMessages } from '@/lib/evolution-client'
 import { importWhatsappMessage } from '@/lib/whatsapp-sync'
-import { emitCrmEvent } from '@/lib/crm-events'
 
 const BATCH_SIZE = 30
 
@@ -38,7 +37,6 @@ export async function GET() {
         if (importedCount > 0) {
           leadsWithNew++
           totalImported += importedCount
-          emitCrmEvent({ type: 'new-message', leadId: lead.id, message: { importedCount } })
         }
       } catch (err) {
         leadsWithError++

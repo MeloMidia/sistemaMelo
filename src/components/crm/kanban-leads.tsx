@@ -31,7 +31,7 @@ import {
   X,
   Check,
 } from 'lucide-react'
-import { useCreateLead, useCreateStage, useCrmStream, useDeleteLead, useStages, useUpdateLead, useUpdateStage } from '@/hooks/crm-api'
+import { useCreateLead, useCreateStage, useDeleteLead, useStages, useUpdateLead, useUpdateStage } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
@@ -442,7 +442,6 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [isNewStageOpen, setIsNewStageOpen] = useState(false)
   const [newLeadStageId, setNewLeadStageId] = useState<string | null>(null)
-  useCrmStream()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),

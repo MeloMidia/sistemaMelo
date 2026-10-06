@@ -5,7 +5,7 @@ import { CheckCheck, ListFilter, MessageCircle, Search, Wifi, WifiOff, X } from 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
-import { useConnection, useCrmStream } from '@/hooks/crm-api'
+import { useConnection } from '@/hooks/crm-api'
 import { LeadConversaTab } from './lead-conversa-tab'
 import { LeadNotesTab } from './lead-notes-tab'
 import { LeadLogsTab } from './lead-logs-tab'
@@ -80,7 +80,6 @@ export function CrmInbox({
   const deferredSearch = useDeferredValue(search.trim())
   const queryClient = useQueryClient()
   const { data: connection } = useConnection()
-  useCrmStream()
 
   if (openLeadId !== syncedOpenLeadId) {
     setSyncedOpenLeadId(openLeadId)

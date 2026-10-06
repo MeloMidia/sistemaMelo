@@ -1,7 +1,6 @@
 // src/hooks/crm-api.ts
 'use client'
 
-import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { LeadStage, LeadLite, Lead, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn, FollowUpColumnData } from '@/types/crm'
 
@@ -15,8 +14,8 @@ export function useStages() {
       return res.json()
     },
     staleTime: 10_000,
-    // A SSE (useCrmStream) já invalida isso quando chega evento — esse
-    // polling é só um plano B, não precisa ser tão frequente.
+    // Board não é latência-crítico — conversas (15s) e mensagens (10s) têm
+    // polling próprio mais curto.
     refetchInterval: 45_000,
   })
 }
@@ -731,7 +730,8 @@ export function useConnection() {
       if (!res.ok) throw new Error('Failed to fetch connection status')
       return res.json()
     },
-    refetchInterval: (query) => (query.state.data?.status === 'open' ? false : 5_000),
+    // Conectado: checagem lenta só pra perceber queda da conexão.
+    refetchInterval: (query) => (query.state.data?.status === 'open' ? 60_000 : 5_000),
   })
 }
 
@@ -883,47 +883,4 @@ export function useUpdateLeadEventStatus() {
       qc.invalidateQueries({ queryKey: ['agenda-events'] })
     },
   })
-}
-
-// ——— Realtime (SSE) ———
-export function useCrmStream() {
-  const qc = useQueryClient()
-
-  useEffect(() => {
-    const es = new EventSource('/api/crm/stream')
-
-    es.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data) as { type: string; leadId?: string; messageId?: string }
-
-        if (event.type === 'new-message') {
-          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
-          qc.invalidateQueries({ queryKey: ['crm-stages'] })
-          qc.invalidateQueries({ queryKey: ['crm-by-label'] })
-          qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
-          qc.invalidateQueries({ queryKey: ['dashboard'] })
-          if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
-        } else if (event.type === 'message-status') {
-          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
-          if (event.leadId) qc.invalidateQueries({ queryKey: ['crm-messages', event.leadId] })
-        } else if (event.type === 'board-update') {
-          qc.invalidateQueries({ queryKey: ['crm-conversations'] })
-          qc.invalidateQueries({ queryKey: ['crm-stages'] })
-          qc.invalidateQueries({ queryKey: ['crm-by-label'] })
-          qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
-        } else if (event.type === 'connection-update') {
-          qc.invalidateQueries({ queryKey: ['crm-connection'] })
-        }
-      } catch {
-        // fallback: invalida tudo
-        qc.invalidateQueries({ queryKey: ['crm-stages'] })
-        qc.invalidateQueries({ queryKey: ['crm-messages'] })
-        qc.invalidateQueries({ queryKey: ['crm-by-label'] })
-        qc.invalidateQueries({ queryKey: ['crm-follow-up'] })
-        qc.invalidateQueries({ queryKey: ['crm-connection'] })
-      }
-    }
-
-    return () => es.close()
-  }, [qc])
 }

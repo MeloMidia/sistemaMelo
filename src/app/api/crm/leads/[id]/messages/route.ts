@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { sendTextMessage } from '@/lib/evolution-client'
-import { emitCrmEvent } from '@/lib/crm-events'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -48,7 +47,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     })
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(message)
   }
 
@@ -73,10 +71,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     })
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(message)
   } catch (error) {
-    const message = await prisma.message.create({
+    await prisma.message.create({
       data: {
         leadId: lead.id,
         whatsappMessageId: `failed-${randomUUID()}`,
@@ -86,7 +83,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     })
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Falha ao enviar mensagem' },
       { status: 502 }

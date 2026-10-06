@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { sendAudioMessage } from '@/lib/evolution-client'
-import { emitCrmEvent } from '@/lib/crm-events'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { prepareWhatsAppVoiceAudio } from '@/lib/audio-converter'
 import { randomUUID } from 'crypto'
@@ -58,10 +57,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     })
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(message)
   } catch (error) {
-    const message = await prisma.message.create({
+    await prisma.message.create({
       data: {
         leadId: lead.id,
         whatsappMessageId: `failed-${randomUUID()}`,
@@ -71,7 +69,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     })
     await prisma.lead.update({ where: { id: lead.id }, data: { updatedAt: new Date() } })
-    emitCrmEvent({ type: 'new-message', leadId: lead.id, message })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Falha ao enviar audio' },
       { status: 502 }

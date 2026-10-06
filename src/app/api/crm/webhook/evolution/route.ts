@@ -14,7 +14,6 @@ import {
   applyLabelAssociation,
   applyWhatsappMessageStatus,
 } from '@/lib/whatsapp-sync'
-import { emitCrmEvent } from '@/lib/crm-events'
 
 // Sem autenticação de sessão — chamado pela Evolution API, não pelo browser.
 // Opcional: defina EVOLUTION_WEBHOOK_SECRET no Vercel para validar a origem.
@@ -31,10 +30,7 @@ export async function POST(request: Request) {
         const items = extractPayloadList(data)
         for (const item of items) {
           try {
-            const result = await importWhatsappMessage(item)
-            if (result?.lead) {
-              emitCrmEvent({ type: 'new-message', leadId: result.lead.id, message: result.message })
-            }
+            await importWhatsappMessage(item)
           } catch (err) {
             console.error('[webhook] Erro ao importar mensagem:', err)
           }
@@ -46,10 +42,7 @@ export async function POST(request: Request) {
         const items = extractPayloadList(data)
         for (const item of items) {
           try {
-            const updated = await applyWhatsappMessageStatus(item)
-            if (updated) {
-              emitCrmEvent({ type: 'message-status', leadId: updated.leadId, messageId: updated.id, status: updated.status ?? '' })
-            }
+            await applyWhatsappMessageStatus(item)
           } catch (err) {
             console.error('[webhook] Erro ao atualizar status de mensagem:', err)
           }
@@ -66,7 +59,6 @@ export async function POST(request: Request) {
             console.error('[webhook] Erro ao aplicar etiqueta:', err)
           }
         }
-        emitCrmEvent({ type: 'board-update' })
         break
       }
 
@@ -81,7 +73,6 @@ export async function POST(request: Request) {
           } else {
             await prisma.whatsappConnection.create({ data: { status: state } })
           }
-          emitCrmEvent({ type: 'connection-update', status: state })
         }
         break
       }

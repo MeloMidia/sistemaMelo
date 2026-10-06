@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { emitCrmEvent } from '@/lib/crm-events'
 import {
   applyWhatsappMessageStatus,
   applyLabelAssociation,
@@ -49,8 +48,6 @@ async function handleConnectionUpdate(data: Record<string, unknown>) {
   } else {
     await prisma.whatsappConnection.create({ data: { status: state } })
   }
-
-  emitCrmEvent({ type: 'connection-update', status: state })
 }
 
 export async function POST(request: Request) {
@@ -66,20 +63,13 @@ export async function POST(request: Request) {
     const data = body.data ?? {}
 
     if (event === 'messages.upsert' || event === 'messages.set') {
-      const results = await Promise.all(extractPayloadList(data).map((item) => importWhatsappMessage(item)))
-      for (const result of results) {
-        if (result) emitCrmEvent({ type: 'new-message', leadId: result.lead.id, message: result.message })
-      }
+      await Promise.all(extractPayloadList(data).map((item) => importWhatsappMessage(item)))
     } else if (event === 'messages.update') {
-      const updates = await Promise.all(extractPayloadList(data).map((item) => applyWhatsappMessageStatus(item)))
-      for (const message of updates) {
-        if (message) emitCrmEvent({ type: 'new-message', leadId: message.leadId, message })
-      }
+      await Promise.all(extractPayloadList(data).map((item) => applyWhatsappMessageStatus(item)))
     } else if (event === 'connection.update') {
       await handleConnectionUpdate((data ?? {}) as Record<string, unknown>)
     } else if (event === 'labels.association') {
       await applyLabelAssociation(data)
-      emitCrmEvent({ type: 'board-update' })
     }
   } catch (error) {
     console.error('Erro ao processar webhook da Evolution API:', error)
