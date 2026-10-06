@@ -135,12 +135,14 @@ export function useMoveAllLeads() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toStageId }),
       })
-      if (!res.ok) throw new Error('Failed to move leads')
-      return res.json()
+      if (!res.ok) throw new Error('Não foi possível mover os leads. Tente novamente.')
+      return res.json() as Promise<{ count: number }>
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+      qc.invalidateQueries({ queryKey: ['crm-conversations'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      // Retorna a promise pra mutation só concluir com o board já atualizado.
+      return qc.invalidateQueries({ queryKey: ['crm-stages'] })
     },
   })
 }

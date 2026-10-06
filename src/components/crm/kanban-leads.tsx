@@ -31,7 +31,7 @@ import {
   X,
   Check,
 } from 'lucide-react'
-import { useCreateLead, useCreateStage, useDeleteLead, useStages, useUpdateLead, useUpdateStage } from '@/hooks/crm-api'
+import { useCreateLead, useCreateStage, useDeleteLead, useMoveAllLeads, useStages, useUpdateLead, useUpdateStage } from '@/hooks/crm-api'
 import type { Lead, LeadStage } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
@@ -201,9 +201,21 @@ function PipelineColumn({
   const [isEditingName, setIsEditingName] = useState(false)
   const [stageName, setStageName] = useState(stage.name)
   const updateStage = useUpdateStage()
+  const leadCount = stage._count.leads
   const { setNodeRef, isOver } = useDroppable({
     id: `stage:${stage.id}`,
     data: { type: 'stage', stageId: stage.id },
+  })
+  // Alça do cabeçalho: arrastar a coluna inteira move todos os leads da etapa.
+  const {
+    attributes: moveAllAttributes,
+    listeners: moveAllListeners,
+    setNodeRef: setMoveAllHandleRef,
+    isDragging: isMovingAll,
+  } = useDraggable({
+    id: `stage-leads:${stage.id}`,
+    data: { type: 'stage-leads', stageId: stage.id },
+    disabled: leadCount === 0 || isEditingName,
   })
 
   function cancelEditingName() {
@@ -222,7 +234,10 @@ function PipelineColumn({
   }
 
   return (
-    <section className={`mf-pipeline-column ${isOver ? 'is-over' : ''}`} style={{ '--mf-stage-color': stage.color } as React.CSSProperties}>
+    <section
+      className={`mf-pipeline-column ${isOver && !isMovingAll ? 'is-over' : ''} ${isMovingAll ? 'is-moving-all' : ''}`}
+      style={{ '--mf-stage-color': stage.color } as React.CSSProperties}
+    >
       <header className="mf-pipeline-column-header">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -243,11 +258,24 @@ function PipelineColumn({
             ) : (
               <h2>{stage.name}</h2>
             )}
-            <span className="mf-pipeline-stage-count">{stage._count.leads}</span>
+            <span className="mf-pipeline-stage-count">{leadCount}</span>
           </div>
-          <p>{stage._count.leads === 1 ? '1 lead neste momento' : `${stage._count.leads} leads neste momento`}</p>
+          <p>{leadCount === 1 ? '1 lead neste momento' : `${leadCount} leads neste momento`}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {!isEditingName && leadCount > 0 && (
+            <button
+              type="button"
+              ref={setMoveAllHandleRef}
+              {...moveAllAttributes}
+              {...moveAllListeners}
+              className="mf-pipeline-icon-button mf-pipeline-move-all-handle"
+              aria-label={`Arrastar para mover todos os ${leadCount} leads de ${stage.name}`}
+              title="Arraste até outra coluna para mover todos os leads"
+            >
+              <GripVertical className="size-4" aria-hidden="true" />
+            </button>
+          )}
           {isEditingName ? (
             <>
               <button type="button" onClick={saveStageName} disabled={updateStage.isPending || !stageName.trim()} className="mf-pipeline-icon-button" aria-label="Salvar nome da etapa" title="Salvar">
@@ -432,12 +460,102 @@ function DeleteLeadDialog({
   )
 }
 
+function formatLeadCount(count: number) {
+  return count === 1 ? '1 lead' : `${count} leads`
+}
+
+function StageLeadsOverlay({ stage }: { stage: LeadStage }) {
+  return (
+    <div className="mf-pipeline-stack-overlay" style={{ '--mf-stage-color': stage.color } as React.CSSProperties}>
+      <span className="mf-pipeline-stage-mark" />
+      <div className="min-w-0">
+        <strong>{formatLeadCount(stage._count.leads)}</strong>
+        <span className="truncate">{stage.name}</span>
+      </div>
+    </div>
+  )
+}
+
+function MoveAllLeadsDialog({
+  open,
+  from,
+  to,
+  includesHiddenLeads,
+  onOpenChange,
+}: {
+  open: boolean
+  from: LeadStage | null
+  to: LeadStage | null
+  includesHiddenLeads: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const moveAllLeads = useMoveAllLeads()
+  const countLabel = formatLeadCount(from?._count.leads ?? 0)
+
+  const notes = [
+    includesHiddenLeads && 'A busca e os filtros não se aplicam: os leads ocultos desta etapa também serão movidos.',
+    to?.isClosed && 'Eles serão marcados como fechados hoje — os que tiverem valor entram como venda no dashboard.',
+    from?.isClosed && 'Eles deixarão de contar como venda fechada no dashboard.',
+  ].filter(Boolean) as string[]
+
+  function finish() {
+    moveAllLeads.reset()
+    onOpenChange(false)
+  }
+
+  function close(open: boolean) {
+    if (open || moveAllLeads.isPending) return
+    finish()
+  }
+
+  function confirmMove() {
+    if (!from || !to) return
+    moveAllLeads.mutate({ fromStageId: from.id, toStageId: to.id }, { onSuccess: finish })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="mf-pipeline-dialog p-0 sm:max-w-[440px]" showCloseButton={!moveAllLeads.isPending}>
+        <DialogHeader className="mf-pipeline-dialog-header pr-12">
+          <div>
+            <DialogTitle>Mover todos os leads?</DialogTitle>
+            <DialogDescription className="mt-2">
+              <strong>{countLabel}</strong> de <strong>{from?.name}</strong> vão para <strong>{to?.name}</strong>.
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+        {notes.length > 0 && (
+          <ul className="mf-pipeline-dialog-notes">
+            {notes.map((note) => <li key={note}>{note}</li>)}
+          </ul>
+        )}
+        {moveAllLeads.isError && (
+          <p className="px-5 text-sm text-destructive" role="alert">{moveAllLeads.error.message}</p>
+        )}
+        <DialogFooter className="mf-pipeline-dialog-footer">
+          <Button type="button" variant="outline" onClick={() => close(false)} disabled={moveAllLeads.isPending}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={confirmMove} disabled={moveAllLeads.isPending}>
+            {moveAllLeads.isPending ? 'Movendo…' : `Mover ${countLabel}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId: string) => void; onOpenInbox?: () => void }) {
   const { data: stages = [], isLoading, isError } = useStages()
   const updateLead = useUpdateLead()
   const [search, setSearch] = useState('')
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all')
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
+  const [draggingStageId, setDraggingStageId] = useState<string | null>(null)
+  // Cópia das etapas no momento do drop: mantém o texto do diálogo estável
+  // durante a animação de saída, quando o board já recarregou.
+  const [moveAllRequest, setMoveAllRequest] = useState<{ from: LeadStage; to: LeadStage } | null>(null)
+  const [isMoveAllOpen, setIsMoveAllOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [isNewStageOpen, setIsNewStageOpen] = useState(false)
@@ -463,22 +581,51 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
   }, [activityFilter, search, stages])
 
   const totalLeads = stages.reduce((total, stage) => total + stage._count.leads, 0)
+  const hasActiveFilters = Boolean(search.trim()) || activityFilter !== 'all'
 
   function openNewLead(stageId: string | null = stages[0]?.id ?? null) {
     setNewLeadStageId(stageId)
     setIsNewLeadOpen(true)
   }
 
+  const findStage = (stageId: string | null) => (stageId ? stages.find((stage) => stage.id === stageId) ?? null : null)
+  const draggingStage = findStage(draggingStageId)
+
   function handleDragStart(event: DragStartEvent) {
-    setActiveLead(event.active.data.current?.lead as Lead ?? null)
+    const data = event.active.data.current
+    if (data?.type === 'stage-leads') {
+      setDraggingStageId(data.stageId as string)
+      return
+    }
+    setActiveLead(data?.lead as Lead ?? null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveLead(null)
-    const lead = event.active.data.current?.lead as Lead | undefined
+    setDraggingStageId(null)
+    const data = event.active.data.current
     const targetStageId = event.over?.data.current?.stageId as string | undefined
-    if (!lead || !targetStageId || targetStageId === lead.stageId) return
+    if (!targetStageId) return
+
+    // Coluna inteira: só confirma — a mudança acontece no diálogo.
+    if (data?.type === 'stage-leads') {
+      const from = findStage(data.stageId as string)
+      const to = findStage(targetStageId)
+      if (from && to && from.id !== to.id) {
+        setMoveAllRequest({ from, to })
+        setIsMoveAllOpen(true)
+      }
+      return
+    }
+
+    const lead = data?.lead as Lead | undefined
+    if (!lead || targetStageId === lead.stageId) return
     updateLead.mutate({ id: lead.id, stageId: targetStageId })
+  }
+
+  function handleDragCancel() {
+    setActiveLead(null)
+    setDraggingStageId(null)
   }
 
   const openLead = (leadId: string) => onOpenLead?.(leadId)
@@ -521,19 +668,30 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
       </header>
 
       <div className="mf-pipeline-board-shell">
-        <div className="mf-pipeline-board-hint"><span>Arraste um cartão para mover o lead</span>{search || activityFilter !== 'all' ? <button type="button" onClick={() => { setSearch(''); setActivityFilter('all') }}>Limpar filtros</button> : <span>As mudanças são salvas automaticamente</span>}</div>
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="mf-pipeline-board-hint"><span>Arraste um cartão para mover o lead — ou a alça <GripVertical className="inline size-3 align-[-2px]" aria-hidden="true" /> da coluna para mover todos</span>{hasActiveFilters ? <button type="button" onClick={() => { setSearch(''); setActivityFilter('all') }}>Limpar filtros</button> : <span>As mudanças são salvas automaticamente</span>}</div>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="mf-pipeline-board">
             {visibleStages.map((stage) => <PipelineColumn key={stage.id} stage={stage} onOpenLead={openLead} onCreateLead={openNewLead} onRequestDelete={setLeadToDelete} />)}
             <button type="button" className="mf-pipeline-add-stage" onClick={() => setIsNewStageOpen(true)}><Plus className="size-4" />Adicionar etapa</button>
           </div>
-          <DragOverlay dropAnimation={null}>{activeLead ? <div className="w-[302px] rotate-1"><PipelineCard lead={activeLead} isOverlay onOpenLead={openLead} onRequestDelete={setLeadToDelete} /></div> : null}</DragOverlay>
+          <DragOverlay dropAnimation={null}>
+            {activeLead ? <div className="w-[302px] rotate-1"><PipelineCard lead={activeLead} isOverlay onOpenLead={openLead} onRequestDelete={setLeadToDelete} /></div>
+              : draggingStage ? <StageLeadsOverlay stage={draggingStage} />
+              : null}
+          </DragOverlay>
         </DndContext>
       </div>
 
       <NewLeadDialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen} stages={stages} initialStageId={newLeadStageId} />
       <NewStageDialog open={isNewStageOpen} onOpenChange={setIsNewStageOpen} />
       <DeleteLeadDialog lead={leadToDelete} onOpenChange={(open) => { if (!open) setLeadToDelete(null) }} />
+      <MoveAllLeadsDialog
+        open={isMoveAllOpen}
+        from={moveAllRequest?.from ?? null}
+        to={moveAllRequest?.to ?? null}
+        includesHiddenLeads={hasActiveFilters}
+        onOpenChange={setIsMoveAllOpen}
+      />
     </div>
   )
 }

@@ -866,7 +866,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-pipeline-stage-count { align-items: center; background: color-mix(in srgb, var(--mf-stage-color) 10%, var(--mf-surface)); border-radius: 99px; color: color-mix(in srgb, var(--mf-stage-color) 82%, var(--mf-ink)); display: inline-flex; font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 700; height: 19px; justify-content: center; min-width: 19px; padding: 0 6px; }
 .mf-pipeline-icon-button { align-items: center; background: transparent; border: 0; border-radius: 7px; color: var(--mf-muted); cursor: pointer; display: inline-flex; flex-shrink: 0; height: 30px; justify-content: center; transition: background-color 150ms ease, color 150ms ease, transform 120ms ease; width: 30px; }
 .mf-pipeline-icon-button:hover { background: var(--mf-line); color: var(--mf-ink); }
-.mf-pipeline-column-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-height: 142px; overflow-y: auto; padding: 10px; }
+.mf-pipeline-column-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-height: 142px; overflow-y: auto; padding: 10px; transition: opacity 150ms ease; }
 .mf-pipeline-card { background: var(--mf-surface); border: 1px solid var(--mf-line); border-radius: 10px; box-shadow: 0 1px 2px rgba(20, 28, 23, .05); cursor: grab; flex-shrink: 0; overflow: hidden; padding: 12px; transition: border-color 150ms ease, box-shadow 150ms ease, opacity 120ms ease, transform 120ms ease; }
 .mf-pipeline-card:hover { border-color: var(--mf-line-strong); box-shadow: var(--mf-shadow-float); transform: translateY(-1px); }
 .mf-pipeline-card:active { cursor: grabbing; }
@@ -874,6 +874,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-pipeline-card.is-overlay { box-shadow: var(--mf-shadow-float); cursor: grabbing; transform: rotate(1deg); }
 .mf-pipeline-card-top { align-items: center; display: flex; gap: 9px; min-width: 0; }
 .mf-pipeline-grip { color: var(--mf-faint); cursor: grab; flex-shrink: 0; height: 17px; width: 13px; }
+.mf-pipeline-move-all-handle { cursor: grab; touch-action: none; }
+.mf-pipeline-move-all-handle:active { cursor: grabbing; }
+.mf-pipeline-column.is-moving-all .mf-pipeline-column-body { opacity: .4; }
+.mf-pipeline-stack-overlay { align-items: center; background: var(--mf-surface); border: 1px solid color-mix(in srgb, var(--mf-stage-color) 45%, var(--mf-line)); border-radius: 10px; box-shadow: 0 5px 0 -2px var(--mf-surface), 0 5px 0 -1px var(--mf-line), 0 10px 0 -4px var(--mf-surface), 0 10px 0 -3px var(--mf-line), var(--mf-shadow-float); cursor: grabbing; display: flex; gap: 10px; padding: 12px 14px; transform: rotate(1deg); width: 220px; }
+.mf-pipeline-stack-overlay > div { display: grid; gap: 2px; }
+.mf-pipeline-stack-overlay strong { color: var(--mf-ink); font-size: 13px; font-weight: 700; letter-spacing: -.01em; }
+.mf-pipeline-stack-overlay > div > span { color: var(--mf-muted); font-size: 11px; }
 .mf-pipeline-avatar { align-items: center; background: #d8f2e7; border-radius: 99px; color: #147452; display: flex; flex-shrink: 0; font-size: 11px; font-weight: 700; height: 31px; justify-content: center; overflow: hidden; position: relative; width: 31px; }
 .mf-pipeline-avatar img { height: 100%; inset: 0; object-fit: cover; position: absolute; width: 100%; }
 .mf-pipeline-card-name { color: var(--mf-ink); font-size: 12px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
@@ -909,6 +916,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mf-pipeline-color-field button { border: 2px solid var(--mf-surface); border-radius: 99px; box-shadow: 0 0 0 1px var(--mf-line); cursor: pointer; height: 22px; transition: transform 120ms ease, box-shadow 120ms ease; width: 22px; }
 .mf-pipeline-color-field button:hover { transform: scale(1.08); }
 .mf-pipeline-color-field button.is-selected { box-shadow: 0 0 0 2px var(--mf-ink); }
+.mf-pipeline-dialog-notes { color: var(--mf-muted); display: grid; font-size: 12px; gap: 6px; line-height: 1.45; list-style: disc; margin: 0; padding: 16px 20px 16px 36px; }
 .mf-pipeline-dialog-footer { align-items: center; background: var(--mf-well); border-top: 1px solid var(--mf-line); display: flex; flex-direction: row; justify-content: flex-end; margin: 0; padding: 14px 20px; }
 .mf-pipeline-dialog-footer button { min-width: 94px; }
 
