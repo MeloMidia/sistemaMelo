@@ -29,6 +29,66 @@ export function useCampaign(id: string | null) {
   })
 }
 
+export interface CreatedCampaign {
+  id: string
+  title: string
+  status: BulkCampaign['status']
+  scheduledAt: string | null
+  totalLeads: number
+}
+
+export interface CampaignDispatchError {
+  name: string
+  phone: string
+  error: string
+}
+
+export interface CampaignDispatchProgress {
+  sent: number
+  failed: number
+  errors: CampaignDispatchError[]
+  /** 'Nada para processar' / 'Campanha concluída' quando não havia lote pendente. */
+  message?: string
+}
+
+/**
+ * Dispara a campanha em lotes (cada chamada a /api/cron/bulk-send envia até 8
+ * leads) até não sobrar pendente. O envio é conduzido pelo navegador — se a
+ * aba fechar no meio, dá pra retomar pelo botão de disparo em Campanhas.
+ */
+export async function dispatchCampaign(
+  campaignId: string,
+  onProgress?: (progress: CampaignDispatchProgress) => void,
+): Promise<CampaignDispatchProgress> {
+  const progress: CampaignDispatchProgress = { sent: 0, failed: 0, errors: [] }
+
+  while (true) {
+    const res = await fetch('/api/cron/bulk-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Erro ao disparar campanha')
+
+    if (data.message) {
+      progress.message = data.message
+      onProgress?.({ ...progress })
+      return progress
+    }
+
+    progress.sent += data.sent ?? 0
+    progress.failed += data.failed ?? 0
+    if (data.errors?.length) progress.errors = [...progress.errors, ...data.errors]
+    onProgress?.({ ...progress })
+
+    if (!data.remaining) return progress
+
+    // Pausa breve entre lotes
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+}
+
 export function useCreateCampaign() {
   const qc = useQueryClient()
   return useMutation({
@@ -55,7 +115,7 @@ export function useCreateCampaign() {
         throw new Error(`Erro ${res.status} ao criar campanha`)
       }
       if (!res.ok) throw new Error(result.error || 'Erro ao criar campanha')
-      return result
+      return result as unknown as CreatedCampaign
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-campaigns'] }),
   })

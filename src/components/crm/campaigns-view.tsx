@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Megaphone, Plus, Trash2, XCircle, ChevronRight, Image as ImageIcon, Video, Mic, MicOff, Square, Clock, CheckCircle2, AlertCircle, Loader2, CalendarClock, Users, Send } from 'lucide-react'
-import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign } from '@/hooks/campaigns-api'
-import { useStages, useCrmTags, useFollowUp } from '@/hooks/crm-api'
-import { FOLLOW_UP_COLORS } from '@/components/crm/follow-up-column'
+import { useCampaigns, useCreateCampaign, useCancelCampaign, useDeleteCampaign, dispatchCampaign, type CampaignDispatchProgress } from '@/hooks/campaigns-api'
+import { useStages, useCrmTags } from '@/hooks/crm-api'
 import type { BulkCampaign } from '@/types/campaign'
 import { Button } from '@/components/ui/button'
 
@@ -151,12 +150,83 @@ function CampaignCard({
   )
 }
 
-// ——— Formulário de criação (3 etapas) ———
+function formatDispatchProgress(progress: CampaignDispatchProgress) {
+  const errText = progress.errors.length
+    ? ` · ${progress.errors.length} falha(s): ${progress.errors.map((e) => e.name).join(', ')}`
+    : ''
+  return `Enviados: ${progress.sent} · Falhas: ${progress.failed}${errText}`
+}
+
+// ——— Progresso do disparo imediato (modo coluna) ———
+interface DispatchState {
+  total: number
+  progress: CampaignDispatchProgress | null
+  done: boolean
+  error?: string
+}
+
+function DispatchProgressPanel({ total, progress, done, error }: DispatchState) {
+  const sent = progress?.sent ?? 0
+  const failed = progress?.failed ?? 0
+
+  return (
+    <div className="space-y-4">
+      {!done ? (
+        <div className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Enviando… {sent + failed} de {total}
+        </div>
+      ) : error ? (
+        <div className="flex items-center gap-2 text-[12px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          {error}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
+          <CheckCircle2 className="w-4 h-4" />
+          Disparo concluído
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <ProgressBar total={total} sent={sent} failed={failed} />
+        <p className="text-[11px] text-slate-500">
+          <span className="text-emerald-400 font-semibold">{sent}</span> enviados ·{' '}
+          <span className="text-red-400 font-semibold">{failed}</span> falhas
+        </p>
+      </div>
+
+      {progress && progress.errors.length > 0 && (
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-1 text-[11px]">
+          <p className="text-slate-400 font-semibold">Não receberam:</p>
+          {progress.errors.map((e) => (
+            <p key={e.phone} className="text-slate-500"><span className="text-white">{e.name}</span> — {e.error}</p>
+          ))}
+        </div>
+      )}
+
+      {!done && (
+        <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5 text-[11px] text-amber-300">
+          Não feche esta aba até terminar — o envio é feito pelo navegador. Se for interrompido, continue pela tela de Campanhas.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ——— Formulário de criação (3 etapas; 2 no modo coluna) ———
 type Step = 'recipients' | 'message' | 'schedule'
+
+/** Modo coluna: público fixo numa etapa do pipeline e envio imediato. */
+export interface CampaignStagePreset {
+  stageId: string
+  stageName: string
+  leadCount: number
+}
 
 interface FormState {
   title: string
-  filter: { type: 'all' | 'stages' | 'labels' | 'followUp'; ids: string[] }
+  filter: { type: 'all' | 'stages' | 'labels'; ids: string[] }
   message: string
   mediaFile: File | null
   mediaPreview: string | null
@@ -165,17 +235,17 @@ interface FormState {
   delaySeconds: number
 }
 
-function CreateCampaignForm({ onClose }: { onClose: () => void }) {
+export function CreateCampaignForm({ onClose, preset }: { onClose: () => void; preset?: CampaignStagePreset }) {
   const { data: stages = [] } = useStages()
   const { data: tags = [] } = useCrmTags()
-  const { data: followUpCols = [] } = useFollowUp()
   const createCampaign = useCreateCampaign()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [step, setStep] = useState<Step>('recipients')
+  const [step, setStep] = useState<Step>(preset ? 'message' : 'recipients')
+  const [dispatch, setDispatch] = useState<DispatchState | null>(null)
   const [form, setForm] = useState<FormState>({
-    title: '',
-    filter: { type: 'all', ids: [] },
+    title: preset ? `${preset.stageName} — ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : '',
+    filter: preset ? { type: 'stages', ids: [preset.stageId] } : { type: 'all', ids: [] },
     message: '',
     mediaFile: null,
     mediaPreview: null,
@@ -285,8 +355,9 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
       else mediaType = 'document'
     }
 
+    let campaign
     try {
-      await createCampaign.mutateAsync({
+      campaign = await createCampaign.mutateAsync({
         title: form.title.trim(),
         message: form.message.trim() || undefined,
         mediaBase64,
@@ -294,23 +365,39 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
         mimeType,
         fileName,
         mediaCaption: form.mediaCaption.trim() || undefined,
-        scheduledAt: form.scheduledAt || undefined,
+        scheduledAt: preset ? undefined : form.scheduledAt || undefined,
         delaySeconds: form.delaySeconds,
         filter: {
           type: form.filter.type,
           ids: form.filter.ids.length ? form.filter.ids : undefined,
         },
       })
-      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar campanha')
+      return
+    }
+
+    if (!preset) {
+      onClose()
+      return
+    }
+
+    // Modo coluna: dispara na hora, com progresso nesta mesma janela.
+    setDispatch({ total: campaign.totalLeads, progress: null, done: false })
+    try {
+      const progress = await dispatchCampaign(campaign.id, (p) => setDispatch((d) => d && { ...d, progress: p }))
+      setDispatch((d) => d && { ...d, progress, done: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro de conexão ao disparar'
+      setDispatch((d) => d && { ...d, done: true, error: message })
     }
   }
 
   const isLast = step === 'schedule'
-  const steps: Step[] = ['recipients', 'message', 'schedule']
+  const steps: Step[] = preset ? ['message', 'schedule'] : ['recipients', 'message', 'schedule']
   const stepIdx = steps.indexOf(step)
-  const stepLabels = ['Destinatários', 'Mensagem', 'Agendamento']
+  const stepLabels = preset ? ['Mensagem', 'Envio'] : ['Destinatários', 'Mensagem', 'Agendamento']
+  const isSending = Boolean(dispatch && !dispatch.done)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -318,11 +405,21 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/[0.07] shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-blue-400" />
-              Nova Campanha
+            <h2 className="text-base font-bold text-white flex items-center gap-2 min-w-0">
+              <Megaphone className="w-4 h-4 text-blue-400 shrink-0" />
+              <span className="truncate">{preset ? `Disparar para ${preset.stageName}` : 'Nova Campanha'}</span>
+              {preset && (
+                <span className="text-[11px] font-semibold text-slate-500 shrink-0">
+                  · {preset.leadCount === 1 ? '1 lead' : `${preset.leadCount} leads`}
+                </span>
+              )}
             </h2>
-            <button onClick={onClose} className="text-slate-500 hover:text-white cursor-pointer transition-colors">
+            <button
+              onClick={onClose}
+              disabled={isSending}
+              title={isSending ? 'Aguarde o envio terminar' : 'Fechar'}
+              className="text-slate-500 hover:text-white cursor-pointer transition-colors disabled:pointer-events-none disabled:opacity-30"
+            >
               <XCircle className="w-5 h-5" />
             </button>
           </div>
@@ -332,11 +429,12 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
             value={form.title}
             onChange={(e) => update({ title: e.target.value })}
             placeholder="Nome da campanha..."
-            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 mb-3"
+            disabled={Boolean(dispatch)}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 mb-3 disabled:opacity-60"
           />
 
           {/* Steps */}
-          <div className="flex items-center gap-1">
+          {!dispatch && <div className="flex items-center gap-1">
             {stepLabels.map((label, i) => (
               <div key={label} className="flex items-center gap-1 flex-1">
                 <button
@@ -350,22 +448,24 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                   }`}>{i + 1}</span>
                   {label}
                 </button>
-                {i < 2 && <ChevronRight className="w-3 h-3 text-slate-700 shrink-0" />}
+                {i < stepLabels.length - 1 && <ChevronRight className="w-3 h-3 text-slate-700 shrink-0" />}
               </div>
             ))}
-          </div>
+          </div>}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {dispatch && <DispatchProgressPanel {...dispatch} />}
+
           {/* Step 1: Destinatários */}
-          {step === 'recipients' && (
+          {!dispatch && step === 'recipients' && (
             <div className="space-y-4">
               <p className="text-xs text-slate-500">Quem vai receber esta campanha?</p>
 
               {/* Tipo de filtro */}
-              <div className="grid grid-cols-2 gap-2">
-                {(['all', 'stages', 'labels', 'followUp'] as const).map((type) => (
+              <div className="grid grid-cols-3 gap-2">
+                {(['all', 'stages', 'labels'] as const).map((type) => (
                   <button
                     key={type}
                     onClick={() => update({ filter: { type, ids: [] } })}
@@ -375,7 +475,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                         : 'bg-white/[0.03] border-white/[0.07] text-slate-500 hover:border-white/20 hover:text-white'
                     }`}
                   >
-                    {type === 'all' ? 'Todos os leads' : type === 'stages' ? 'Por Estágio' : type === 'labels' ? 'Por Etiqueta' : 'Follow Up'}
+                    {type === 'all' ? 'Todos os leads' : type === 'stages' ? 'Por Estágio' : 'Por Etiqueta'}
                   </button>
                 ))}
               </div>
@@ -417,37 +517,6 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                 </div>
               )}
 
-              {/* Seleção de colunas de follow up */}
-              {form.filter.type === 'followUp' && (
-                <div className="space-y-1.5">
-                  <p className="text-[11px] text-slate-500">
-                    Escolha as colunas (sem seleção = todas as colunas)
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {followUpCols.filter((c) => c._count.leads > 0).map((c) => {
-                      const colId = String(c.column)
-                      const color = FOLLOW_UP_COLORS[c.column - 1]
-                      return (
-                        <label
-                          key={c.column}
-                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] cursor-pointer hover:bg-white/[0.05] transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form.filter.ids.includes(colId)}
-                            onChange={() => toggleId(colId)}
-                            className="rounded"
-                          />
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                          <span className="text-sm text-white flex-1">Coluna {c.column}</span>
-                          <span className="text-[11px] text-slate-500 tabular-nums">{c._count.leads}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
               {form.filter.type === 'all' && (
                 <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5 text-[11px] text-amber-300">
                   Todos os leads do CRM receberão esta mensagem. Confirme que é isso mesmo.
@@ -457,7 +526,7 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Step 2: Mensagem */}
-          {step === 'message' && (
+          {!dispatch && step === 'message' && (
             <div className="space-y-4">
               <p className="text-xs text-slate-500">Compose a mensagem ou selecione uma mídia.</p>
 
@@ -572,12 +641,12 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Step 3: Agendamento */}
-          {step === 'schedule' && (
+          {/* Step 3: Agendamento (no modo coluna o envio é sempre imediato) */}
+          {!dispatch && step === 'schedule' && (
             <div className="space-y-4">
-              <p className="text-xs text-slate-500">Quando deseja enviar a campanha?</p>
+              {!preset && <p className="text-xs text-slate-500">Quando deseja enviar a campanha?</p>}
 
-              <div className="grid grid-cols-2 gap-3">
+              {!preset && <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => update({ scheduledAt: '' })}
                   className={`py-4 rounded-xl text-sm font-semibold border transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
@@ -603,9 +672,9 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                   <Clock className="w-5 h-5" />
                   Agendar
                 </button>
-              </div>
+              </div>}
 
-              {form.scheduledAt && (
+              {!preset && form.scheduledAt && (
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-slate-500">Data e hora do envio</label>
                   <input
@@ -641,12 +710,10 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Destinatários</span>
                   <span className="text-white font-medium">
-                    {form.filter.type === 'all' ? 'Todos os leads' :
+                    {preset ? `${preset.stageName} · ${preset.leadCount} lead(s)` :
+                     form.filter.type === 'all' ? 'Todos os leads' :
                      form.filter.type === 'stages' ? `${form.filter.ids.length} estágio(s)` :
-                     form.filter.type === 'labels' ? `${form.filter.ids.length} etiqueta(s)` :
-                     form.filter.ids.length
-                       ? `Follow Up: col. ${form.filter.ids.join(', ')}`
-                       : 'Follow Up (todas as colunas)'}
+                     `${form.filter.ids.length} etiqueta(s)`}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -678,6 +745,18 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
+        {dispatch ? (
+          <div className="px-6 py-4 border-t border-white/[0.07] shrink-0 flex">
+            <Button
+              onClick={onClose}
+              disabled={isSending}
+              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer gap-1.5"
+            >
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {isSending ? 'Enviando…' : 'Fechar'}
+            </Button>
+          </div>
+        ) : (
         <div className="px-6 py-4 border-t border-white/[0.07] shrink-0 flex gap-3">
           {stepIdx > 0 && (
             <Button
@@ -697,13 +776,14 @@ function CreateCampaignForm({ onClose }: { onClose: () => void }) {
             {createCampaign.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isLast ? (
-              <CheckCircle2 className="w-4 h-4" />
+              preset ? <Send className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />
             ) : (
               <ChevronRight className="w-4 h-4" />
             )}
-            {createCampaign.isPending ? 'Criando...' : isLast ? 'Criar Campanha' : 'Próximo'}
+            {createCampaign.isPending ? 'Criando...' : isLast ? (preset ? 'Enviar agora' : 'Criar Campanha') : 'Próximo'}
           </Button>
         </div>
+        )}
       </div>
     </div>
   )
@@ -721,41 +801,12 @@ export function CampaignsView() {
   async function handleDispatch(campaignId: string) {
     setDispatchingId(campaignId)
     setDispatchMsg(null)
-    let totalSent = 0
-    let totalFailed = 0
-    const allErrors: { name: string; phone: string; error: string }[] = []
 
     try {
-      while (true) {
-        const res = await fetch('/api/cron/bulk-send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId }),
-        })
-        const data = await res.json()
-
-        if (data.message) {
-          // 'Nada para processar' ou 'Campanha concluída'
-          setDispatchMsg({ id: campaignId, text: data.message })
-          break
-        }
-
-        totalSent += data.sent ?? 0
-        totalFailed += data.failed ?? 0
-        if (data.errors?.length) allErrors.push(...data.errors)
-
-        const errText = allErrors.length
-          ? ` · ${allErrors.length} falha(s): ${allErrors.map((e) => e.name).join(', ')}`
-          : ''
-        setDispatchMsg({ id: campaignId, text: `Enviados: ${totalSent} · Falhas: ${totalFailed}${errText}` })
-
+      await dispatchCampaign(campaignId, (progress) => {
         refetch()
-
-        if (!data.remaining || data.remaining === 0) break
-
-        // Pausa breve entre lotes
-        await new Promise((r) => setTimeout(r, 2000))
-      }
+        setDispatchMsg({ id: campaignId, text: progress.message ?? formatDispatchProgress(progress) })
+      })
     } catch {
       setDispatchMsg({ id: campaignId, text: 'Erro de conexão ao disparar' })
     } finally {

@@ -22,6 +22,7 @@ import {
   GripVertical,
   LayoutDashboard,
   Loader2,
+  Megaphone,
   MessageCircle,
   MoreHorizontal,
   Pencil,
@@ -47,10 +48,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { CreateCampaignForm } from '@/components/crm/campaigns-view'
 
 const STAGE_SWATCHES = ['#2f855a', '#3b6fd8', '#8b5cf6', '#d6922e', '#c45b3c', '#15724f']
 
 type ActivityFilter = 'all' | 'unread' | 'active'
+
+/** Colunas "Follow Up 1", "Follow-up 2"… ganham o botão de disparo em massa. */
+function isFollowUpStage(name: string) {
+  return name.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]/g, '').startsWith('followup')
+}
 
 function timeAgo(value: string) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime())
@@ -192,11 +199,13 @@ function PipelineColumn({
   onOpenLead,
   onCreateLead,
   onRequestDelete,
+  onDispatch,
 }: {
   stage: LeadStage
   onOpenLead: (leadId: string) => void
   onCreateLead: (stageId: string) => void
   onRequestDelete: (lead: Lead) => void
+  onDispatch: (stage: LeadStage) => void
 }) {
   const [isEditingName, setIsEditingName] = useState(false)
   const [stageName, setStageName] = useState(stage.name)
@@ -274,6 +283,17 @@ function PipelineColumn({
               title="Arraste até outra coluna para mover todos os leads"
             >
               <GripVertical className="size-4" aria-hidden="true" />
+            </button>
+          )}
+          {!isEditingName && leadCount > 0 && isFollowUpStage(stage.name) && (
+            <button
+              type="button"
+              onClick={() => onDispatch(stage)}
+              className="mf-pipeline-icon-button"
+              aria-label={`Disparar mensagem para os ${leadCount} leads de ${stage.name}`}
+              title="Disparar mensagem para os leads desta coluna"
+            >
+              <Megaphone className="size-3.5" aria-hidden="true" />
             </button>
           )}
           {isEditingName ? (
@@ -556,6 +576,7 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
   // durante a animação de saída, quando o board já recarregou.
   const [moveAllRequest, setMoveAllRequest] = useState<{ from: LeadStage; to: LeadStage } | null>(null)
   const [isMoveAllOpen, setIsMoveAllOpen] = useState(false)
+  const [dispatchStage, setDispatchStage] = useState<LeadStage | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [isNewStageOpen, setIsNewStageOpen] = useState(false)
@@ -671,7 +692,7 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
         <div className="mf-pipeline-board-hint"><span>Arraste um cartão para mover o lead — ou a alça <GripVertical className="inline size-3 align-[-2px]" aria-hidden="true" /> da coluna para mover todos</span>{hasActiveFilters ? <button type="button" onClick={() => { setSearch(''); setActivityFilter('all') }}>Limpar filtros</button> : <span>As mudanças são salvas automaticamente</span>}</div>
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="mf-pipeline-board">
-            {visibleStages.map((stage) => <PipelineColumn key={stage.id} stage={stage} onOpenLead={openLead} onCreateLead={openNewLead} onRequestDelete={setLeadToDelete} />)}
+            {visibleStages.map((stage) => <PipelineColumn key={stage.id} stage={stage} onOpenLead={openLead} onCreateLead={openNewLead} onRequestDelete={setLeadToDelete} onDispatch={setDispatchStage} />)}
             <button type="button" className="mf-pipeline-add-stage" onClick={() => setIsNewStageOpen(true)}><Plus className="size-4" />Adicionar etapa</button>
           </div>
           <DragOverlay dropAnimation={null}>
@@ -692,6 +713,12 @@ export function KanbanLeads({ onOpenLead, onOpenInbox }: { onOpenLead?: (leadId:
         includesHiddenLeads={hasActiveFilters}
         onOpenChange={setIsMoveAllOpen}
       />
+      {dispatchStage && (
+        <CreateCampaignForm
+          preset={{ stageId: dispatchStage.id, stageName: dispatchStage.name, leadCount: dispatchStage._count.leads }}
+          onClose={() => setDispatchStage(null)}
+        />
+      )}
     </div>
   )
 }
