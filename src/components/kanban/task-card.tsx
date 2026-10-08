@@ -6,8 +6,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Trash2, Calendar, Star, Pencil, Check, X,
-  ImagePlus, Plus, ClipboardList, User, MessageCircle,
-  CheckCircle2, Clock, Users
+  ImagePlus, Plus, ClipboardList, ClipboardCheck, User, MessageCircle,
+  CheckCircle2, Circle, Clock, Users
 } from 'lucide-react'
 import { useDeleteTask, useUpdateTask, useCreateTask, useKanbanCardTasks, useColumns } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import {
   buildActionClientPracticeChecklistDescription,
   buildActionClientPracticeActionsDescription,
   buildActionClientDueDate,
+  collectClientActionHistory,
   getActionClientDaysRemaining,
   getActionClientStageDaysElapsed,
   getActionClientStageStart,
@@ -133,6 +134,17 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
   const negotiationValue = negotiationPreview?.value || ''
   const actionClientTask = isActionsCard ? parseActionClientTaskDescription(task.description) : null
   const actionClients = isActionsCard ? parseActionClientsDescription(task.description) : []
+  // Ações de prática visíveis no cartão só nas etapas em que são as do ciclo
+  // atual — fora delas o payload ainda guarda o texto do ciclo anterior.
+  const cardPracticeActions = actionClientTask && (isActionPracticeCard || isActionExecutionCard)
+    ? normalizePracticeChecklist(actionClientTask.practiceActions).filter((action) => action.text.trim())
+    : []
+  const cardPracticeActionsDone = cardPracticeActions.filter((action) => action.completedAt).length
+  // Histórico de ações do cliente (cartões do Decola): só com a janela aberta,
+  // pra não varrer o quadro de Ações a cada cartão renderizado.
+  const clientActionHistory = task.source === 'kanban' && modalOpen && actionColumns
+    ? collectClientActionHistory(task.id, actionColumns)
+    : null
   const actionDaysRemaining = isActionValidationCard
     ? getActionClientDaysRemaining(
       actionClientTask?.dueAt
@@ -532,7 +544,24 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                 {isNegotiationCard ? (
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{negotiationService}</p>
                 ) : isActionsCard && actionClientTask ? (
-                  <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{actionClientTask.actionTitle}</p>
+                  <>
+                    <p className="text-sm text-slate-400 mt-0.5 leading-snug">{actionClientTask.actionTitle}</p>
+                    {cardPracticeActions.length > 0 && (
+                      <ul className="mt-2.5 space-y-1.5">
+                        {cardPracticeActions.map((action, index) => (
+                          <li
+                            key={index}
+                            className={`flex items-start gap-2 text-xs leading-snug ${action.completedAt ? 'text-emerald-300/80' : 'text-slate-300'}`}
+                          >
+                            {action.completedAt
+                              ? <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-400" aria-label="Finalizada" />
+                              : <Circle className="mt-px h-3.5 w-3.5 shrink-0 text-slate-600" aria-label="Pendente" />}
+                            <span className={action.completedAt ? 'line-through decoration-emerald-400/40' : ''}>{action.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 ) : isActionsCard && actionClients.length > 0 ? (
                   <div className="mt-3 rounded-lg bg-teal-400/[0.06] px-2.5 py-2 ring-1 ring-teal-400/15">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-teal-200">
@@ -596,6 +625,11 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                       <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
                         <Star className="w-3 h-3 fill-current shrink-0" />
                         Prioridade
+                      </span>
+                    )}
+                    {isActionExecutionCard && cardPracticeActions.length > 0 && (
+                      <span className="ml-auto text-[10px] font-semibold text-slate-500 tabular-nums">
+                        {cardPracticeActionsDone}/{cardPracticeActions.length} feitas
                       </span>
                     )}
                     {!isActionsCard && activeTasks.length > 0 && (
@@ -995,6 +1029,56 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                       <p className="text-xs text-slate-600 line-through truncate">{t.description || t.title}</p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Histórico de ações (quadro de Ações) */}
+              {clientActionHistory && (clientActionHistory.current.length > 0 || clientActionHistory.completed.length > 0) && (
+                <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-4">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-teal-400" />
+                    <span className="text-sm font-semibold text-slate-200">Histórico de ações</span>
+                  </div>
+
+                  {clientActionHistory.current.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">Em andamento</p>
+                      {clientActionHistory.current.map((item) => (
+                        <div key={item.taskId} className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.05] bg-white/[0.03] px-3 py-2">
+                          <p className="min-w-0 text-sm leading-snug text-white">{item.actionTitle}</p>
+                          <span className="shrink-0 rounded-md border border-teal-500/15 bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
+                            {item.stageTitle}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {clientActionHistory.completed.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">
+                        Concluídas ({clientActionHistory.completed.length})
+                      </p>
+                      {clientActionHistory.completed.map((record, index) => (
+                        <div key={`${record.taskId}-${record.completedAt}-${index}`} className="rounded-lg bg-white/[0.02] px-3 py-2">
+                          <p className="text-xs text-slate-400">
+                            <span className="tabular-nums">{formatDateBR(record.completedAt)}</span>
+                            {record.actionTitle && <span className="text-slate-300"> · {record.actionTitle}</span>}
+                          </p>
+                          {record.actions.length > 0 && (
+                            <ul className="mt-1.5 space-y-1">
+                              {record.actions.map((action, actionIndex) => (
+                                <li key={actionIndex} className="flex items-start gap-2 text-xs leading-snug text-slate-500">
+                                  <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-500/60" />
+                                  {action}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               </>

@@ -11,6 +11,8 @@ export interface ActionClientPracticeAction {
 
 export interface ActionClientCompletionRecord {
   completedAt: string
+  /** Título da ação naquele ciclo — ausente em ciclos concluídos antes de 10/2026. */
+  actionTitle?: string
   actions: string[]
 }
 
@@ -109,6 +111,8 @@ export function parseActionClientTaskDescription(description: string | null | un
           typeof record !== 'object'
             || record === null
             || typeof (record as { completedAt?: unknown }).completedAt !== 'string'
+            || ((record as { actionTitle?: unknown }).actionTitle !== undefined
+              && typeof (record as { actionTitle?: unknown }).actionTitle !== 'string')
             || !Array.isArray((record as { actions?: unknown }).actions)
             || (record as { actions: unknown[] }).actions.some((action) => typeof action !== 'string')
         ))
@@ -260,7 +264,38 @@ export function buildActionClientCompletionDescription(
     practiceActions: checklist.map((action) => ({ text: action.text })),
     completionHistory: [
       ...(payload.completionHistory ?? []),
-      { completedAt, actions: completedActions },
+      // O título pode ser trocado no ciclo seguinte — guarda o deste ciclo.
+      { completedAt, actionTitle: payload.actionTitle, actions: completedActions },
     ],
   })
+}
+
+export interface ClientActionHistory {
+  /** Cartões de ação do cliente, na ordem do quadro de Ações. */
+  current: Array<{ taskId: string; actionTitle: string; stageTitle: string }>
+  /** Ciclos concluídos de todos os cartões do cliente, mais recentes primeiro. */
+  completed: Array<ActionClientCompletionRecord & { taskId: string }>
+}
+
+/** Histórico de ações de um cliente a partir das colunas do quadro de Ações. */
+export function collectClientActionHistory(
+  clientId: string,
+  columns: ReadonlyArray<{ title: string; tasks: ReadonlyArray<Pick<Task, 'id' | 'description'>> }>
+): ClientActionHistory {
+  const history: ClientActionHistory = { current: [], completed: [] }
+
+  for (const column of columns) {
+    for (const task of column.tasks) {
+      const payload = parseActionClientTaskDescription(task.description)
+      if (payload?.clientId !== clientId) continue
+
+      history.current.push({ taskId: task.id, actionTitle: payload.actionTitle, stageTitle: column.title })
+      for (const record of payload.completionHistory ?? []) {
+        history.completed.push({ ...record, taskId: task.id })
+      }
+    }
+  }
+
+  history.completed.sort((a, b) => b.completedAt.localeCompare(a.completedAt))
+  return history
 }
