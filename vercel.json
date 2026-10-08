@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/bulk-send",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/promo-notify",
+      "schedule": "0 10 * * *"
     }
   ]
 }

@@ -8,11 +8,11 @@ const DAYS_AHEAD = 3
 /**
  * Verifica promoções ativas vencendo em até DAYS_AHEAD dias (ou já vencidas)
  * e manda um aviso único, consolidando todos os clientes, pro grupo do
- * WhatsApp configurado em EVOLUTION_NOTIFY_GROUP_JID. Roda dentro do cron
- * diário já existente (/api/cron/bulk-send) — não tem controle de "já avisei",
- * então repete todo dia enquanto a promoção continuar ativa e na janela.
+ * WhatsApp configurado em EVOLUTION_NOTIFY_GROUP_JID. Roda no cron diário
+ * /api/cron/promo-notify — não tem controle de "já avisei", então repete todo
+ * dia enquanto a promoção continuar ativa e na janela.
  */
-export async function checkPromoExpirations(): Promise<{ notified: number; skipped?: string }> {
+export async function checkPromoExpirations(): Promise<{ notified: number; clients?: string[]; skipped?: string }> {
   if (!NOTIFY_GROUP_JID) {
     return { notified: 0, skipped: 'EVOLUTION_NOTIFY_GROUP_JID não configurada' }
   }
@@ -39,25 +39,25 @@ export async function checkPromoExpirations(): Promise<{ notified: number; skipp
 
   if (atRisk.length === 0) return { notified: 0 }
 
-  const lines = atRisk.map((t) => {
+  const items = atRisk.map((t) => {
     const [y, m, d] = t.dateStr.split('-')
     const dateBr = `${d}/${m}/${y}`
     const status =
       t.daysLeft < 0 ? `venceu há ${Math.abs(t.daysLeft)} dia(s)` :
       t.daysLeft === 0 ? 'vence hoje' :
       `vence em ${t.daysLeft} dia(s)`
-    return `• *${t.title}* — ${status} (${dateBr})`
+    return { title: t.title, detail: `${status} (${dateBr})` }
   })
 
   const message = [
     '⚠️ *PromoADS — promoções vencendo*',
     '',
-    ...lines,
+    ...items.map((item) => `• *${item.title}* — ${item.detail}`),
     '',
     'Verificar renovação no sistema.',
   ].join('\n')
 
   await sendTextMessage(NOTIFY_GROUP_JID, message)
 
-  return { notified: atRisk.length }
+  return { notified: atRisk.length, clients: items.map((item) => `${item.title} — ${item.detail}`) }
 }

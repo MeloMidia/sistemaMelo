@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { isCronRequestAuthorized } from '@/lib/cron-auth'
 import { sendTextMessage, sendMediaMessage, sendAudioMessage } from '@/lib/evolution-client'
-import { checkPromoExpirations } from '@/lib/promo-notify'
 import { prepareWhatsAppVoiceAudio } from '@/lib/audio-converter'
 
-const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const BATCH_SIZE = 8
 
 export const runtime = 'nodejs'
@@ -16,27 +13,8 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
-  const auth = request.headers.get('authorization')
-  const session = await getServerSession(authOptions)
-
-  // O Vercel Cron só se autentica via `Authorization: Bearer <CRON_SECRET>`
-  // (enviado automaticamente quando a env CRON_SECRET existe no projeto).
-  // Não existe header de assinatura — sem CRON_SECRET o cron recebe 401.
-  const authed =
-    session ||
-    (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) ||
-    process.env.NODE_ENV !== 'production'
-
-  if (!authed) {
+  if (!(await isCronRequestAuthorized(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Roda junto com o cron diário, independente de ter campanha em massa
-  // pra processar — isolado em try/catch pra nunca derrubar o envio abaixo.
-  try {
-    await checkPromoExpirations()
-  } catch (err) {
-    console.error('Erro ao checar promoções vencendo:', err)
   }
 
   // Aceita campaignId opcional para disparar campanha específica
