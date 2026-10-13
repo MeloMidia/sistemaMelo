@@ -3,38 +3,40 @@ import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { del } from '@vercel/blob'
+import { del, get } from '@vercel/blob'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { sendMediaMessage, type MediaMessageType } from '@/lib/evolution-client'
-import { MEDIA_MAX_BYTES, formatMegabytes, isBlobStoreUrl } from '@/lib/media-upload'
+import { MEDIA_MAX_BYTES, formatMegabytes, isMediaUploadPathname } from '@/lib/media-upload'
 
-// Por link, a Evolution baixa o vídeo antes de enviar — pode passar de 1 min.
+// Arquivo grande (até 25 MB) é lido do Blob e enviado à Evolution em base64 —
+// pode passar de 1 min.
 export const maxDuration = 120
 
-interface MediaInput {
-  /** base64 (arquivo pequeno, veio no corpo) ou link do Vercel Blob (arquivo grande). */
-  media: string
+type MediaInput = {
   mimeType: string
   fileName: string
   caption: string
-  blobUrl?: string
-}
+} & (
+  /** base64 do arquivo pequeno, que veio no corpo. */
+  | { media: string }
+  /** Caminho na loja privada do Vercel Blob (arquivo grande). */
+  | { blobPathname: string }
+)
 
 /**
  * Arquivo até 4 MB chega como multipart; acima disso o navegador sobe pro
- * Vercel Blob e manda só o link em JSON (a Vercel recusa corpo > 4,5 MB).
+ * Vercel Blob e manda só o caminho em JSON (a Vercel recusa corpo > 4,5 MB).
  */
 async function readMediaInput(request: Request): Promise<MediaInput | { error: string; status: number }> {
   if ((request.headers.get('content-type') ?? '').includes('application/json')) {
     const body = (await request.json().catch(() => null)) as
-      | { url?: unknown; fileName?: unknown; mimeType?: unknown; caption?: unknown }
+      | { pathname?: unknown; fileName?: unknown; mimeType?: unknown; caption?: unknown }
       | null
-    if (typeof body?.url !== 'string' || !isBlobStoreUrl(body.url)) {
-      return { error: 'Link de arquivo inválido', status: 400 }
+    if (typeof body?.pathname !== 'string' || !isMediaUploadPathname(body.pathname)) {
+      return { error: 'Arquivo inválido', status: 400 }
     }
     return {
-      media: body.url,
-      blobUrl: body.url,
+      blobPathname: body.pathname,
       mimeType: typeof body.mimeType === 'string' && body.mimeType ? body.mimeType : 'application/octet-stream',
       fileName: typeof body.fileName === 'string' && body.fileName ? body.fileName : `arquivo-${randomUUID()}`,
       caption: typeof body.caption === 'string' ? body.caption.trim() : '',
@@ -78,12 +80,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const input = await readMediaInput(request)
   if ('error' in input) return NextResponse.json({ error: input.error }, { status: input.status })
 
-  // O blob só serve pra Evolution baixar: apaga em qualquer saída daqui pra baixo.
+  // O blob é só passagem: apaga em qualquer saída daqui pra baixo.
   try {
     return await sendToLead(params, input)
   } finally {
-    if (input.blobUrl) await del(input.blobUrl).catch(() => {})
+    if ('blobPathname' in input) await del(input.blobPathname).catch(() => {})
   }
+}
+
+/** Lê o arquivo da loja privada; null se não estiver lá. */
+async function readBlobAsBase64(pathname: string) {
+  const stored = await get(pathname, { access: 'private', useCache: false })
+  if (stored?.statusCode !== 200) return null
+  return Buffer.from(await new Response(stored.stream).arrayBuffer()).toString('base64')
 }
 
 async function sendToLead(params: Promise<{ id: string }>, input: MediaInput) {
@@ -95,6 +104,17 @@ async function sendToLead(params: Promise<{ id: string }>, input: MediaInput) {
   const lead = await prisma.lead.findUnique({ where: { id } })
   if (!lead) return NextResponse.json({ error: 'Lead nao encontrado' }, { status: 404 })
 
+  const fromBlob = 'blobPathname' in input
+  const media = fromBlob
+    ? await readBlobAsBase64(input.blobPathname).catch((error) => {
+        console.error('[crm/media] Falha ao ler arquivo do Blob:', error)
+        return null
+      })
+    : input.media
+  if (!media) {
+    return NextResponse.json({ error: 'Não foi possível ler o arquivo enviado. Tente de novo.' }, { status: 502 })
+  }
+
   const mediaType = resolveMediaType(input.mimeType)
   const content = `[midia enviada - tipo: ${mediaLabel(mediaType)}]`
 
@@ -103,10 +123,10 @@ async function sendToLead(params: Promise<{ id: string }>, input: MediaInput) {
       phone: lead.phone,
       mediaType,
       mimeType: input.mimeType,
-      media: input.media,
+      media,
       fileName: input.fileName,
       caption: input.caption,
-      timeoutMs: input.blobUrl ? 100_000 : undefined,
+      timeoutMs: fromBlob ? 100_000 : undefined,
     })
 
     const message = await prisma.message.upsert({

@@ -1,14 +1,25 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatMegabytes, isBlobStoreUrl } from './media-upload'
+import { formatMegabytes, isMediaUploadPathname, mediaUploadPathname } from './media-upload'
 
-test('aceita só links https do próprio Vercel Blob', () => {
-  assert.equal(isBlobStoreUrl('https://abc123.public.blob.vercel-storage.com/crm-media/video-x1y2.mp4'), true)
-  assert.equal(isBlobStoreUrl('http://abc123.public.blob.vercel-storage.com/crm-media/video.mp4'), false)
-  assert.equal(isBlobStoreUrl('https://evil.com/?h=.public.blob.vercel-storage.com'), false)
-  assert.equal(isBlobStoreUrl('https://public.blob.vercel-storage.com.evil.com/video.mp4'), false)
-  assert.equal(isBlobStoreUrl('https://localhost/video.mp4'), false)
-  assert.equal(isBlobStoreUrl('não é url'), false)
+test('gera caminho seguro no Blob a partir do nome do arquivo', () => {
+  assert.equal(mediaUploadPathname('Vídeo da reunião (1).mp4'), 'crm-media/Video-da-reuniao-1-.mp4')
+  assert.equal(mediaUploadPathname('../../etc/passwd'), 'crm-media/etc-passwd')
+  assert.equal(mediaUploadPathname('漢字.mp4'), 'crm-media/mp4')
+  assert.equal(mediaUploadPathname(''), 'crm-media/arquivo')
+  assert.ok(mediaUploadPathname(`${'a'.repeat(300)}.mp4`).endsWith('.mp4'))
+  for (const name of ['Vídeo.mp4', '../x', '', '漢字.mp4', `${'b'.repeat(900)}.mov`]) {
+    assert.equal(isMediaUploadPathname(mediaUploadPathname(name)), true, name)
+  }
+})
+
+test('aceita só caminhos dentro da pasta de mídia do CRM', () => {
+  assert.equal(isMediaUploadPathname('crm-media/video-x1y2.mp4'), true)
+  assert.equal(isMediaUploadPathname('crm-media/'), false)
+  assert.equal(isMediaUploadPathname('outra-pasta/video.mp4'), false)
+  assert.equal(isMediaUploadPathname('crm-media/../segredo.txt'), false)
+  assert.equal(isMediaUploadPathname('https://abc.private.blob.vercel-storage.com/crm-media/video.mp4'), false)
+  assert.equal(isMediaUploadPathname(`crm-media/${'a'.repeat(600)}.mp4`), false)
 })
 
 test('formata tamanho em MB no padrão brasileiro', () => {

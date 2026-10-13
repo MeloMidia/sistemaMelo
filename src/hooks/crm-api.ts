@@ -2,7 +2,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DIRECT_UPLOAD_MAX_BYTES, MEDIA_MAX_BYTES, MEDIA_UPLOAD_PATH_PREFIX, formatMegabytes } from '@/lib/media-upload'
+import { DIRECT_UPLOAD_MAX_BYTES, MEDIA_MAX_BYTES, formatMegabytes, mediaUploadPathname } from '@/lib/media-upload'
 import type { LeadStage, LeadLite, Lead, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn, FollowUpColumnData } from '@/types/crm'
 
 // ——— Stages (board) ———
@@ -414,27 +414,28 @@ export function useSendMediaMessage(leadId: string | null) {
         res = await fetch(`/api/crm/leads/${leadId}/media`, { method: 'POST', body: formData })
       } else {
         // Acima de 4 MB a Vercel recusa o corpo: sobe direto pro Vercel Blob
-        // e manda só o link (a rota envia pela Evolution e apaga o blob).
+        // (loja privada) e manda só o caminho (a rota lê, envia pela
+        // Evolution e apaga o blob).
         const blobStatus = await fetch('/api/crm/media-upload').then((r) => r.json()).catch(() => null)
         if (blobStatus && !blobStatus.enabled) throw new Error(blobStatus.error)
 
-        let blobUrl: string
+        let blobPathname: string
         try {
-          const { upload } = await import('@vercel/blob/client')
-          const blob = await upload(`${MEDIA_UPLOAD_PATH_PREFIX}${file.name}`, file, {
-            access: 'public',
+          const { uploadPresigned } = await import('@vercel/blob/client')
+          const blob = await uploadPresigned(mediaUploadPathname(file.name), file, {
+            access: 'private',
             handleUploadUrl: '/api/crm/media-upload',
             contentType: file.type || undefined,
-            multipart: file.size > 10 * 1024 * 1024,
           })
-          blobUrl = blob.url
-        } catch {
+          blobPathname = blob.pathname
+        } catch (error) {
+          console.error('[crm] Falha ao subir arquivo pro Vercel Blob:', error)
           throw new Error(`Não foi possível subir o arquivo de ${formatMegabytes(file.size)}. Tente de novo.`)
         }
         res = await fetch(`/api/crm/leads/${leadId}/media`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: blobUrl, fileName: file.name, mimeType: file.type }),
+          body: JSON.stringify({ pathname: blobPathname, fileName: file.name, mimeType: file.type }),
         })
       }
 
