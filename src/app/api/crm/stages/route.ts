@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ensureCrmPipeline, isClosedCrmStage } from '@/lib/crm-pipeline'
+import { withLastMessage } from '@/lib/last-messages'
 
 const LEADS_PER_STAGE = 100
 
@@ -14,33 +15,36 @@ export async function GET() {
 
   const stages = await prisma.leadStage.findMany({
     orderBy: { order: 'asc' },
+    include: { _count: { select: { leads: true } } },
+  })
+
+  // Leads de cada etapa numa consulta própria: `take` aninhado em `include`
+  // não vira LIMIT no SQL (o Prisma traria todos os leads de todas as etapas,
+  // com as mensagens de todos, e cortaria em memória).
+  const leadsByStage = await Promise.all(stages.map((stage) => prisma.lead.findMany({
+    where: { stageId: stage.id, followUpColumn: null },
+    take: LEADS_PER_STAGE,
+    orderBy: { updatedAt: 'desc' },
     include: {
-      _count: { select: { leads: true } },
-      leads: {
-        where: { followUpColumn: null },
-        take: LEADS_PER_STAGE,
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          tags: { include: { tag: true } },
-          assignedTo: { select: { id: true, name: true } },
+      tags: { include: { tag: true } },
+      assignedTo: { select: { id: true, name: true } },
+      _count: {
+        select: {
           messages: {
             where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-          _count: {
-            select: {
-              messages: {
-                where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
-              },
-            },
           },
         },
       },
     },
-  })
+  })))
 
-  return NextResponse.json(stages)
+  const leadsWithLastMessage = await withLastMessage(leadsByStage.flat())
+  const leadById = new Map(leadsWithLastMessage.map((lead) => [lead.id, lead]))
+
+  return NextResponse.json(stages.map((stage, index) => ({
+    ...stage,
+    leads: leadsByStage[index].map((lead) => leadById.get(lead.id)!),
+  })))
 }
 
 export async function POST(request: Request) {

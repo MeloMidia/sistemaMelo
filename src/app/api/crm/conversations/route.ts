@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { findLastMessages } from '@/lib/last-messages'
 
 const MAX_CONVERSATIONS = 250
 
@@ -43,28 +44,21 @@ export async function GET(request: Request) {
           tag: { select: { id: true, name: true, color: true } },
         },
       },
-      messages: {
-        where: { NOT: { whatsappMessageId: { startsWith: 'note-' } } },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: {
-          id: true,
-          content: true,
-          direction: true,
-          status: true,
-          createdAt: true,
-        },
-      },
     },
   })
 
+  const lastByLead = await findLastMessages(leads.map((lead) => lead.id))
+
   return NextResponse.json(leads.map((lead) => {
-    const lastMessage = lead.messages[0] ?? null
+    const last = lastByLead.get(lead.id)
+    const lastMessage = last
+      ? { id: last.id, content: last.content, direction: last.direction, status: last.status, createdAt: last.createdAt }
+      : null
     const isUnread = Boolean(
       lastMessage?.direction === 'INBOUND' &&
       (!lead.lastReadAt || lastMessage.createdAt > lead.lastReadAt)
     )
 
-    return { ...lead, lastMessage, isUnread, messages: undefined }
+    return { ...lead, lastMessage, isUnread }
   }))
 }

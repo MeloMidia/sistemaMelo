@@ -84,14 +84,15 @@ export async function getDashboardData(startDate?: Date, endDate?: Date) {
       },
       _count: { _all: true },
     }),
-    prisma.message.findMany({
+    // groupBy vira GROUP BY no SQL; `distinct` do Prisma traria todas as
+    // mensagens enviadas do período e deduplicaria em memória.
+    prisma.message.groupBy({
+      by: ['leadId'],
       where: {
         direction: 'OUTBOUND',
         createdAt: inRange,
         NOT: { whatsappMessageId: { startsWith: 'note-' } },
       },
-      distinct: ['leadId'],
-      select: { leadId: true },
     }),
     prisma.leadStage.findMany({
       orderBy: { order: 'asc' },
