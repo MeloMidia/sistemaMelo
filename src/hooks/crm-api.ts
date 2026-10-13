@@ -2,6 +2,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { DIRECT_UPLOAD_MAX_BYTES, MEDIA_MAX_BYTES, MEDIA_UPLOAD_PATH_PREFIX, formatMegabytes } from '@/lib/media-upload'
 import type { LeadStage, LeadLite, Lead, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn, FollowUpColumnData } from '@/types/crm'
 
 // ——— Stages (board) ———
@@ -402,14 +403,47 @@ export function useSendMediaMessage(leadId: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData()
-      formData.append('file', file, file.name)
-      const res = await fetch(`/api/crm/leads/${leadId}/media`, {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to send media')
+      if (file.size > MEDIA_MAX_BYTES) {
+        throw new Error(`Arquivo de ${formatMegabytes(file.size)} — o limite é ${formatMegabytes(MEDIA_MAX_BYTES)}. Comprima antes de enviar.`)
+      }
+
+      let res: Response
+      if (file.size <= DIRECT_UPLOAD_MAX_BYTES) {
+        const formData = new FormData()
+        formData.append('file', file, file.name)
+        res = await fetch(`/api/crm/leads/${leadId}/media`, { method: 'POST', body: formData })
+      } else {
+        // Acima de 4 MB a Vercel recusa o corpo: sobe direto pro Vercel Blob
+        // e manda só o link (a rota envia pela Evolution e apaga o blob).
+        const blobStatus = await fetch('/api/crm/media-upload').then((r) => r.json()).catch(() => null)
+        if (blobStatus && !blobStatus.enabled) throw new Error(blobStatus.error)
+
+        let blobUrl: string
+        try {
+          const { upload } = await import('@vercel/blob/client')
+          const blob = await upload(`${MEDIA_UPLOAD_PATH_PREFIX}${file.name}`, file, {
+            access: 'public',
+            handleUploadUrl: '/api/crm/media-upload',
+            contentType: file.type || undefined,
+            multipart: file.size > 10 * 1024 * 1024,
+          })
+          blobUrl = blob.url
+        } catch {
+          throw new Error(`Não foi possível subir o arquivo de ${formatMegabytes(file.size)}. Tente de novo.`)
+        }
+        res = await fetch(`/api/crm/leads/${leadId}/media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: blobUrl, fileName: file.name, mimeType: file.type }),
+        })
+      }
+
+      // A Vercel responde erros de plataforma (ex.: 413) em texto puro, não JSON.
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error
+          ?? (res.status === 413 ? `Arquivo grande demais para envio (${formatMegabytes(file.size)}).` : `Erro ${res.status} ao enviar arquivo.`))
+      }
       return data
     },
     onSuccess: () => {

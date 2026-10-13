@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
-    "test": "tsx --test src/lib/crm-lead-rules.test.ts src/lib/dashboard-sales.test.ts src/lib/action-stages.test.ts src/lib/action-clients.test.ts",
+    "test": "tsx --test src/lib/crm-lead-rules.test.ts src/lib/dashboard-sales.test.ts src/lib/action-stages.test.ts src/lib/action-clients.test.ts src/lib/media-upload.test.ts",
     "start": "next start",
     "lint": "eslint"
   },
@@ -20,6 +20,7 @@
     "@prisma/client": "^6.4.0",
     "@tanstack/react-query": "^5.96.1",
     "@types/pg": "^8.20.0",
+    "@vercel/blob": "^2.8.1",
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

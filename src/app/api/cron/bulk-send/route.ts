@@ -103,7 +103,7 @@ export async function POST(request: Request) {
           phone,
           mediaType: campaign.mediaType as 'image' | 'video' | 'document',
           mimeType: campaign.mimeType,
-          base64Media: campaign.mediaBase64,
+          media: campaign.mediaBase64,
           fileName: campaign.fileName,
           caption: campaign.mediaCaption ?? campaign.message ?? '',
         })

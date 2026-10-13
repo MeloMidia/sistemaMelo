@@ -168,17 +168,21 @@ export async function sendMediaMessage(input: {
   phone: string
   mediaType: MediaMessageType
   mimeType: string
-  base64Media: string
+  /** Conteúdo em base64 ou URL pública — a Evolution aceita os dois no campo `media`. */
+  media: string
   fileName: string
   caption?: string
+  /** Por URL a Evolution baixa o arquivo antes de enviar; vídeos grandes passam dos 10s padrão. */
+  timeoutMs?: number
 }): Promise<SendTextResult> {
   const res = await evolutionRequest(`/message/sendMedia/${INSTANCE}`, {
     method: 'POST',
+    signal: AbortSignal.timeout(input.timeoutMs ?? 10_000),
     body: JSON.stringify({
       number: input.phone,
       mediatype: input.mediaType,
       mimetype: input.mimeType,
-      media: input.base64Media,
+      media: input.media,
       fileName: input.fileName,
       caption: input.caption ?? '',
     }),
