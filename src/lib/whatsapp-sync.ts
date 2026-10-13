@@ -279,7 +279,14 @@ export async function importWhatsappMessage(raw: UnknownRecord, options?: { lead
   const content = buildMessageContent(raw, fromMe)
   const createdAt = normalizeTimestamp(raw.messageTimestamp ?? raw.timestamp ?? raw.createdAt)
 
-  const message = await prisma.message.upsert({
+  // O sync de conversa reimporta o histórico inteiro a cada abertura e o
+  // webhook pode repetir eventos: não regrava mensagem que não mudou.
+  const unchanged = existing
+    && existing.content === content
+    && existing.createdAt.getTime() === createdAt.getTime()
+    && (!inboundStatus || existing.status === inboundStatus)
+
+  const message = unchanged ? existing : await prisma.message.upsert({
     where: { whatsappMessageId: id },
     create: {
       leadId: lead.id,

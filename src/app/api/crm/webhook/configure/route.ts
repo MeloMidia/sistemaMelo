@@ -8,31 +8,18 @@ const BASE_URL = getEvolutionBaseUrl()
 const API_KEY = process.env.EVOLUTION_API_KEY ?? ''
 const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? ''
 
+// Só os eventos que /api/crm/webhook/evolution trata. Cada evento assinado
+// vira uma chamada de função na Vercel — os demais (presença/"digitando",
+// contatos, chats, grupos, chamadas…) chegavam a cada mensagem e eram
+// descartados. Ao incluir um evento aqui, trate-o também no webhook.
 const EVENTS = [
-  'APPLICATION_STARTUP',
-  'QRCODE_UPDATED',
-  'MESSAGES_SET',
   'MESSAGES_UPSERT',
-  'MESSAGES_EDITED',
   'MESSAGES_UPDATE',
-  'MESSAGES_DELETE',
   'SEND_MESSAGE',
   'SEND_MESSAGE_UPDATE',
-  'CONTACTS_SET',
-  'CONTACTS_UPSERT',
-  'CONTACTS_UPDATE',
-  'PRESENCE_UPDATE',
-  'CHATS_SET',
-  'CHATS_UPSERT',
-  'CHATS_UPDATE',
-  'CHATS_DELETE',
-  'GROUPS_UPSERT',
-  'GROUP_UPDATE',
-  'GROUP_PARTICIPANTS_UPDATE',
   'CONNECTION_UPDATE',
   'LABELS_EDIT',
   'LABELS_ASSOCIATION',
-  'CALL',
 ]
 
 async function trySetWebhook(url: string, webhookUrl: string) {

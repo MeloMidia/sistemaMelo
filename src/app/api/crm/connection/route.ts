@@ -5,8 +5,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getConnectionState } from '@/lib/evolution-client'
 
-async function persistConnectionStatus(status: string) {
-  const existing = await prisma.whatsappConnection.findFirst()
+async function persistConnectionStatus(
+  existing: Awaited<ReturnType<typeof prisma.whatsappConnection.findFirst>>,
+  status: string,
+) {
+  // Consultado a cada minuto por aba aberta: só grava quando o status muda.
+  if (existing?.status === status) return existing
 
   if (existing) {
     return prisma.whatsappConnection.update({
@@ -29,7 +33,7 @@ export async function GET() {
     const liveStatus = result.instance?.state
 
     if (liveStatus) {
-      const syncedConnection = await persistConnectionStatus(liveStatus)
+      const syncedConnection = await persistConnectionStatus(connection, liveStatus)
       return NextResponse.json(syncedConnection)
     }
   } catch (error) {
