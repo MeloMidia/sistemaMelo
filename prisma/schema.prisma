@@ -64,6 +64,10 @@ model Task {
   @@index([source, churnedAt])
   @@index([source, createdAt])
   @@index([source, columnId, order])
+  // Tarefas por cartão de cliente (/api/tasks?kanbanTaskId=, contagem em /api/columns)
+  // e por lead (/api/tasks?leadId=) — sem índice eram varredura da tabela inteira.
+  @@index([kanbanTaskId])
+  @@index([leadId])
 }
 
 model Tag {

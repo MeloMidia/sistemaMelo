@@ -28,6 +28,7 @@ import {
 } from '@/lib/action-clients'
 import type { ActionClientPracticeAction } from '@/lib/action-clients'
 import { getActionStage, getActionStageFromTitle, type ActionStage } from '@/lib/action-stages'
+import { fileToLogoDataUrl } from '@/lib/logo-image'
 
 interface TaskCardProps {
   task: TaskType
@@ -126,10 +127,12 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
   const createTask = useCreateTask()
-  const { data: columns } = useColumns('tasks')
-  const { data: kanbanColumns } = useColumns()
-  const { data: actionColumns } = useColumns('acoes')
-  const { data: cardTasks } = useKanbanCardTasks(task.id)
+  // Só com a janela aberta: criar tarefa, histórico de ações e checklist.
+  // Fechado, cada cartão do quadro dispararia essas buscas ao carregar.
+  const { data: columns } = useColumns('tasks', { enabled: modalOpen })
+  const { data: kanbanColumns } = useColumns('kanban', { enabled: modalOpen })
+  const { data: actionColumns } = useColumns('acoes', { enabled: modalOpen })
+  const { data: cardTasks } = useKanbanCardTasks(task.id, modalOpen && !isActionsCard)
   const negotiationService = negotiationPreview?.service || task.description || 'Negociação criada a partir do lead'
   const negotiationValue = negotiationPreview?.value || ''
   const actionClientTask = isActionsCard ? parseActionClientTaskDescription(task.description) : null
@@ -203,6 +206,7 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
 
   const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
   const completedCardTasks = (cardTasks ?? []).filter(t => t.completedAt)
+  const openTaskCount = cardTasks ? activeTasks.length : (task.openTaskCount ?? 0)
 
   const handleCreateTask = () => {
     const columnId = columns?.[0]?.id ?? kanbanColumns?.[0]?.id
@@ -266,12 +270,10 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
     setIsEditing(false)
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setEditLogo(reader.result as string)
-    reader.readAsDataURL(file)
+    setEditLogo(await fileToLogoDataUrl(file))
   }
 
   const handleTogglePriority = () => {
@@ -632,10 +634,10 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                         {cardPracticeActionsDone}/{cardPracticeActions.length} feitas
                       </span>
                     )}
-                    {!isActionsCard && activeTasks.length > 0 && (
+                    {!isActionsCard && openTaskCount > 0 && (
                       <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
                         <ClipboardList className="w-3 h-3 shrink-0" />
-                        {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
+                        {openTaskCount} {openTaskCount === 1 ? 'tarefa' : 'tarefas'}
                       </span>
                     )}
                   </div>

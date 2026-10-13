@@ -6,7 +6,7 @@ import { getDashboardData } from '@/app/actions/metrics'
 import { getDateRange, getPreviousPeriodRange, type DateRange, type PeriodKey } from '@/lib/date-range'
 
 // ——— Columns ———
-export function useColumns(source: string = 'kanban') {
+export function useColumns(source: string = 'kanban', options?: { enabled?: boolean }) {
   return useQuery<Column[]>({
     queryKey: ['columns', source],
     queryFn: async () => {
@@ -15,6 +15,8 @@ export function useColumns(source: string = 'kanban') {
       return res.json()
     },
     staleTime: 30_000,
+    // Desligado ainda devolve o que já estiver em cache (ex.: colunas do quadro aberto).
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -259,7 +261,12 @@ export function useLeadTasks(leadId: string | null) {
   })
 }
 
-export function useKanbanCardTasks(kanbanTaskId: string | null) {
+/**
+ * Tarefas de um cartão de cliente. Os cartões só pedem com a janela aberta —
+ * o selo "N tarefas" usa `openTaskCount`, que vem junto em /api/columns
+ * (antes cada cartão do quadro fazia sua própria requisição ao carregar).
+ */
+export function useKanbanCardTasks(kanbanTaskId: string | null, enabled = true) {
   return useQuery<Task[]>({
     queryKey: ['kanban-card-tasks', kanbanTaskId],
     queryFn: async () => {
@@ -267,7 +274,7 @@ export function useKanbanCardTasks(kanbanTaskId: string | null) {
       if (!res.ok) throw new Error('Failed to fetch kanban card tasks')
       return res.json()
     },
-    enabled: !!kanbanTaskId,
+    enabled: !!kanbanTaskId && enabled,
     staleTime: 30_000,
   })
 }

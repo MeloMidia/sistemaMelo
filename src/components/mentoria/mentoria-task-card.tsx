@@ -12,6 +12,7 @@ import { useDeleteTask, useUpdateTask, useCreateTask, useCreateColumn, useKanban
 import { Input } from '@/components/ui/input'
 import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
 import { isChurnColumnTitle, DEFAULT_ENCERRADO_COLUMN_TITLE } from '@/lib/clientes'
+import { fileToLogoDataUrl } from '@/lib/logo-image'
 
 interface MentoriaTaskCardProps {
   task: TaskType
@@ -65,13 +66,16 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   const updateTask = useUpdateTask()
   const createTask = useCreateTask()
   const createColumn = useCreateColumn('mentoria')
-  const { data: columns } = useColumns('tasks')
-  const { data: kanbanColumns } = useColumns()
+  // Só com a janela aberta (criar tarefa) — fechado, cada cartão do quadro
+  // dispararia essas buscas ao carregar.
+  const { data: columns } = useColumns('tasks', { enabled: modalOpen })
+  const { data: kanbanColumns } = useColumns('kanban', { enabled: modalOpen })
   const { data: mentoriaColumns } = useColumns('mentoria')
-  const { data: cardTasks } = useKanbanCardTasks(task.id)
+  const { data: cardTasks } = useKanbanCardTasks(task.id, modalOpen)
 
   const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
   const completedCardTasks = (cardTasks ?? []).filter(t => t.completedAt)
+  const openTaskCount = cardTasks ? activeTasks.length : (task.openTaskCount ?? 0)
 
   const handleCreateTask = () => {
     const columnId = columns?.[0]?.id ?? kanbanColumns?.[0]?.id
@@ -130,12 +134,10 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
     setIsEditing(false)
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setEditLogo(reader.result as string)
-    reader.readAsDataURL(file)
+    setEditLogo(await fileToLogoDataUrl(file))
   }
 
   const handleTogglePriority = () => {
@@ -340,10 +342,10 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
                       {task.meetingsCount} Reuni{task.meetingsCount !== 1 ? 'ões' : 'ão'}
                     </span>
                   )}
-                  {activeTasks.length > 0 && (
+                  {openTaskCount > 0 && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
                       <ClipboardList className="w-3 h-3 shrink-0" />
-                      {activeTasks.length} {activeTasks.length === 1 ? 'tarefa' : 'tarefas'}
+                      {openTaskCount} {openTaskCount === 1 ? 'tarefa' : 'tarefas'}
                     </span>
                   )}
                 </div>

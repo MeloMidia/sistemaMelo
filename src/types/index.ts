@@ -80,6 +80,8 @@ export interface Task {
   churnedBy: string | null
   leadId: string | null
   kanbanTaskId: string | null
+  /** Tarefas em aberto vinculadas a este cartão de cliente (vem de /api/columns). */
+  openTaskCount?: number
   tags?: TaskTagWithTag[]
   lead?: LeadTaskContext | null
   kanbanTask?: KanbanTaskContext | null

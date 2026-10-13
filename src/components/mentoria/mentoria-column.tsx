@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { fileToLogoDataUrl } from '@/lib/logo-image'
 
 interface MentoriaColumnProps {
   column: ColumnType
@@ -56,12 +57,10 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
     transition,
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setNewTaskLogo(reader.result as string)
-    reader.readAsDataURL(file)
+    setNewTaskLogo(await fileToLogoDataUrl(file))
   }
 
   const handleAddTask = () => {

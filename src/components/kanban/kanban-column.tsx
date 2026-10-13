@@ -23,6 +23,7 @@ import {
   parseActionClientTaskDescription,
 } from '@/lib/action-clients'
 import { getActionStage, type ActionStage } from '@/lib/action-stages'
+import { fileToLogoDataUrl } from '@/lib/logo-image'
 
 interface KanbanColumnProps {
   column: ColumnType
@@ -152,12 +153,10 @@ export function KanbanColumn({ column, source = 'kanban', taskLabel = 'cliente',
     transition,
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setNewTaskLogo(reader.result as string)
-    reader.readAsDataURL(file)
+    setNewTaskLogo(await fileToLogoDataUrl(file))
   }
 
   const resetAddTaskForm = () => {

@@ -135,6 +135,25 @@ export async function GET(request: Request) {
     orderBy: { order: 'asc' },
   })
 
+  // Selo "N tarefas" dos cartões de cliente numa consulta só — antes cada
+  // cartão buscava a própria lista de tarefas ao carregar o quadro.
+  if (source === 'kanban' || source === 'mentoria') {
+    const cardIds = columns.flatMap((column) => column.tasks.map((task) => task.id))
+    const counts = cardIds.length > 0
+      ? await prisma.task.groupBy({
+        by: ['kanbanTaskId'],
+        where: { source: 'tasks', completedAt: null, kanbanTaskId: { in: cardIds } },
+        _count: { _all: true },
+      })
+      : []
+    const openByCard = new Map(counts.map((row) => [row.kanbanTaskId, row._count._all]))
+
+    return NextResponse.json(columns.map((column) => ({
+      ...column,
+      tasks: column.tasks.map((task) => ({ ...task, openTaskCount: openByCard.get(task.id) ?? 0 })),
+    })))
+  }
+
   return NextResponse.json(columns)
 }
 
