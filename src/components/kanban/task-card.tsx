@@ -547,7 +547,9 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                   <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">{negotiationService}</p>
                 ) : isActionsCard && actionClientTask ? (
                   <>
-                    <p className="text-sm text-slate-400 mt-0.5 leading-snug">{actionClientTask.actionTitle}</p>
+                    {actionClientTask.actionTitle && (
+                      <p className="text-sm text-slate-400 mt-0.5 leading-snug">{actionClientTask.actionTitle}</p>
+                    )}
                     {cardPracticeActions.length > 0 && (
                       <ul className="mt-2.5 space-y-1.5">
                         {cardPracticeActions.map((action, index) => (
@@ -1047,7 +1049,9 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                       <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">Em andamento</p>
                       {clientActionHistory.current.map((item) => (
                         <div key={item.taskId} className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.05] bg-white/[0.03] px-3 py-2">
-                          <p className="min-w-0 text-sm leading-snug text-white">{item.actionTitle}</p>
+                          <p className={`min-w-0 text-sm leading-snug ${item.actionTitle ? 'text-white' : 'italic text-slate-500'}`}>
+                            {item.actionTitle || 'Ação a definir'}
+                          </p>
                           <span className="shrink-0 rounded-md border border-teal-500/15 bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
                             {item.stageTitle}
                           </span>
