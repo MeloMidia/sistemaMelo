@@ -630,6 +630,7 @@ function TaskQueueItem({
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null
   const isOverdue = dueDate && dueDate < new Date()
+  const createdAt = new Date(task.createdAt)
 
   const openEdit = () => {
     const latestDisplay = getTaskDisplay(task)
@@ -735,7 +736,7 @@ function TaskQueueItem({
             <p className="text-xs text-slate-300 mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{display.actionDescription}</p>
           )}
           <TaskClientContext task={task} />
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             {dueDate && (
               <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.06] text-slate-400'
                 }`}>
@@ -770,6 +771,9 @@ function TaskQueueItem({
                 {task.assignee}
               </span>
             )}
+            <span className="text-[11px] text-slate-500">
+              Criada em {createdAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+            </span>
           </div>
         </div>
 
