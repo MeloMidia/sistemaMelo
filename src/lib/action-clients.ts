@@ -207,8 +207,12 @@ export function getActionClientStageStart(
     ?? fallback
 }
 
+// Campos de ação mostrados na etapa Pôr em prática; dá pra adicionar mais.
+export const MIN_PRACTICE_ACTIONS = 3
+
 export function normalizePracticeChecklist(actions: Array<string | ActionClientPracticeAction> | null | undefined) {
-  return [0, 1, 2].map((index) => {
+  const length = Math.max(MIN_PRACTICE_ACTIONS, actions?.length ?? 0)
+  return Array.from({ length }, (_, index) => {
     const action = actions?.[index]
     if (typeof action === 'string') return { text: action }
     return {
@@ -227,7 +231,8 @@ export function buildActionClientPracticeActionsDescription(description: string 
   if (!payload) return description ?? null
   return buildActionClientTaskDescription({
     ...payload,
-    practiceActions: normalizePracticeChecklist(actions),
+    // Campo esvaziado = ação removida; não sobra buraco na lista.
+    practiceActions: normalizePracticeChecklist(actions.filter((action) => action.trim())),
   })
 }
 

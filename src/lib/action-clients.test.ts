@@ -3,8 +3,10 @@ import test from 'node:test'
 import {
   buildActionClientActionTitleDescription,
   buildActionClientCompletionDescription,
+  buildActionClientPracticeActionsDescription,
   collectClientActionHistory,
   getActionClientStageStart,
+  normalizePracticeActions,
   parseActionClientTaskDescription,
 } from './action-clients'
 
@@ -58,6 +60,20 @@ test('ciclo concluído guarda o título da ação daquele ciclo', () => {
   assert.deepEqual(parseActionClientTaskDescription(description)?.completionHistory, [
     { completedAt: '2026-10-02T10:00:00.000Z', actionTitle: 'Melhorar anúncios', actions: ['Trocar fotos'] },
   ])
+})
+
+test('ações de prática: no mínimo três campos, sem limite máximo', () => {
+  assert.deepEqual(normalizePracticeActions(['A']), ['A', '', ''])
+  assert.deepEqual(normalizePracticeActions(['A', 'B', 'C', 'D', 'E']), ['A', 'B', 'C', 'D', 'E'])
+})
+
+test('salvar ações de prática descarta as vazias e mantém as extras', () => {
+  const description = buildActionClientPracticeActionsDescription(
+    `ACTION_CLIENT_TASK_V1:${JSON.stringify(payload)}`,
+    ['A', '  ', 'C', 'D', '']
+  )
+
+  assert.deepEqual(normalizePracticeActions(parseActionClientTaskDescription(description)?.practiceActions), ['A', 'C', 'D'])
 })
 
 test('histórico do cliente junta as ações em andamento e os ciclos concluídos de todos os cartões dele', () => {

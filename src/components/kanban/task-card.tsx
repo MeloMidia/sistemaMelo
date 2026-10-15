@@ -889,7 +889,7 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                       )}
                     </div>
                     <p className="text-xs leading-relaxed text-white/45">
-                      Defina até três ações para colocar em prática com este cliente.
+                      Defina as ações para colocar em prática com este cliente.
                     </p>
                   </div>
 
@@ -907,6 +907,15 @@ export function TaskCard({ task, columnTitle, actionStage, onOpenLead }: TaskCar
                       />
                     </label>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setPracticeActions((current) => [...current, ''])}
+                    className="flex h-10 w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-teal-400/25 text-xs font-semibold text-teal-200/80 transition-colors hover:border-teal-400/45 hover:bg-teal-400/[0.06] hover:text-teal-100"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar ação
+                  </button>
 
                   <div className="flex justify-end gap-2 pt-1">
                     <button
