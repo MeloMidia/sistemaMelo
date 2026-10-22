@@ -192,8 +192,10 @@
 .mf-main { background: var(--mf-paper); min-height: 0; }
 .mf-workspace { background: var(--mf-paper) !important; }
 .mf-workspace > * { min-width: 0; }
-h1, h2, h3 { text-wrap: balance; }
-p { text-wrap: pretty; }
+/* text-wrap-style, não o atalho text-wrap: o atalho também liga a quebra de
+   linha e, fora de camada, anulava o `truncate` do Tailwind em <p>/<h*>. */
+h1, h2, h3 { text-wrap-style: balance; }
+p { text-wrap-style: pretty; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 2px solid var(--mf-signal) !important;
   outline-offset: 2px;
