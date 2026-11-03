@@ -7,7 +7,7 @@ import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard, ClipboardList, ClipboardCheck, LogOut, User, BarChart, Users,
   GraduationCap, Bot, MessageSquare, Calendar, Building2,
-  Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp, MoreHorizontal, X,
+  Briefcase, Kanban, ChevronLeft, Sun, Moon, TrendingUp, MoreHorizontal, X, Wrench,
 } from 'lucide-react'
 import type { CrmView } from '@/components/crm/crm-inbox'
 import { WhatsappSettings } from '@/components/crm/whatsapp-settings'
@@ -32,7 +32,7 @@ const ClientesView = dynamic(() => import('@/components/clientes/clientes-view')
 const CarteiraView = dynamic(() => import('@/components/clientes/carteira-view').then((module) => module.CarteiraView), { loading: ViewLoading })
 
 type Theme = 'dark' | 'light'
-type ActiveTab = 'kanban' | 'mentoria' | 'acoes' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
+type ActiveTab = 'kanban' | 'mentoria' | 'implementacao' | 'acoes' | 'clientes' | 'carteira' | 'tasks' | 'automacao-ml' | 'metricas' | 'dashboard' | 'crm' | 'negotiations' | 'agenda'
 
 function MeloMidiaLogoMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -58,13 +58,14 @@ const THEME_COOKIE_KEY = 'mf-theme'
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 const OPERACIONAL = [
-  { id: 'kanban',       icon: LayoutDashboard, label: 'Decola',       color: '#2854DF' },
-  { id: 'mentoria',     icon: GraduationCap,   label: 'Evolução',     color: '#2854DF' },
-  { id: 'acoes',        icon: ClipboardCheck,  label: 'Ações',        color: '#14b8a6' },
-  { id: 'clientes',     icon: Building2,       label: 'PromoADS',     color: '#2854DF' },
-  { id: 'carteira',     icon: Briefcase,       label: 'Carteira',     color: '#2854DF' },
-  { id: 'tasks',        icon: ClipboardList,   label: 'Tarefas',      color: '#2854DF' },
-  { id: 'automacao-ml', icon: Bot,             label: 'Automação ML', color: '#06b6d4' },
+  { id: 'kanban',        icon: LayoutDashboard, label: 'Decola',        color: '#2854DF' },
+  { id: 'mentoria',      icon: GraduationCap,   label: 'Evolução',      color: '#2854DF' },
+  { id: 'implementacao', icon: Wrench,          label: 'Implementação', color: '#2854DF' },
+  { id: 'acoes',         icon: ClipboardCheck,  label: 'Ações',         color: '#14b8a6' },
+  { id: 'clientes',      icon: Building2,       label: 'PromoADS',      color: '#2854DF' },
+  { id: 'carteira',      icon: Briefcase,       label: 'Carteira',      color: '#2854DF' },
+  { id: 'tasks',         icon: ClipboardList,   label: 'Tarefas',       color: '#2854DF' },
+  { id: 'automacao-ml',  icon: Bot,             label: 'Automação ML',  color: '#06b6d4' },
 ] as const
 
 const COMERCIAL = [
@@ -497,6 +498,7 @@ export default function HomePage() {
         style={{ background: pageBg }}>
         {activeTab === 'kanban'       && <KanbanBoard />}
         {activeTab === 'mentoria'     && <MentoriaBoard />}
+        {activeTab === 'implementacao' && <MentoriaBoard source="implementacao" />}
         {activeTab === 'acoes'        && <KanbanBoard source="acoes" title="Ações" description="Organize ideias e iniciativas por estágio de decisão e execução." taskLabel="ação" countLabel="ações" eyebrow="Operacional" headerIcon={ClipboardCheck} />}
         {activeTab === 'clientes'     && <ClientesView />}
         {activeTab === 'carteira'     && <CarteiraView />}

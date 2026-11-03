@@ -20,9 +20,10 @@ import { fileToLogoDataUrl } from '@/lib/logo-image'
 
 interface MentoriaColumnProps {
   column: ColumnType
+  source: string
 }
 
-export function MentoriaColumn({ column }: MentoriaColumnProps) {
+export function MentoriaColumn({ column, source }: MentoriaColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export function MentoriaColumn({ column }: MentoriaColumnProps) {
         columnId: column.id,
         dueDate: newTaskDueDate || undefined,
         logoUrl: newTaskLogo || undefined,
-        source: 'mentoria',
+        source,
         meetingsCount: newTaskMeetings ? parseInt(newTaskMeetings, 10) : 0,
       } as any)
       setNewTaskTitle('')

@@ -25,15 +25,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useChurnDragHandler } from '@/hooks/use-churn-drag'
 import { ChurnReasonModal } from '@/components/clientes/churn-reason-modal'
 
-const SOURCE = 'mentoria'
-
-export function MentoriaBoard() {
-  const { data: columns, isLoading } = useColumns(SOURCE)
-  const createColumn = useCreateColumn(SOURCE)
+export function MentoriaBoard({ source = 'mentoria' }: { source?: string }) {
+  const { data: columns, isLoading } = useColumns(source)
+  const createColumn = useCreateColumn(source)
   const reorderTasks = useReorderTasks()
   const reorderColumns = useReorderColumns()
   const queryClient = useQueryClient()
-  const { pendingChurn, interceptDragEnd, confirmChurn, cancelChurn, isSaving: isSavingChurn } = useChurnDragHandler(SOURCE)
+  const { pendingChurn, interceptDragEnd, confirmChurn, cancelChurn, isSaving: isSavingChurn } = useChurnDragHandler(source)
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
@@ -86,7 +84,7 @@ export function MentoriaBoard() {
     }
 
     if (targetColumnId && targetColumnId !== activeTask.columnId) {
-      queryClient.setQueryData<Column[]>(['columns', SOURCE], (old) => {
+      queryClient.setQueryData<Column[]>(['columns', source], (old) => {
         if (!old) return old
         return old.map((col) => {
           if (col.id === activeTask.columnId) {
@@ -99,7 +97,7 @@ export function MentoriaBoard() {
         })
       })
     }
-  }, [columns, queryClient])
+  }, [columns, queryClient, source])
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
@@ -119,7 +117,7 @@ export function MentoriaBoard() {
           const reordered = arrayMove(columns, oldIndex, newIndex)
           const items = reordered.map((col, i) => ({ id: col.id, order: (i + 1) * 1000 }))
 
-          queryClient.setQueryData<Column[]>(['columns', SOURCE], reordered)
+          queryClient.setQueryData<Column[]>(['columns', source], reordered)
           reorderColumns.mutate(items)
         }
       }
@@ -129,7 +127,7 @@ export function MentoriaBoard() {
     if (activeData?.type === 'task') {
       if (interceptDragEnd(activeTask, active.id as string)) return
 
-      const currentColumns = queryClient.getQueryData<Column[]>(['columns', SOURCE])
+      const currentColumns = queryClient.getQueryData<Column[]>(['columns', source])
       if (!currentColumns) return
 
       const items: { id: string; columnId: string; order: number }[] = []
@@ -143,7 +141,7 @@ export function MentoriaBoard() {
         reorderTasks.mutate(items)
       }
     }
-  }, [columns, queryClient, reorderTasks, reorderColumns, activeTask, interceptDragEnd])
+  }, [columns, queryClient, reorderTasks, reorderColumns, source, activeTask, interceptDragEnd])
 
   const handleAddColumn = () => {
     if (newColumnTitle.trim()) {
@@ -158,7 +156,7 @@ export function MentoriaBoard() {
       <div className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-          <span className="text-sm text-slate-500">Carregando mentoria...</span>
+          <span className="text-sm text-slate-500">Carregando quadro...</span>
         </div>
       </div>
     )
@@ -226,7 +224,7 @@ export function MentoriaBoard() {
         <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-5 items-start min-h-[calc(100vh-180px)]">
             {visibleColumns.map((column) => (
-              <MentoriaColumn key={column.id} column={column} />
+              <MentoriaColumn key={column.id} column={column} source={source} />
             ))}
 
             {/* Add column */}

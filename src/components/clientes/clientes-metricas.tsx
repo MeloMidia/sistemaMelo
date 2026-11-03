@@ -22,7 +22,7 @@ type PeriodMode = 'month' | 'custom' | 'total'
 // isLegacyChurn: cliente sem churnedAt mas já sentado numa coluna de encerramento —
 // saída de antes desse campo existir. Sem data real, então não entra em nenhum
 // recorte de "ativos" (mas também não vira uma "saída" fabricada — ver lib/clientes.ts).
-type ClienteTask = Task & { origem: 'Assessoria' | 'Mentoria'; isLegacyChurn: boolean }
+type ClienteTask = Task & { origem: 'Assessoria' | 'Mentoria' | 'Implementação'; isLegacyChurn: boolean }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 function startOf(y: number, m: number) { return new Date(y, m, 1) }
@@ -197,6 +197,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
 
   const { data: kanbanCols,   isLoading: loadK } = useColumns('kanban')
   const { data: mentoriaCols, isLoading: loadM } = useColumns('mentoria')
+  const { data: implementacaoCols, isLoading: loadI } = useColumns('implementacao')
 
   /* ── Tasks ──────────────────────────────────────────────────────────── */
   // Todos os cards de cada quadro, com a origem marcada — sem filtrar coluna por título:
@@ -220,8 +221,20 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
     })))
   }, [mentoriaCols])
 
-  // "Clientes" = cards dos dois quadros combinados — usado nas métricas de entrada/saída/churn.
-  const clienteTasks = useMemo(() => [...kanbanAllTasks, ...mentoriaTasks], [kanbanAllTasks, mentoriaTasks])
+  const implementacaoTasks = useMemo<ClienteTask[]>(() => {
+    if (!implementacaoCols) return []
+    return implementacaoCols.flatMap(c => c.tasks.map(t => ({
+      ...t,
+      origem: 'Implementação' as const,
+      isLegacyChurn: isLegacyChurn(t, c.title),
+    })))
+  }, [implementacaoCols])
+
+  // "Clientes" = cards dos três quadros combinados — usado nas métricas de entrada/saída/churn.
+  const clienteTasks = useMemo(
+    () => [...kanbanAllTasks, ...mentoriaTasks, ...implementacaoTasks],
+    [kanbanAllTasks, mentoriaTasks, implementacaoTasks],
+  )
 
   // Ativos só da Assessoria, sem os encerrados — usado nas seções ADS & Promoção e Por Etapa,
   // que são conceitos específicos daquele quadro.
@@ -350,10 +363,10 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
   /* ── Contratos vencendo ──────────────────────────────────────────────── */
   const in60 = todayMs + 60 * 24 * 60 * 60 * 1000
   const vencendo = useMemo(() =>
-    mentoriaTasks
+    [...mentoriaTasks, ...implementacaoTasks]
       .filter(t => { if (!t.dueDate || t.churnedAt || t.isLegacyChurn) return false; const d = new Date(t.dueDate).getTime(); return d >= todayMs && d <= in60 })
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
-  [mentoriaTasks, todayMs, in60])
+  [mentoriaTasks, implementacaoTasks, todayMs, in60])
 
   /* ── Lista expandível — quem entrou / quem saiu ───────────────────────── */
   const [expandedKpi, setExpandedKpi] = useState<'ativos' | 'entradas' | 'saidas' | null>(null)
@@ -366,6 +379,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
         : []
   const expandedAssessoriaList = expandedList.filter(task => task.origem === 'Assessoria')
   const expandedMentoriaList = expandedList.filter(task => task.origem === 'Mentoria')
+  const expandedImplementacaoList = expandedList.filter(task => task.origem === 'Implementação')
 
   /* ── Nav mês ─────────────────────────────────────────────────────────── */
   const isNow = selYear === today.getFullYear() && selMonth === today.getMonth()
@@ -373,7 +387,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
   function next() { if (isNow) return; if (selMonth === 11) { setSelYear(y => y+1); setSelMonth(0) } else setSelMonth(m => m+1) }
 
   /* ── Loading ─────────────────────────────────────────────────────────── */
-  if (loadK || loadM) return (
+  if (loadK || loadM || loadI) return (
     <div className="flex-1 flex items-center justify-center">
       <Loader2 className="w-6 h-6 text-white/20 animate-spin" />
     </div>
@@ -398,7 +412,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
             Dashboard de Clientes
           </h1>
           <p className="text-[12px] text-white/40 mt-0.5">
-            {periodSummary} — Assessoria + Mentoria
+            {periodSummary} — Assessoria + Mentoria + Implementação
           </p>
         </div>
 
@@ -547,7 +561,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
                 {expandedKpi === 'ativos' ? 'Clientes ativos' : expandedKpi === 'entradas' ? 'Quem entrou' : 'Quem saiu'}
               </p>
               <p className="text-[11px] text-white/35 mt-0.5">
-                {expandedKpi === 'ativos' ? `No fim de ${periodLabel.toLocaleLowerCase()}` : periodLabel} · Assessoria + Mentoria
+                {expandedKpi === 'ativos' ? `No fim de ${periodLabel.toLocaleLowerCase()}` : periodLabel} · Assessoria + Mentoria + Implementação
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-indigo-200"
@@ -557,6 +571,10 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
                 <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-emerald-200"
                   style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)' }}>
                   <span className="text-[12px] text-white">{expandedMentoriaList.length}</span> Mentoria
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-amber-200"
+                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  <span className="text-[12px] text-white">{expandedImplementacaoList.length}</span> Implementação
                 </span>
               </div>
             </div>
@@ -574,10 +592,11 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
               {expandedKpi === 'ativos' ? 'Nenhum cliente ativo nesse período.' : `Ninguém ${expandedKpi === 'entradas' ? 'entrou' : 'saiu'} nesse período.`}
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
               {[
                 { label: 'Assessoria', items: expandedAssessoriaList, color: '#6366f1' },
                 { label: 'Mentoria', items: expandedMentoriaList, color: '#10b981' },
+                { label: 'Implementação', items: expandedImplementacaoList, color: '#f59e0b' },
               ].map(group => (
                 <div key={group.label} className="min-w-0 rounded-xl p-3"
                   style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -768,7 +787,7 @@ export function ClientesMetricas({ onOpenLead }: { onOpenLead?: (leadId: string)
               </span>
             )}
           </div>
-          <p className="text-[11px] text-white/35 mb-4">Mentoria — próximos 60 dias</p>
+          <p className="text-[11px] text-white/35 mb-4">Mentoria e Implementação — próximos 60 dias</p>
 
           {vencendo.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[180px] gap-2">

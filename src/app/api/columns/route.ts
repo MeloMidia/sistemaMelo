@@ -137,7 +137,7 @@ export async function GET(request: Request) {
 
   // Selo "N tarefas" dos cartões de cliente numa consulta só — antes cada
   // cartão buscava a própria lista de tarefas ao carregar o quadro.
-  if (source === 'kanban' || source === 'mentoria') {
+  if (source === 'kanban' || source === 'mentoria' || source === 'implementacao') {
     const cardIds = columns.flatMap((column) => column.tasks.map((task) => task.id))
     const counts = cardIds.length > 0
       ? await prisma.task.groupBy({

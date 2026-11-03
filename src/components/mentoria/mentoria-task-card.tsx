@@ -65,12 +65,12 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
   const createTask = useCreateTask()
-  const createColumn = useCreateColumn('mentoria')
+  const createColumn = useCreateColumn(task.source)
   // Só com a janela aberta (criar tarefa) — fechado, cada cartão do quadro
   // dispararia essas buscas ao carregar.
   const { data: columns } = useColumns('tasks', { enabled: modalOpen })
   const { data: kanbanColumns } = useColumns('kanban', { enabled: modalOpen })
-  const { data: mentoriaColumns } = useColumns('mentoria')
+  const { data: boardColumns } = useColumns(task.source)
   const { data: cardTasks } = useKanbanCardTasks(task.id, modalOpen)
 
   const activeTasks = (cardTasks ?? []).filter(t => !t.completedAt)
@@ -145,7 +145,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
   }
 
   const handleEncerrarContrato = async (reason: string) => {
-    const existing = mentoriaColumns?.find((c) => isChurnColumnTitle(c.title))
+    const existing = boardColumns?.find((c) => isChurnColumnTitle(c.title))
     const columnId = existing ? existing.id : (await createColumn.mutateAsync(DEFAULT_ENCERRADO_COLUMN_TITLE)).id
     updateTask.mutate({ id: task.id, columnId, churnedAt: new Date().toISOString(), churnReason: reason })
     setChurnModalOpen(false)
@@ -210,7 +210,7 @@ export function MentoriaTaskCard({ task }: MentoriaTaskCardProps) {
             {...listeners}
             onClick={(e) => e.stopPropagation()}
             className="mt-1 p-0.5 rounded text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0 hover:bg-white/[0.04] transition-colors"
-            aria-label="Arrastar mentoria"
+            aria-label="Arrastar cliente"
           >
             <GripVertical className="w-3.5 h-3.5" />
           </button>
