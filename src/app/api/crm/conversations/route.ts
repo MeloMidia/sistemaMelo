@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
   const lastByLead = await findLastMessages(leads.map((lead) => lead.id))
 
-  return NextResponse.json(leads.map((lead) => {
+  const conversations = leads.map((lead) => {
     const last = lastByLead.get(lead.id)
     const lastMessage = last
       ? { id: last.id, content: last.content, direction: last.direction, status: last.status, createdAt: last.createdAt }
@@ -60,5 +60,15 @@ export async function GET(request: Request) {
     )
 
     return { ...lead, lastMessage, isUnread }
-  }))
+  })
+
+  // Lead.updatedAt é @updatedAt: marcar como lida, mudar estágio ou etiqueta
+  // também o avança, e a conversa subia para o topo sem mensagem nova. A lista
+  // segue a última mensagem; o recorte por updatedAt continua valendo, porque
+  // toda mensagem nova avança o updatedAt do lead.
+  const lastActivity = (conversation: (typeof conversations)[number]) =>
+    new Date(conversation.lastMessage?.createdAt ?? conversation.updatedAt).getTime()
+  conversations.sort((first, second) => lastActivity(second) - lastActivity(first))
+
+  return NextResponse.json(conversations)
 }
