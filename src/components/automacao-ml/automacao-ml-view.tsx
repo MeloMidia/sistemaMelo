@@ -1,23 +1,49 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Bot, Play, Square, RefreshCw } from 'lucide-react'
+import { Fragment, useState, useEffect, useRef } from 'react'
+import { Bot, Play, Square, RefreshCw, Folder, ChevronRight, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type Status = 'loading' | 'ready' | 'running' | 'done' | 'error' | 'cancelled'
+type SheetsState = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 
-interface Client { id: string; name: string }
+interface DriveFolder { id: string; name: string }
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** Subpastas de uma pasta de MERCADO LIVRE; sem `parent`, da própria raiz. */
+async function fetchFolder(parent?: DriveFolder): Promise<{ folder: DriveFolder; folders: DriveFolder[] }> {
+  const query = parent ? `?parent_id=${encodeURIComponent(parent.id)}` : ''
+  const res = await fetch(`/api/automacao/clients${query}`)
+  if (!res.ok) throw new Error(`Erro HTTP ${res.status} na rota proxy.`)
+  const data = await res.json()
+  if (!data.ok) throw new Error(data.error || data.message || 'Erro desconhecido do servidor.')
+  // Servidor antigo ignora parent_id e devolve a raiz de novo.
+  if (parent && data.folder?.id !== parent.id) {
+    throw new Error('O servidor da automação ainda não abre subpastas: falta publicar a versão nova dele.')
+  }
+  return { folder: data.folder ?? { id: '', name: 'Mercado Livre' }, folders: data.clients }
+}
 
 export function AutomacaoMLView() {
   const [status, setStatus]               = useState<Status>('loading')
-  const [clients, setClients]             = useState<Client[]>([])
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [path, setPath]                   = useState<DriveFolder[]>([])
+  const [folders, setFolders]             = useState<DriveFolder[]>([])
+  const [foldersLoading, setFoldersLoading] = useState(false)
+  const [folderError, setFolderError]     = useState<string | null>(null)
+  const [filter, setFilter]               = useState('')
+  const [selectedClient, setSelectedClient] = useState<DriveFolder | null>(null)
   const [sheets, setSheets]               = useState<string[]>([])
   const [selectedSheets, setSelectedSheets] = useState<string[]>([])
+  const [sheetsState, setSheetsState]     = useState<SheetsState>('idle')
+  const [sheetsError, setSheetsError]     = useState<string | null>(null)
   const [logs, setLogs]                   = useState<string[]>([])
   const [errorMsg, setErrorMsg]           = useState<string | null>(null)
   const logsEndRef                        = useRef<HTMLDivElement>(null)
   const esRef                             = useRef<EventSource | null>(null)
+  // Cliques rápidos: só a resposta do último pedido vale.
+  const folderRequestRef                  = useRef(0)
+  const sheetsRequestRef                  = useRef(0)
 
   useEffect(() => {
     loadClients()
@@ -31,17 +57,39 @@ export function AutomacaoMLView() {
   async function loadClients() {
     setStatus('loading')
     setErrorMsg(null)
+    const request = ++folderRequestRef.current
     try {
-      const res  = await fetch('/api/automacao/clients')
-      if (!res.ok) throw new Error(`Erro HTTP ${res.status} na rota proxy.`)
-      const data = await res.json()
-      if (!data.ok) throw new Error(data.error || data.message || 'Erro desconhecido do servidor.')
-      setClients(data.clients)
+      const { folder, folders } = await fetchFolder()
+      if (request !== folderRequestRef.current) return
+      setPath([folder])
+      setFolders(folders)
+      setFolderError(null)
+      setFilter('')
       setStatus('ready')
       await checkRunningStatus()
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : String(e))
+      if (request !== folderRequestRef.current) return
+      setErrorMsg(errorText(e))
       setStatus('error')
+    }
+  }
+
+  /** Abre a última pasta de `nextPath`; com uma pasta só, volta para a raiz. */
+  async function openFolder(nextPath: DriveFolder[]) {
+    const request = ++folderRequestRef.current
+    setFoldersLoading(true)
+    setFolderError(null)
+    setFilter('')
+    try {
+      const { folder, folders } = await fetchFolder(nextPath.length > 1 ? nextPath[nextPath.length - 1] : undefined)
+      if (request !== folderRequestRef.current) return
+      setPath(nextPath.length > 1 ? nextPath : [folder])
+      setFolders(folders)
+    } catch (e) {
+      if (request !== folderRequestRef.current) return
+      setFolderError(errorText(e))
+    } finally {
+      if (request === folderRequestRef.current) setFoldersLoading(false)
     }
   }
 
@@ -56,19 +104,28 @@ export function AutomacaoMLView() {
     }
   }
 
-  async function handleSelectClient(client: Client) {
-    setSelectedClient(client)
+  async function handleSelectClient(folder: DriveFolder) {
+    // O nome só aparece no log; o caminho a partir da raiz diz qual subpasta foi.
+    const name = [...path.slice(1), folder].map((item) => item.name).join(' / ')
+    const request = ++sheetsRequestRef.current
+    setSelectedClient({ id: folder.id, name })
     setSheets([])
     setSelectedSheets([])
+    setSheetsError(null)
+    setSheetsState('loading')
     try {
-      const res  = await fetch(`/api/automacao/sheets?client_id=${client.id}`)
+      const res  = await fetch(`/api/automacao/sheets?client_id=${encodeURIComponent(folder.id)}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (!data.ok) throw new Error(data.error)
+      if (request !== sheetsRequestRef.current) return
       setSheets(data.sheets)
       setSelectedSheets(data.sheets)
+      setSheetsState(data.sheets.length > 0 ? 'ready' : 'empty')
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : String(e))
+      if (request !== sheetsRequestRef.current) return
+      setSheetsError(errorText(e))
+      setSheetsState('error')
     }
   }
 
@@ -136,6 +193,13 @@ export function AutomacaoMLView() {
   }
 
   const isRunning = status === 'running'
+  const filterTerm = filter.trim().toLowerCase()
+  const visibleFolders = filterTerm
+    ? folders.filter(folder => folder.name.toLowerCase().includes(filterTerm))
+    : folders
+  // Sem planilha na pasta, ou com todas as abas desmarcadas, não há o que rodar
+  // (antes, nenhuma aba marcada rodava a planilha inteira).
+  const canRun = Boolean(selectedClient) && status !== 'loading' && sheetsState === 'ready' && selectedSheets.length > 0
 
   return (
     <div className="mf-workspace flex-1 overflow-auto p-6">
@@ -157,33 +221,125 @@ export function AutomacaoMLView() {
         {/* Config card */}
         <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 space-y-4">
 
-          {/* Cliente */}
+          {/* Cliente: navegador das pastas de MERCADO LIVRE */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Cliente</label>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-medium text-slate-300">Cliente</span>
+              {selectedClient && (
+                <span className="min-w-0 truncate text-xs text-emerald-300" title={selectedClient.name}>
+                  Escolhido: {selectedClient.name}
+                </span>
+              )}
+            </div>
             {status === 'loading' ? (
               <p className="text-sm text-slate-500">Carregando clientes...</p>
-            ) : (
-              <select
-                disabled={isRunning}
-                value={selectedClient?.id ?? ''}
-                onChange={e => {
-                  const c = clients.find(c => c.id === e.target.value)
-                  if (c) handleSelectClient(c)
-                }}
-                className="w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
-              >
-                <option value="" disabled>Selecione um cliente...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+            ) : path.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-white/[0.1] bg-white/[0.03]">
+                <nav aria-label="Pasta atual" className="flex flex-wrap items-center gap-1 border-b border-white/[0.06] px-3 py-2 text-xs">
+                  {path.map((folder, index) => (
+                    <Fragment key={`${folder.id}-${index}`}>
+                      {index > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" />}
+                      {index === path.length - 1 ? (
+                        <span className="font-semibold text-slate-200">{folder.name}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openFolder(path.slice(0, index + 1))}
+                          className="rounded px-1 text-slate-400 transition-colors hover:text-emerald-300"
+                        >
+                          {folder.name}
+                        </button>
+                      )}
+                    </Fragment>
+                  ))}
+                </nav>
+
+                <div className="relative border-b border-white/[0.06]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                  <input
+                    value={filter}
+                    onChange={e => setFilter(e.target.value)}
+                    placeholder="Buscar nesta pasta..."
+                    aria-label="Buscar nesta pasta"
+                    className="w-full bg-transparent py-2 pl-9 pr-3 text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto p-1">
+                  {foldersLoading ? (
+                    <p className="px-3 py-6 text-center text-sm text-slate-500">Abrindo pasta...</p>
+                  ) : folderError ? (
+                    <div className="space-y-2 px-3 py-4 text-center">
+                      <p className="text-sm text-red-400">{folderError}</p>
+                      <button
+                        type="button"
+                        onClick={() => openFolder(path)}
+                        className="text-xs font-medium text-slate-300 underline-offset-2 hover:underline"
+                      >
+                        Tentar de novo
+                      </button>
+                    </div>
+                  ) : visibleFolders.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-slate-500">
+                      {filter.trim()
+                        ? 'Nenhuma pasta com esse nome aqui.'
+                        : path.length > 1 ? 'Esta pasta não tem subpastas.' : 'Nenhum cliente na pasta do Drive.'}
+                    </p>
+                  ) : visibleFolders.map(folder => {
+                    const isSelected = selectedClient?.id === folder.id
+                    return (
+                      <div
+                        key={folder.id}
+                        className={`flex items-center rounded-lg transition-colors ${
+                          isSelected ? 'bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30' : 'hover:bg-white/[0.05]'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          disabled={isRunning}
+                          aria-pressed={isSelected}
+                          onClick={() => handleSelectClient(folder)}
+                          className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left text-sm disabled:opacity-50"
+                        >
+                          <Folder className={`h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-slate-500'}`} />
+                          <span className={`truncate ${isSelected ? 'font-medium text-emerald-200' : 'text-slate-300'}`}>
+                            {folder.name}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openFolder([...path, folder])}
+                          title="Abrir pasta"
+                          aria-label={`Abrir a pasta ${folder.name}`}
+                          className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {status !== 'loading' && path.length > 0 && (
+              <p className="text-xs text-slate-500">Clique no nome para escolher a pasta. A seta entra nela.</p>
             )}
           </div>
 
           {/* Abas */}
-          {sheets.length > 0 && (
+          {selectedClient && sheetsState !== 'idle' && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Abas da planilha</label>
+              <span className="text-sm font-medium text-slate-300">Abas da planilha</span>
+              {sheetsState === 'loading' && <p className="text-sm text-slate-500">Carregando abas...</p>}
+              {sheetsState === 'empty' && (
+                <p className="text-sm text-amber-300/90">
+                  Essa pasta não tem planilha. Escolha a pasta onde a planilha está.
+                </p>
+              )}
+              {sheetsState === 'error' && (
+                <p className="text-sm text-red-400">Não foi possível ler a planilha: {sheetsError}</p>
+              )}
+              {sheetsState === 'ready' && (
               <div className="flex flex-wrap gap-2">
                 {sheets.map(sheet => (
                   <button
@@ -200,6 +356,7 @@ export function AutomacaoMLView() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -209,7 +366,7 @@ export function AutomacaoMLView() {
               <>
                 <Button
                   onClick={handleRun}
-                  disabled={!selectedClient || status === 'loading'}
+                  disabled={!canRun}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
                 >
                   <Play className="w-4 h-4 mr-2" />
