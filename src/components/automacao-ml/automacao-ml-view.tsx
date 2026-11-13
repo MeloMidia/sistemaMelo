@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState, useEffect, useRef } from 'react'
-import { Bot, Play, Square, RefreshCw, Folder, ChevronRight, Search } from 'lucide-react'
+import { Bot, Play, Square, RefreshCw, Folder, ChevronRight, Search, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type Status = 'loading' | 'ready' | 'running' | 'done' | 'error' | 'cancelled'
@@ -235,7 +235,18 @@ export function AutomacaoMLView() {
               <p className="text-sm text-slate-500">Carregando clientes...</p>
             ) : path.length > 0 && (
               <div className="overflow-hidden rounded-xl border border-white/[0.1] bg-white/[0.03]">
-                <nav aria-label="Pasta atual" className="flex flex-wrap items-center gap-1 border-b border-white/[0.06] px-3 py-2 text-xs">
+                <nav aria-label="Pasta atual" className="flex min-h-[2.75rem] flex-wrap items-center gap-1 border-b border-white/[0.06] px-3 py-1.5 text-xs">
+                  {path.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => openFolder(path.slice(0, -1))}
+                      title={`Voltar para ${path[path.length - 2].name}`}
+                      className="mr-1.5 flex items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.04] px-2 py-1 font-medium text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Voltar
+                    </button>
+                  )}
                   {path.map((folder, index) => (
                     <Fragment key={`${folder.id}-${index}`}>
                       {index > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" />}
