@@ -133,6 +133,14 @@ model ResponsavelLabel {
   label String
 }
 
+// Nome de exibição de cada coluna do quadro de Tarefas. A chave é o id fixo da
+// coluna (col-queue, col-doing, col-priority, ver src/lib/task-columns.ts); sem
+// registro, vale o nome padrão.
+model TaskColumnLabel {
+  key   String @id
+  label String
+}
+
 model SdrDailyLog {
   id            String   @id @default(cuid())
   date          DateTime @unique

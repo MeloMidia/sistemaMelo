@@ -111,6 +111,50 @@ export function useUpdateResponsavelLabel() {
   })
 }
 
+// ——— Nomes das colunas de Tarefas ———
+type TaskColumnLabel = { key: string; label: string }
+
+export function useTaskColumnLabels() {
+  return useQuery<TaskColumnLabel[]>({
+    queryKey: ['task-column-labels'],
+    queryFn: async () => {
+      const res = await fetch('/api/tasks/column-labels')
+      if (!res.ok) throw new Error('Failed to fetch task column labels')
+      return res.json()
+    },
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateTaskColumnLabel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ key, label }: TaskColumnLabel) => {
+      const res = await fetch('/api/tasks/column-labels', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, label }),
+      })
+      if (!res.ok) throw new Error('Failed to update task column label')
+      return res.json()
+    },
+    // O nome novo aparece na hora; se não salvar, volta o anterior.
+    onMutate: async ({ key, label }) => {
+      await qc.cancelQueries({ queryKey: ['task-column-labels'] })
+      const previous = qc.getQueryData<TaskColumnLabel[]>(['task-column-labels'])
+      qc.setQueryData<TaskColumnLabel[]>(['task-column-labels'], (old = []) => [
+        ...old.filter((item) => item.key !== key),
+        { key, label },
+      ])
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      qc.setQueryData(['task-column-labels'], ctx?.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['task-column-labels'] }),
+  })
+}
+
 // ——— Tasks ———
 export function useAllTasks() {
   return useQuery<Task[]>({

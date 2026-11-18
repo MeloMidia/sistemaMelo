@@ -2,8 +2,10 @@
 
 import { useState, useMemo, useCallback, type ReactNode } from 'react'
 import Image from 'next/image'
-import { useAllTasks, useUpdateTask, useDeleteTask, useCompletedTasks } from '@/hooks/api'
+import { useAllTasks, useUpdateTask, useDeleteTask, useCompletedTasks, useTaskColumnLabels, useUpdateTaskColumnLabel } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
+import { EditableName } from '@/components/ui/editable-name'
+import { TASK_COLUMNS, TASK_COLUMN_LABEL_MAX, type TaskColumnKey } from '@/lib/task-columns'
 import type { Task } from '@/types'
 import {
   DndContext,
@@ -60,8 +62,9 @@ function toDateInputValue(date: Date | string | null | undefined): string {
 const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique', 'Lucas', 'Guilherme', 'Higor']
 
 interface DroppableColumnProps {
-  id: string
+  id: TaskColumnKey
   title: string
+  onRename: (title: string) => void
   icon: LucideIcon
   count: number
   tasks: Task[]
@@ -74,7 +77,7 @@ interface DroppableColumnProps {
   className?: string
 }
 
-function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass, className }: DroppableColumnProps) {
+function DroppableColumn({ id, title, onRename, icon: Icon, count, tasks, children, emptyMessage, colorClass, borderClass, bgClass, headerClass, className }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id })
 
   return (
@@ -85,12 +88,20 @@ function DroppableColumn({ id, title, icon: Icon, count, tasks, children, emptyM
         ${borderClass} ${bgClass} ${className ?? ''}`}
     >
       <div className={`p-5 border-b flex items-center justify-between ${headerClass}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ring-1 ${colorClass}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ring-1 ${colorClass}`}>
             <Icon className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h2>
+          <div className="min-w-0 flex-1">
+            <h2 style={{ fontFamily: 'var(--font-heading)' }}>
+              <EditableName
+                label={title}
+                onSave={onRename}
+                textClassName="text-lg font-semibold text-white"
+                iconClassName="w-3.5 h-3.5"
+                maxLength={TASK_COLUMN_LABEL_MAX}
+              />
+            </h2>
             <p className="text-xs font-medium opacity-70">{count} tarefas</p>
           </div>
         </div>
@@ -135,6 +146,11 @@ export function TaskManager() {
   const { data: completedTasks, isLoading: historyLoading } = useCompletedTasks()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const { data: columnLabels } = useTaskColumnLabels()
+  const updateColumnLabel = useUpdateTaskColumnLabel()
+  const columnTitle = (key: TaskColumnKey) =>
+    columnLabels?.find((item) => item.key === key)?.label ?? TASK_COLUMNS[key]
+  const renameColumn = (key: TaskColumnKey) => (label: string) => updateColumnLabel.mutate({ key, label })
 
   const [sortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -267,7 +283,8 @@ export function TaskManager() {
           {/* Column 1: Task Queue */}
           <DroppableColumn
             id="col-queue"
-            title="Fila de Tarefas"
+            title={columnTitle('col-queue')}
+            onRename={renameColumn('col-queue')}
             icon={ClipboardList}
             count={queueTasks.length}
             tasks={queueTasks}
@@ -294,7 +311,8 @@ export function TaskManager() {
           {/* Column 3: Doing */}
           <DroppableColumn
             id="col-doing"
-            title="Tarefas - Gustavo"
+            title={columnTitle('col-doing')}
+            onRename={renameColumn('col-doing')}
             icon={Activity}
             count={doingTasks.length}
             tasks={doingTasks}
@@ -322,7 +340,8 @@ export function TaskManager() {
           {/* Column 4: Priority — ocupa a linha toda em 2 colunas, senão fica sozinha e estreita */}
           <DroppableColumn
             id="col-priority"
-            title="Tarefa do dia - Guilherme"
+            title={columnTitle('col-priority')}
+            onRename={renameColumn('col-priority')}
             icon={Star}
             count={priorityTasks.length}
             tasks={priorityTasks}

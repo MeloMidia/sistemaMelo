@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -16,7 +16,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useColumns, useUpdateTask, useResponsavelLabels, useUpdateResponsavelLabel } from '@/hooks/api'
 import type { Task } from '@/types'
-import { Loader2, Pencil, Users } from 'lucide-react'
+import { Loader2, Users } from 'lucide-react'
+import { EditableName } from '@/components/ui/editable-name'
 import { isChurnColumnTitle } from '@/lib/clientes'
 
 // ── Responsáveis ──────────────────────────────────────────────────────────────
@@ -88,59 +89,6 @@ function ClientCardStatic({ task }: { task: Task }) {
       </div>
       <span className="text-sm text-white font-semibold truncate">{task.title}</span>
     </div>
-  )
-}
-
-// ── Nome editável ─────────────────────────────────────────────────────────────
-
-function EditableName({
-  label,
-  onSave,
-}: {
-  label: string
-  onSave: (value: string) => void
-}) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [value, setValue] = useState(label)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isEditing) inputRef.current?.select()
-  }, [isEditing])
-
-  function commit() {
-    setIsEditing(false)
-    const trimmed = value.trim()
-    if (trimmed && trimmed !== label) onSave(trimmed)
-    else setValue(label)
-  }
-
-  if (isEditing) {
-    return (
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); commit() }
-          if (e.key === 'Escape') { setValue(label); setIsEditing(false) }
-        }}
-        className="text-sm font-semibold text-white bg-white/[0.06] rounded-md px-1.5 py-0.5 -mx-1.5 outline-none ring-1 ring-white/20 w-full"
-      />
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => { setValue(label); setIsEditing(true) }}
-      className="group/name flex items-center gap-1.5 text-left min-w-0"
-      title="Clique para editar o nome"
-    >
-      <p className="text-sm font-semibold text-white truncate">{label}</p>
-      <Pencil className="w-3 h-3 text-slate-600 opacity-0 group-hover/name:opacity-100 shrink-0 transition-opacity" />
-    </button>
   )
 }
 
