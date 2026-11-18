@@ -1,9 +1,70 @@
 // src/hooks/crm-api.ts
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DIRECT_UPLOAD_MAX_BYTES, MEDIA_MAX_BYTES, formatMegabytes, mediaUploadPathname } from '@/lib/media-upload'
 import type { LeadStage, LeadLite, Lead, CrmTag, CrmUser, Message, WhatsappConnection, LabelColumn, FollowUpColumnData } from '@/types/crm'
+
+// ——— Atualização rápida ———
+// A mensagem chega ao banco 1–2 s depois de enviada no WhatsApp; o que atrasava
+// a tela era o intervalo das listas (10 s a 45 s). Esta consulta é pequena e
+// roda a cada 3 s; quando a mensagem mais nova ou a última alteração de lead
+// muda, as listas que estão na tela são buscadas na hora. Os intervalos
+// próprios de cada lista ficaram só como reserva.
+const LIVE_CHECK_MS = 3_000
+const LIVE_QUERY_KEYS = [
+  ['crm-conversations'],
+  ['crm-messages'],
+  ['crm-by-label'],
+  ['crm-follow-up'],
+] as const
+// O quadro é a consulta mais pesada (e /api/crm/stages grava no banco): em
+// rajada de mensagens ele recarrega no máximo a cada 15 s, sem perder a última.
+const BOARD_MIN_INTERVAL_MS = 15_000
+
+export function useCrmLiveUpdates(enabled = true) {
+  const qc = useQueryClient()
+  const lastSignature = useRef<string | null>(null)
+  const lastBoardRefresh = useRef(0)
+  const boardTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (boardTimer.current) clearTimeout(boardTimer.current)
+  }, [])
+
+  const { data } = useQuery<{ messageAt: string | null; leadAt: string | null }>({
+    queryKey: ['crm-changes'],
+    queryFn: async ({ signal }) => {
+      const res = await fetch('/api/crm/changes', { signal })
+      if (!res.ok) throw new Error('Failed to fetch CRM changes')
+      return res.json()
+    },
+    enabled,
+    staleTime: 0,
+    refetchInterval: LIVE_CHECK_MS,
+  })
+
+  useEffect(() => {
+    if (!data) return
+    const signature = `${data.messageAt}|${data.leadAt}`
+    const previous = lastSignature.current
+    lastSignature.current = signature
+    // A primeira resposta só marca o ponto de partida: as listas acabaram de carregar.
+    if (previous === null || previous === signature) return
+    // invalidateQueries só busca de novo as consultas que estão na tela.
+    for (const queryKey of LIVE_QUERY_KEYS) qc.invalidateQueries({ queryKey })
+
+    const refreshBoard = () => {
+      boardTimer.current = null
+      lastBoardRefresh.current = Date.now()
+      qc.invalidateQueries({ queryKey: ['crm-stages'] })
+    }
+    const wait = BOARD_MIN_INTERVAL_MS - (Date.now() - lastBoardRefresh.current)
+    if (wait <= 0) refreshBoard()
+    else if (!boardTimer.current) boardTimer.current = setTimeout(refreshBoard, wait)
+  }, [data, qc])
+}
 
 // ——— Stages (board) ———
 export function useStages() {
@@ -15,8 +76,8 @@ export function useStages() {
       return res.json()
     },
     staleTime: 10_000,
-    // Board não é latência-crítico — conversas (15s) e mensagens (10s) têm
-    // polling próprio mais curto.
+    // Reserva: na tela do CRM, mensagem nova já recarrega o quadro via
+    // useCrmLiveUpdates; fora dela (campanhas, agenda) o quadro não é urgente.
     refetchInterval: 45_000,
   })
 }
@@ -318,7 +379,9 @@ export function useLeadMessages(leadId: string | null) {
       return res.json()
     },
     enabled: !!leadId,
-    refetchInterval: 10_000,
+    // Mensagem nova chega via useCrmLiveUpdates; este intervalo traz o resto
+    // (os tiques de entregue/lido não mudam nada que o aviso rápido enxergue).
+    refetchInterval: 30_000,
   })
 }
 

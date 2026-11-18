@@ -5,7 +5,7 @@ import { CheckCheck, ListFilter, MessageCircle, Search, Wifi, WifiOff, X } from 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CrmConversation } from '@/types/crm'
 import { formatPhoneNumber, getLeadDisplayName } from '@/lib/phone'
-import { useConnection } from '@/hooks/crm-api'
+import { useConnection, useCrmLiveUpdates } from '@/hooks/crm-api'
 import { LeadConversaTab } from './lead-conversa-tab'
 import { LeadNotesTab } from './lead-notes-tab'
 import { LeadLogsTab } from './lead-logs-tab'
@@ -80,6 +80,8 @@ export function CrmInbox({
   const deferredSearch = useDeferredValue(search.trim())
   const queryClient = useQueryClient()
   const { data: connection } = useConnection()
+  // Busca a conversa, a lista e o quadro assim que chega mensagem nova.
+  useCrmLiveUpdates()
 
   if (openLeadId !== syncedOpenLeadId) {
     setSyncedOpenLeadId(openLeadId)
@@ -96,7 +98,8 @@ export function CrmInbox({
     },
     enabled: view === 'inbox',
     staleTime: 5_000,
-    refetchInterval: view === 'inbox' && !deferredSearch ? 15_000 : false,
+    // Reserva: mensagem nova já recarrega a lista via useCrmLiveUpdates.
+    refetchInterval: view === 'inbox' && !deferredSearch ? 60_000 : false,
   })
 
   const markAsRead = useMutation({
